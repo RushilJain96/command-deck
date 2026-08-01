@@ -1,8 +1,35 @@
 @import "tailwindcss";
 
+/**
+ * Orbital radius of the mission ring.
+ *
+ * Registered with @property on purpose. A registered <length> has a computed
+ * value resolved to pixels, so JS can read a real number:
+ *
+ *   parseFloat(getComputedStyle(document.documentElement)
+ *     .getPropertyValue("--orbit-radius"))
+ *
+ * Without the registration that call returns the literal `clamp(...)` token.
+ * This is what lets a future camera focus pose compute a world target without
+ * ever measuring the viewport in JS.
+ *
+ * `svmin` rather than `vmin`: `vmin` resolves against the *large* viewport on
+ * mobile, so nodes clip under browser chrome and the radius jitters as the
+ * chrome shows and hides. The clamp keeps nodes clear of the spacecraft on
+ * extreme aspect ratios, where a bare min(vw,vh) collapses (1920x400 would put
+ * the ring on top of the ship).
+ */
+@property --orbit-radius {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --orbit-radius: clamp(140px, 35svmin, 420px);
+
+  --background: #08090a;
+  --foreground: #ededed;
 }
 
 @theme inline {
@@ -12,15 +39,19 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Fixed viewport. The app never scrolls — navigation is spatial, not vertical. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  /* overflow:hidden alone does not stop iOS rubber-banding. */
+  overscroll-behavior: none;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* `manipulation`, never `none`: `none` disables pinch-zoom, which fails
+     WCAG 1.4.4. It only removes the 300ms double-tap delay. */
+  touch-action: manipulation;
 }
