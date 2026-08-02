@@ -8,7 +8,7 @@
 export function ProjectScene() {
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <p className="font-mono text-xs tracking-[0.35em] text-zinc-600 uppercase">
+      <p className="text-t3 font-mono text-xs tracking-[0.35em] uppercase">
         Project Scene
       </p>
     </div>

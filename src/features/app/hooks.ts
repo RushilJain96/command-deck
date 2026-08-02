@@ -1,13 +1,19 @@
 "use client";
 
 import { useContext } from "react";
-import { AppDispatchContext, AppStateContext } from "./AppProvider";
-import { selectActiveTargetId, type AppState } from "./state";
+import type { MissionId } from "@/features/missions/types";
+import {
+  ActiveTargetContext,
+  AppDispatchContext,
+  LockedTargetContext,
+  SceneContext,
+} from "./AppProvider";
+import type { Scene } from "./state";
 
-export function useAppState(): AppState {
-  const state = useContext(AppStateContext);
-  if (state === null) throw new Error("useAppState must be used within <AppProvider>");
-  return state;
+export function useScene(): Scene {
+  const scene = useContext(SceneContext);
+  if (scene === null) throw new Error("useScene must be used within <AppProvider>");
+  return scene;
 }
 
 export function useAppDispatch() {
@@ -16,7 +22,18 @@ export function useAppDispatch() {
   return dispatch;
 }
 
-/** The mission currently being aimed at, resolved across pointer/focus/lock. */
-export function useActiveTargetId() {
-  return selectActiveTargetId(useAppState());
+/**
+ * The mission currently being aimed at, resolved across pointer/focus/lock.
+ * Changes on every hover — read it only where that is genuinely wanted.
+ */
+export function useActiveTargetId(): MissionId | null {
+  return useContext(ActiveTargetContext);
+}
+
+/**
+ * The mission the operator has committed to. Deliberately unaffected by hover,
+ * so a persistent readout does not flicker as the pointer crosses the deck.
+ */
+export function useLockedTargetId(): MissionId | null {
+  return useContext(LockedTargetContext);
 }

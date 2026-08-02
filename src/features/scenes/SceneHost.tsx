@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useAppState } from "@/features/app/hooks";
+import { useScene } from "@/features/app/hooks";
 import { SCENE_REGISTRY } from "./registry";
 
 /**
@@ -19,7 +19,7 @@ import { SCENE_REGISTRY } from "./registry";
  * means a new scene cannot get this wrong.
  */
 export function SceneHost() {
-  const { scene } = useAppState();
+  const scene = useScene();
   const Scene = SCENE_REGISTRY[scene.id];
 
   return (
