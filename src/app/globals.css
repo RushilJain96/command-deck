@@ -12,12 +12,6 @@
  * Without the registration that call returns the literal `clamp(...)` token.
  * This is what lets a future camera focus pose compute a world target without
  * ever measuring the viewport in JS.
- *
- * `svmin` rather than `vmin`: `vmin` resolves against the *large* viewport on
- * mobile, so nodes clip under browser chrome and the radius jitters as the
- * chrome shows and hides. The clamp keeps nodes clear of the spacecraft on
- * extreme aspect ratios, where a bare min(vw,vh) collapses (1920x400 would put
- * the ring on top of the ship).
  */
 @property --orbit-radius {
   syntax: "<length>";
@@ -25,18 +19,204 @@
   initial-value: 0px;
 }
 
-:root {
-  --orbit-radius: clamp(140px, 35svmin, 420px);
+/**
+ * Vertical squash of the orbital plane. OWNED BY TypeScript — <OrbitPlane>
+ * injects the real value as an inline style from ORBIT_TILT in placement.ts.
+ *
+ * The initial value here is deliberately 1 (a perfect circle, i.e. no tilt).
+ * If the inline style ever goes missing the deck visibly flattens, which is a
+ * loud, obvious failure. Do NOT "fix" that by writing 0.46 here — two sources
+ * of truth would let CSS and the ship's aim drift apart silently.
+ */
+@property --orbit-tilt {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
 
-  --background: #08090a;
-  --foreground: #ededed;
+/**
+ * How far the spacecraft's station sits below the plane's centre, in units of
+ * --orbit-radius * --orbit-tilt. Also TypeScript-owned (SHIP_STANDOFF), also
+ * injected by <OrbitPlane>, and for the same reason: the hull's aim is derived
+ * from it, so a divergent copy in CSS would mis-point the ship.
+ *
+ * Initial 0 means a missing provider collapses the plane back onto the ship,
+ * which is unmistakable rather than subtly wrong.
+ */
+@property --ship-standoff {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+/* Per-node projection: sin(theta), -cos(theta), and which orbit it rides. */
+@property --node-sx {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --node-sy {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --node-ring {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+/**
+ * PALETTE — every colour has exactly one job.
+ *
+ * The discipline matters more than the count: when a hue appears, it must mean
+ * something. Signal red is reserved for the operator's current target and is
+ * used NOWHERE else, so the eye learns in one hover that red means "this is
+ * what you are pointing at". Lifecycle state gets its own instrument-panel
+ * pair (nominal / caution) borrowed from annunciator conventions rather than
+ * competing with the target colour, which is the ambiguity this palette exists
+ * to resolve.
+ */
+:root {
+  --void: #06070a; /* deep space */
+  --hull: #12151b; /* instrument body */
+  --signal: #ff3b30; /* ACTIVE TARGET ONLY */
+  --nominal: #3fb98a; /* deployed */
+  --caution: #d99a2b; /* in development */
+  --telemetry: #7d9cbc; /* live machine data */
+
+  /* Text ramp: four steps, so hierarchy is a choice rather than an accident. */
+  --text-primary: #f2f5f8; /* titles */
+  --text-secondary: #98a2ad; /* descriptions */
+  --text-tertiary: #5b646e; /* instrument labels */
+  --text-quaternary: #363d45; /* inactive / locked */
+
+  --background: var(--void);
+  --foreground: var(--text-primary);
+
+  /**
+   * THE RADIUS IS SOLVED, NOT GUESSED.
+   *
+   * The binding constraint is horizontal. The outermost mission sits at 0.719R
+   * from the centre line (that is `max(ring * |sin theta|)` over the roster in
+   * missions/data.ts) and hangs a panel outboard of it, so the deck's real reach
+   * is `0.719R + run + panelWidth`. On this tier it must ALSO clear the
+   * full-height HUD rail. Because the panel and the rail are both FIXED pixel
+   * widths, a plain percentage of the viewport cannot satisfy both a 1512px
+   * window and a 1920px one — it either clips the former or wastes the latter.
+   * Rearranging `0.719R + reserve <= 50svw` for R gives the expression below.
+   *
+   * `reserve` = rail 240 + rail margin 20 + leader run 18 + widest panel 244
+   *           + 14 slack = 536px, and 0.719 is the reach. Both numbers are
+   * MEASURED, not estimated — panel boxes came off the live DOM after an
+   * estimate of 203px turned out to be 205 plus a 3px inset edge light, which
+   * was enough to push a mission under the sidebar.
+   *
+   * Do not hand-tune this. A headless solver models these formulas exactly and
+   * checks every callout against every other callout, the rail, the ship and
+   * the frame across 25 viewports; the first hand-tuned attempt hid a mission
+   * under the sidebar at every desktop size and nothing in the code said so.
+   *
+   * Small-viewport units so the ring never jitters as mobile browser chrome
+   * hides and shows.
+   */
+  --orbit-radius: clamp(96px, min((50svw - 536px) / 0.719, 62svh), 470px);
+
+  /**
+   * How far a callout stands off its anchor: horizontal reach, then elevation.
+   * Responsive because a fixed standoff that reads well on a desktop pushes
+   * panels off the edge of a phone. CSS-only, so no measurement is involved.
+   */
+  --callout-run: 18px;
+  --callout-rise: 26px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-void: var(--void);
+  --color-hull: var(--hull);
+  --color-signal: var(--signal);
+  --color-nominal: var(--nominal);
+  --color-caution: var(--caution);
+  --color-telemetry: var(--telemetry);
+  --color-t1: var(--text-primary);
+  --color-t2: var(--text-secondary);
+  --color-t3: var(--text-tertiary);
+  --color-t4: var(--text-quaternary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /**
+   * TWO tracking steps for uppercase instrument type, and only two.
+   *
+   * This file previously carried seven different values between 0.14em and
+   * 0.28em, which is indistinguishable from having no system at all — the eye
+   * cannot read a 0.02em difference as meaning anything, it just registers the
+   * rail as slightly inconsistent. `micro` is for values and inline labels,
+   * `label` for the eyebrow that names a panel. Nothing else.
+   */
+  --tracking-micro: 0.16em;
+  --tracking-label: 0.2em;
+}
+
+/**
+ * Deck tiers. Pure media queries — no JS measurement, so node placement stays
+ * correct on the first server-rendered paint.
+ *
+ * Height matters as much as width: a short landscape window has no room for
+ * full panels even when it is very wide.
+ */
+/**
+ * `deck-md` STARTS AT 1500px, NOT AT A ROUND TABLET NUMBER.
+ *
+ * That is where the composition actually breaks, and it is much wider than it
+ * looks like it should be. A full-height 240px HUD rail plus a callout on the
+ * far flank consumes 536px of the 50svw half-width; below roughly 1500px there
+ * is not enough left over for an orbit big enough to keep the six callouts from
+ * overlapping each other. So the rail stands down and the deck takes the width.
+ *
+ * That is the right trade for this application rather than a concession: the
+ * spatial interface is the product, and a cramped deck framed by instruments
+ * communicates less than an uncramped deck with the instruments deferred.
+ */
+@custom-variant deck-md {
+  @media (max-width: 1500px) {
+    @slot;
+  }
+  @media (max-height: 700px) {
+    @slot;
+  }
+}
+
+@custom-variant deck-sm {
+  @media (max-width: 620px) {
+    @slot;
+  }
+  @media (max-height: 560px) {
+    @slot;
+  }
+}
+
+/* Standoff and radius shrink together with the tier. Kept next to the variants
+   so the three can never drift apart — the `reserve` term in each radius
+   expression is the panel box AT THAT TIER plus whatever chrome that tier still
+   shows, so changing one without the others silently reintroduces overlap.
+   No rail below deck-md, hence the much smaller reserve. */
+@media (max-width: 1500px), (max-height: 700px) {
+  :root {
+    --callout-run: 16px;
+    --callout-rise: 24px;
+    --orbit-radius: clamp(80px, min((50svw - 210px) / 0.719, 38svh), 276px);
+  }
+}
+
+@media (max-width: 620px), (max-height: 560px) {
+  :root {
+    --callout-run: 9px;
+    --callout-rise: 14px;
+    --orbit-radius: clamp(60px, min((50svw - 20px) / 0.719, 30svh), 120px);
+  }
 }
 
 /* Fixed viewport. The app never scrolls — navigation is spatial, not vertical. */
@@ -54,4 +234,130 @@ body {
   /* `manipulation`, never `none`: `none` disables pinch-zoom, which fails
      WCAG 1.4.4. It only removes the 300ms double-tap delay. */
   touch-action: manipulation;
+}
+
+/**
+ * AMBIENT LIFE
+ *
+ * Mission control should feel powered on rather than paused. Everything below
+ * is deliberately near the threshold of perception — the goal is that nobody
+ * consciously notices any of it, only that the deck feels operational.
+ *
+ * These are CSS animations, which is a THIRD reduced-motion mechanism: they
+ * respect neither <MotionConfig reducedMotion> (declarative Framer only) nor
+ * useMotionPreset (imperative MotionValues only). Every one of them must be
+ * switched off explicitly at the bottom of this file.
+ *
+ * All of them animate transform or opacity only, so they stay on the
+ * compositor and cost nothing per frame.
+ */
+
+/* Radar sweep across the orbital plane. Rotates in circle space, THEN squashes
+   to the ellipse — squashing first would rotate the ellipse itself. */
+@keyframes deck-sweep {
+  from {
+    transform: translate(-50%, -50%) scaleY(var(--orbit-tilt)) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) scaleY(var(--orbit-tilt)) rotate(360deg);
+  }
+}
+
+/* Slow breathing of the orbital glow, like a system idling. */
+@keyframes deck-respire {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* Status lamp. Asymmetric so it reads as data arriving, not a metronome. */
+@keyframes signal-blink {
+  0%,
+  62%,
+  100% {
+    opacity: 0.28;
+  }
+  68%,
+  78% {
+    opacity: 1;
+  }
+}
+
+/* Distant drift, decoupled from camera parallax. */
+@keyframes star-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-1.5%, 0.8%, 0);
+  }
+}
+
+/* Heat haze off the engines. Scaled about the nozzle end rather than the centre
+   so the flame breathes along its length instead of pulsing as a whole — the
+   throat is anchored, the tip wanders, which is how a real plume behaves. */
+@keyframes plume-shimmer {
+  0%,
+  100% {
+    transform: scaleX(1) scaleY(1);
+  }
+  33% {
+    transform: scaleX(1.05) scaleY(0.96);
+  }
+  66% {
+    transform: scaleX(0.97) scaleY(1.04);
+  }
+}
+
+/* A packet travelling down the comms beam. Long dwell at the far end so the
+   link reads as occasional traffic rather than a progress bar. */
+@keyframes comms-packet {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  8%,
+  46% {
+    opacity: 1;
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: translateX(var(--comms-length));
+  }
+}
+
+.deck-sweep {
+  animation: deck-sweep 28s linear infinite;
+}
+.deck-respire {
+  animation: deck-respire 7s ease-in-out infinite;
+}
+.signal-blink {
+  animation: signal-blink 4.2s ease-in-out infinite;
+}
+.star-drift {
+  animation: star-drift 190s ease-in-out infinite alternate;
+}
+.comms-packet {
+  animation: comms-packet 11s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.plume-shimmer {
+  transform-origin: 50% 26%;
+  animation: plume-shimmer 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-sweep,
+  .deck-respire,
+  .signal-blink,
+  .star-drift,
+  .comms-packet,
+  .plume-shimmer {
+    animation: none;
+  }
 }
