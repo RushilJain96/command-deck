@@ -28,9 +28,12 @@ export function Dock() {
     >
       <ul
         className={cn(
-          "flex items-center gap-0.5 rounded-[4px] border border-white/[0.08] p-1",
-          "bg-[linear-gradient(180deg,rgb(255_255_255/0.045),rgb(255_255_255/0.015))]",
-          "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_16px_40px_-20px_rgb(0_0_0/0.9)]",
+          // Darkened with the rest of the chrome. The old fill was additive
+          // white, which on a tinted ground was a soft grey and on pure black is
+          // a lit strip — so it becomes an opaque near-black housing instead.
+          "flex items-center gap-0.5 rounded-[4px] border border-white/[0.055] p-1",
+          "bg-[linear-gradient(180deg,rgb(13_16_21/0.96),rgb(4_5_8/0.98))]",
+          "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.04),0_16px_40px_-20px_rgb(0_0_0/0.9)]",
         )}
       >
         {DESTINATIONS.map((destination) => {

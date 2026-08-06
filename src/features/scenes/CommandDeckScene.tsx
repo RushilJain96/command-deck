@@ -6,7 +6,7 @@ import { useLockedTargetId } from "@/features/app/hooks";
 import { useCamera } from "@/features/camera/CameraProvider";
 import { CameraRig } from "@/features/camera/CameraRig";
 import { DeckFrame } from "@/features/environment/DeckFrame";
-import { DeepSpace } from "@/features/environment/DeepSpace";
+import { OrbitalBodies } from "@/features/environment/Celestials";
 import { OrbitGuides } from "@/features/environment/OrbitGuides";
 import { OrbitPlane, PlaneSurface } from "@/features/environment/OrbitPlane";
 import { Starfield } from "@/features/environment/Starfield";
@@ -28,16 +28,17 @@ import { ARRIVAL } from "./arrival";
  *
  * Composition order is the layer order, back to front:
  *
- *   screen  DeepSpace       nebula, haze, bloom, vignette
- *   screen  Starfield       parallax layers + distant bodies, OUTSIDE the rig
- *                           so they lag the camera
+ *   screen  (void)          pure black. No backdrop layer is rendered at all.
+ *   screen  Starfield       parallax layers, one body, orbital hardware —
+ *                           OUTSIDE the rig so they lag the camera
  *   world   CameraRig       everything belonging to the deck itself, biased
  *                           down the frame so the ship rides low
  *             OrbitPlane    publishes --orbit-tilt / --ship-standoff, origin
  *                           at the SHIP
  *               PlaneSurface  lifted to the plane's centre
- *                 guides      floor glow, rings, graduations, sweep
- *                 missions    callouts held above the plane
+ *                 field       the orbital light, painted to a canvas
+ *                 bodies      the rocks riding those rings
+ *                 missions    callouts, positioned by the plane's geometry
  *               ship        at the world origin, frontmost
  *   screen  DeckFrame       instrument housing
  *   screen  CommandHud      readouts
@@ -70,19 +71,37 @@ export function CommandDeckScene() {
 
   return (
     <>
-      <DeepSpace />
+      {/* <DeepSpace> stays stood down. The ground is `--void`, pure black, and
+          nothing paints a backdrop onto it. */}
       <Starfield />
 
       <CameraRig bias={DECK_BIAS * ORBIT_TILT}>
         <OrbitPlane>
           <PlaneSurface>
+            {/* THE FIELD IS THE FIRST THING IN THE PLANE, so every mission
+                callout and the spacecraft paint over it without either needing
+                a z-index to say so. That ordering IS the composition: the field
+                is the surface the deck is arranged on, the vehicle flies above
+                it, and the callouts are instruments held above both. */}
             <motion.div
               className="absolute top-0 left-0"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 1.1, delay: ARRIVAL.field, ease: "easeOut" }}
+              transition={{ duration: 1.4, delay: ARRIVAL.field, ease: "easeOut" }}
             >
               <OrbitGuides />
+            </motion.div>
+
+            {/* Bodies riding the field's own rings. Above the light, below the
+                callouts — traffic on the tracks rather than scenery behind
+                them. */}
+            <motion.div
+              className="absolute top-0 left-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1.2, delay: ARRIVAL.field + 0.25, ease: "easeOut" }}
+            >
+              <OrbitalBodies />
             </motion.div>
 
             <MissionOrbit />

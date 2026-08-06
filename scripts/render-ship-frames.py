@@ -1,7 +1,9 @@
 """
 Renders the spacecraft's yaw frames for the Command Deck.
 
-    blender --background --python scripts/render-ship-frames.py -- path/to/ship.glb
+    blender -b -P scripts/render-ship-frames.py -- ship.glb --contact     # camera study
+    blender -b -P scripts/render-ship-frames.py -- ship.glb --elevation 43.4
+    blender -b -P scripts/render-ship-frames.py -- ship.glb                # uses the default
 
 Output: public/ship/yaw-00.png … yaw-75.png, RGBA with a transparent film.
 Convert to WebP afterwards (see the note at the bottom), then flip
@@ -54,16 +56,24 @@ import bpy
 # THE HULL RENDERS FROM A DIFFERENT ELEVATION THAN THE PLANE, on purpose. See
 # the note on SHIP_CAMERA_TILT in src/features/spacecraft/shipFrames.ts.
 #
-# 0.55 is 33.4deg — a LOW rear three-quarter. An earlier pass ran this at 51deg
-# chasing "more top surface" and that was the wrong read of the reference: at
-# 51deg you are looking down steeply enough that the engine bells foreshorten to
-# slivers and stop facing the viewer, which is the single most recognisable
-# thing about the hero shot. The bells reading as circles pointed at camera is
-# worth more than the extra dorsal detail.
+# The plane is drawn at 39.79deg (ORBIT_TILT 0.64). The hull is now 3.6deg ABOVE
+# that, where it used to be 6.4deg below — so the two elevations disagree by
+# LESS than they did, not more. <ShipSprite> absorbs the remaining mismatch by
+# mapping bearings to frames through this SAME constant, so the nose still lines
+# up with its bearing.
+SHIP_CAMERA_TILT = 0.6871                # shipFrames.ts — NOT ORBIT_TILT
+
+# HERO CAMERA LOCKED AT 43.4 DEGREES. Chosen off the elevation contact sheet:
+# it is the highest angle at which the engine bells still read as three distinct
+# apertures at yaw 0, and the lowest at which the wing planform stays legible at
+# yaw 22 — the hull's rendered angle when the ship aims at AURORA, the widest
+# bearing on the deck. 51.3 was rendered alongside it and rejected again: the
+# bells go to slivers and the ship reads as seen from above rather than behind.
 #
-# <ShipSprite> absorbs the plane/ship mismatch by mapping bearings to frames
-# through this SAME constant, so the nose still lines up with its bearing.
-SHIP_CAMERA_TILT = 0.55                 # shipFrames.ts — NOT ORBIT_TILT
+# THIS NUMBER IS NOW A CONTRACT. src/features/spacecraft/shipFrames.ts must carry
+# the same value in SHIP_CAMERA_TILT (0.6871) or the rendered nose stops matching
+# the bearing vector the deck draws — the one error on the deck a viewer can
+# check by eye, against a line that is right there.
 ELEVATION_DEG = math.degrees(math.asin(SHIP_CAMERA_TILT))   # 33.37
 YAW_START, YAW_END, YAW_STEP = 0, 30, 2               # shipFrames.ts
 FRAME_PIXELS = 800                                    # shipFrames.ts
@@ -83,6 +93,31 @@ WEBP_QUALITY = 90
 # proportion inside its 196px box, so swapping representations does not change
 # how big the ship reads on the deck.
 FILL = 0.72
+
+# ---------------------------------------------------------------- contact sheet
+# CAMERA ELEVATIONS TO COMPARE, in degrees above the orbital plane.
+#
+# The current render sits at 33.37 (SHIP_CAMERA_TILT 0.55). The brief asks for
+# 8-12 degrees higher, so the sweep brackets that: one step below current as a
+# control, current itself, then the requested band, then 51.3 — the elevation an
+# earlier pass tried and rejected — so the failure mode is visible on the same
+# sheet rather than remembered from a comment.
+ELEVATION_SWEEP = [29.0, 33.37, 37.0, 41.4, 43.4, 45.4, 51.3]
+
+# YAWS TO RENDER AT EACH ELEVATION.
+#
+# 0 is the hero pose. 22 is the one that actually decides this: it is the
+# hull's rendered yaw when the ship aims at AURORA, which at 66.6 degrees is the
+# widest bearing on the deck. `renderYaw` saturates through a tanh at
+# SHIP_YAW_LIMIT, so that figure is 21.8 at EVERY elevation in the sweep — the
+# camera choice does not change how far the hull turns, only what the turn looks
+# like. 10 and 16 fill in the middle so a silhouette that collapses partway
+# through the arc cannot hide between the ends.
+CONTACT_YAWS = [0, 10, 16, 22]
+
+# Contact sheets go somewhere the app will never load. public/ship/ is the live
+# sprite set and must not be touched by an exploratory render.
+CONTACT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "render-study")
 
 # Which local axis the model's nose points down, BEFORE any correction, in
 # BLENDER axes (Z-up) after glTF import.
@@ -110,6 +145,30 @@ FLIP_YAW = True
 # hard-surface hull whose realism lives in baked PBR textures rather than in
 # global illumination, gets remarkably close. Start with EEVEE to check framing
 # and orientation, then re-run with CYCLES for the frames you ship.
+# ------------------------------------------------------------------ lighting
+# The cinematic rig, in one place. See setup_lights() for what each one does and
+# why it moved. Previous values are kept in the comments as the reference point
+# the current look was judged against.
+KEY_ENERGY = 5.0            # was 3.2
+FILL_ENERGY = 0.10          # was 0.30 — this is the contrast
+RIM_ENERGY = 3.6            # was 2.6, and now genuinely blue rather than tinted
+BOUNCE_ENERGY = 300.0       # was 220
+AMBIENT_STRENGTH = 0.07     # was 0.16 — this is the occlusion in the recesses
+
+# Occlusion multiplied into base colour, on top of what Cycles computes. The
+# model is normalised to two units across, so the distance is in that space:
+# 0.06 reaches into panel gaps and engine recesses without darkening whole
+# surfaces the way a metre-scale radius would.
+# Roughness is SCALED, not set, so the artist's variation between the canopy,
+# the flats and the recesses survives — the whole range is simply pulled toward
+# specular. These were locals inside sharpen_materials() and, because that
+# function only ever touched unlinked sockets, had never applied to anything.
+ROUGHNESS_SCALE = 0.72
+SPECULAR_LEVEL = 0.62
+
+AO_STRENGTH = 0.5
+AO_DISTANCE = 0.06
+
 ENGINE = "CYCLES"          # or "BLENDER_EEVEE_NEXT"
 SAMPLES = 256              # 96-128 is usually enough with denoising on
 
@@ -243,47 +302,102 @@ def kill_emission(meshes):
 
 
 def sharpen_materials(meshes):
-    """Tightens roughness and lifts specular for metallic contrast.
+    """Tightens roughness and deepens occlusion, on a fully textured asset.
 
-    The model ships with game-engine-friendly materials: fairly rough, fairly
-    flat, tuned to look acceptable under any lighting. That is the right choice
-    for a game and the wrong one for a hero render, where the hull only reads as
-    METAL if highlights are tight enough to travel across a panel as it turns.
+    THIS FUNCTION USED TO DO NOTHING AT ALL. It only touched roughness sockets
+    that were NOT linked, and this model drives every channel from textures —
+    base colour from an image, metallic and roughness unpacked from one ORM map
+    through a Separate Color node. It printed "sharpened 0 unlinked roughness
+    input(s)" on every run since it was written, which read like a report and was
+    actually a no-op. ROUGHNESS_SCALE and SPECULAR_LEVEL have never once applied.
 
-    Scaling roughness rather than setting it preserves the artist's variation
-    between materials — the canopy stays glossier than the hull, the recesses
-    stay duller than the flats — while pulling the whole range toward specular.
-    Setting a flat value would erase exactly the material distinctions that make
-    the thing look built.
+    So it now works the only way it can on an asset like this: by inserting
+    adjustment nodes BETWEEN the texture and the shader, which scales what the
+    artist authored rather than replacing it. Panel-to-panel variation, the
+    canopy against the hull, the recesses against the flats — all preserved, the
+    whole range simply pulled toward specular.
 
-    Only touches roughness and specular level. Base colour, metallic and normal
-    maps are left alone: those carry the model's identity."""
-    ROUGHNESS_SCALE = 0.72
-    SPECULAR_LEVEL = 0.62
-    touched = 0
-    for m in meshes:
-        for slot in m.material_slots:
+    The occlusion node is the second half of the brief's ask. Cycles already
+    computes contact darkening from global illumination, and dropping the ambient
+    deepens that for free; this adds a controlled amount on top, at a radius
+    small enough to find panel gaps and engine recesses without shading whole
+    surfaces.
+    """
+    touched_rough = 0
+    touched_ao = 0
+
+    for mesh in meshes:
+        for slot in mesh.material_slots:
             mat = slot.material
             if not mat or not mat.use_nodes:
                 continue
-            for node in mat.node_tree.nodes:
-                if node.type != "BSDF_PRINCIPLED":
-                    continue
-                rough = node.inputs.get("Roughness")
-                # Skip if roughness is driven by a texture — scaling the socket
-                # default would do nothing and quietly mislead.
-                if rough is not None and not rough.is_linked:
-                    rough.default_value = max(0.04, rough.default_value * ROUGHNESS_SCALE)
-                    touched += 1
+            nodes = mat.node_tree.nodes
+            links = mat.node_tree.links
+
+            for bsdf in [n for n in nodes if n.type == "BSDF_PRINCIPLED"]:
+                rough = bsdf.inputs.get("Roughness")
+                if rough is not None:
+                    if rough.is_linked:
+                        source = rough.links[0].from_socket
+                        scale = nodes.new("ShaderNodeMath")
+                        scale.operation = "MULTIPLY"
+                        scale.use_clamp = True
+                        scale.location = (bsdf.location.x - 260, bsdf.location.y - 220)
+                        scale.inputs[1].default_value = ROUGHNESS_SCALE
+                        links.new(scale.inputs[0], source)
+                        links.new(rough, scale.outputs[0])
+                        touched_rough += 1
+                    else:
+                        rough.default_value = max(0.04, rough.default_value * ROUGHNESS_SCALE)
+                        touched_rough += 1
+
                 for key in ("Specular IOR Level", "Specular"):
-                    spec = node.inputs.get(key)
+                    spec = bsdf.inputs.get(key)
                     if spec is not None and not spec.is_linked:
                         spec.default_value = SPECULAR_LEVEL
                         break
-    print(f"  sharpened {touched} unlinked roughness input(s)")
+
+                base = bsdf.inputs.get("Base Color")
+                if base is None or AO_STRENGTH <= 0:
+                    continue
+
+                occl = nodes.new("ShaderNodeAmbientOcclusion")
+                occl.samples = 16
+                occl.inside = False
+                occl.only_local = True
+                occl.location = (bsdf.location.x - 520, bsdf.location.y + 260)
+                occl.inputs["Distance"].default_value = AO_DISTANCE
+
+                try:
+                    mixer = nodes.new("ShaderNodeMixRGB")
+                    mixer.blend_type = "MULTIPLY"
+                    mixer.inputs["Fac"].default_value = AO_STRENGTH
+                    a_in, b_in, out = mixer.inputs["Color1"], mixer.inputs["Color2"], mixer.outputs["Color"]
+                except RuntimeError:
+                    # 4.x replacement, should MixRGB ever be removed.
+                    mixer = nodes.new("ShaderNodeMix")
+                    mixer.data_type = "RGBA"
+                    mixer.blend_type = "MULTIPLY"
+                    mixer.inputs[0].default_value = AO_STRENGTH
+                    a_in, b_in, out = mixer.inputs[6], mixer.inputs[7], mixer.outputs[2]
+                mixer.location = (bsdf.location.x - 260, bsdf.location.y + 200)
+
+                if base.is_linked:
+                    links.new(a_in, base.links[0].from_socket)
+                else:
+                    try:
+                        a_in.default_value = base.default_value
+                    except (TypeError, ValueError):
+                        pass
+                links.new(b_in, occl.outputs["Color"])
+                links.new(base, out)
+                touched_ao += 1
+
+    print(f"  roughness scaled on {touched_rough} input(s), "
+          f"occlusion added to {touched_ao} shader(s)")
 
 
-def setup_camera(span):
+def setup_camera(span, elevation_deg=None):
     cam_data = bpy.data.cameras.new("DeckCam")
     cam_data.type = "ORTHO"
     cam_data.ortho_scale = span / FILL
@@ -296,62 +410,88 @@ def setup_camera(span):
     # "away from the camera" is +Y. Rotating a camera by (90deg - phi) about X
     # turns its -Z view axis onto (0, cos phi, -sin phi), which is exactly the
     # direction from this position back to the origin.
-    phi = math.radians(ELEVATION_DEG)
+    phi = math.radians(ELEVATION_DEG if elevation_deg is None else elevation_deg)
     dist = 10.0
     cam.location = (0.0, -dist * math.cos(phi), dist * math.sin(phi))
     cam.rotation_euler = (math.radians(90.0) - phi, 0.0, 0.0)
 
     bpy.context.scene.camera = cam
-    print(f"  camera at {tuple(round(v, 2) for v in cam.location)}, ortho_scale {cam_data.ortho_scale:.2f}")
+    print(f"  camera at {tuple(round(v, 2) for v in cam.location)}, "
+          f"elevation {math.degrees(phi):.2f}deg, ortho_scale {cam_data.ortho_scale:.2f}")
     return cam
 
 
 def setup_lights():
-    """One key from the upper right, a weak cool fill, and a rim.
+    """THE CINEMATIC RIG.
 
-    Deliberately low fill: diffuse fill is what flattens a form, and the deck's
-    CSS lighting was cut 15% for the same reason. Let the key describe the hull
-    and keep the fill just strong enough that the shadow side is not black."""
-    def add_sun(name, energy, rotation, colour=(1, 1, 1)):
+    A viewport render and a cinematic one differ in exactly one thing: how much
+    of the frame is allowed to be dark. Every value below moves in that
+    direction — the key goes up, everything that fills shadow comes down, and the
+    only lights that survive at strength are the ones that describe an edge.
+
+        KEY      the sun. Harder and brighter, and its ANGLE is what matters as
+                 much as its energy: a 1.1deg source throws a crisp terminator
+                 where a 2deg one throws a soft one, and a soft terminator on a
+                 hard-surface hull is the single clearest "viewport" tell.
+        FILL     cut to a third. This is the contrast, and it is the ask.
+                 Everything the key does not reach is now genuinely dark instead
+                 of merely dimmer.
+        RIM      cool blue, and now unmistakably so rather than a blue-tinted
+                 white. It only ever catches surfaces turned away from camera, so
+                 it draws the silhouette without touching the lit faces — which
+                 is what separates the hull from space.
+        BOUNCE   warm orange off the engines onto the rear fuselage. Raised, and
+                 pulled closer so it falls on the belly and nacelle inners rather
+                 than washing the whole tail.
+        AMBIENT  halved again. Ambient is what fills recesses, so this is most of
+                 the panel-gap and engine-recess occlusion the brief asks for —
+                 in Cycles the occlusion is computed, not faked, so it deepens on
+                 its own the moment there is less sky to fill it.
+
+    DIRECTIONS ARE UNCHANGED. Every angle here is the one that was already
+    established: key from upper right, matching the deck's own key light, the
+    planets, the hull shading and the floor shadow. This pass changes how hard
+    the lights are, never where they are.
+    """
+    def add_sun(name, energy, rotation, colour=(1, 1, 1), angle_deg=2.0):
         data = bpy.data.lights.new(name, type="SUN")
         data.energy = energy
-        data.angle = math.radians(2.0)
+        data.angle = math.radians(angle_deg)
         data.color = colour
         obj = bpy.data.objects.new(name, data)
         obj.rotation_euler = rotation
         bpy.context.scene.collection.objects.link(obj)
         return obj
 
-    # Energies are deliberately restrained. The first pass ran the key at 4.5
-    # and the hull clipped to flat white — every panel line and every bevel that
-    # made this model worth choosing washed out. On a light grey albedo under a
-    # Standard view transform there is no highlight roll-off to save you, so the
-    # key has to sit below clipping and let the material do the work.
-    add_sun("Key", 3.2, (math.radians(52), 0, math.radians(-125)), (1.0, 0.98, 0.95))
-    add_sun("Fill", 0.30, (math.radians(65), 0, math.radians(70)), (0.66, 0.76, 0.95))
-    # TWO rims, not one. A single broad rim lifts the whole silhouette evenly,
-    # which is just fill from behind. A hard, narrow rim opposite the key is
-    # what actually draws the EDGE — it catches only surfaces turned away from
-    # camera and leaves the flats dark, so panel breaks and bevels read as
-    # geometry instead of as texture. The second, softer one keeps the shadow
-    # side from going to pure black.
-    add_sun("RimHard", 2.6, (math.radians(112), 0, math.radians(28)), (0.82, 0.90, 1.0))
-    add_sun("RimSoft", 0.8, (math.radians(88), 0, math.radians(-40)), (0.70, 0.80, 1.0))
+    # KEY — upper right. Brighter and much harder than before.
+    add_sun("Key", KEY_ENERGY, (math.radians(52), 0, math.radians(-125)),
+            (1.0, 0.985, 0.96), angle_deg=1.1)
 
-    # ENGINE BOUNCE. A warm point source behind and below the tail, standing in
-    # for light the exhaust throws back onto the hull. This is the layer that
-    # stops the underside reading as a flat dark plate: the belly, the inner
-    # nacelle faces and the trailing edges pick up an orange that exists nowhere
-    # else on the model, so the eye reads them as lit BY something rather than
-    # merely less lit. It also ties the rendered hull to the live CSS plume —
-    # both are the same light, one baked and one drawn.
+    # FILL — cool, and now barely present. The contrast lives here.
+    add_sun("Fill", FILL_ENERGY, (math.radians(65), 0, math.radians(70)),
+            (0.60, 0.73, 0.96), angle_deg=6.0)
+
+    # RIM — two sources, both cool blue. The hard one draws the edge; the soft
+    # one keeps the shadow side from going to pure black at the silhouette.
+    add_sun("RimHard", RIM_ENERGY, (math.radians(112), 0, math.radians(28)),
+            (0.46, 0.67, 1.0), angle_deg=1.6)
+    add_sun("RimSoft", RIM_ENERGY * 0.13, (math.radians(88), 0, math.radians(-40)),
+            (0.54, 0.71, 1.0), angle_deg=9.0)
+
+    # ENGINE BOUNCE. A warm area source behind and below the tail, standing in
+    # for light the exhaust throws back onto the hull. This is the only warm
+    # thing in the rig, and it is what stops the underside reading as a flat dark
+    # plate: the belly, the inner nacelle faces and the trailing edges pick up an
+    # orange that exists nowhere else on the model. It also ties the rendered
+    # hull to the live CSS plume — both are the same light, one baked, one drawn.
     bounce_data = bpy.data.lights.new("EngineBounce", type="AREA")
-    bounce_data.energy = 220.0
-    bounce_data.size = 2.2
-    bounce_data.color = (1.0, 0.44, 0.16)
+    bounce_data.energy = BOUNCE_ENERGY
+    bounce_data.size = 1.9
+    bounce_data.color = (1.0, 0.42, 0.14)
     bounce = bpy.data.objects.new("EngineBounce", bounce_data)
-    # Camera sits on -Y, so the tail faces -Y; drop it below the hull too.
-    bounce.location = (0.0, -2.1, -1.0)
+    # Camera sits on -Y, so the tail faces -Y. Closer in than before so the
+    # falloff concentrates it on the rear fuselage instead of the whole hull.
+    bounce.location = (0.0, -1.85, -0.82)
     bounce.rotation_euler = (math.radians(-64), 0.0, 0.0)
     bpy.context.scene.collection.objects.link(bounce)
 
@@ -360,18 +500,25 @@ def setup_lights():
     # Cool, not neutral. The void the deck lives in is blue, so ambient arriving
     # from it has to be blue as well — a grey ambient would make the hull read as
     # sitting in a photographic studio rather than in this scene.
-    world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.05, 0.09, 0.18, 1)
-    # Lower than before: ambient is what fills recesses, and recesses that are
-    # not dark are not recesses. This is the single biggest lever on how
-    # "machined" the hull reads.
-    world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.16
+    world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.04, 0.08, 0.17, 1)
+    world.node_tree.nodes["Background"].inputs["Strength"].default_value = AMBIENT_STRENGTH
     bpy.context.scene.world = world
+    print(f"  rig: key {KEY_ENERGY} / fill {FILL_ENERGY} / rim {RIM_ENERGY} / "
+          f"bounce {BOUNCE_ENERGY} / ambient {AMBIENT_STRENGTH}")
 
 
-def setup_render(test):
+def setup_render(fast):
+    """`fast` swaps Cycles for EEVEE.
+
+    USED BY THE CONTACT SHEET AS WELL AS --test, and that is the right default
+    for it: the sweep is 28 renders, and at Cycles 256 on CPU that is hours for a
+    decision that is entirely about camera elevation. EEVEE resolves silhouette,
+    foreshortening and whether the engine bells still face the viewer exactly as
+    well. Pass --cycles if a final-quality comparison is wanted instead.
+    """
     scene = bpy.context.scene
-    engine = "BLENDER_EEVEE_NEXT" if test else ENGINE
-    samples = 48 if test else SAMPLES
+    engine = "BLENDER_EEVEE_NEXT" if fast else ENGINE
+    samples = 64 if fast else SAMPLES
     try:
         scene.render.engine = engine
     except TypeError:
@@ -403,12 +550,37 @@ def setup_render(test):
     else:
         scene.render.image_settings.compression = 15
 
-    return fmt
-    # Filmic crushes the specular highlights this hull depends on.
+    # VIEW TRANSFORM — AgX, DELIBERATELY, AND THIS REVERSES AN EARLIER CALL.
+    #
+    # The original code intended "Standard" and never applied it: the assignment
+    # sat after `return fmt` and was dead, so every frame ever shipped went
+    # through Blender 4.x's default AgX by accident. I made it Standard when I
+    # found the bug, which was right for the goal at the time — a flat, faithful
+    # output to judge a camera angle on.
+    #
+    # It is the wrong choice for THIS goal. The brief asks for a much harder key
+    # and a white hull that does not clip, and those two things are in direct
+    # tension under Standard: it has no highlight roll-off at all, so a light
+    # grey albedo under a 5.0 sun goes to flat 255 and every panel line in the lit
+    # area disappears. AgX compresses the top end instead, which is the entire
+    # reason film transforms exist — it is what lets the key be pushed this far
+    # and still leave detail in the brightest faces.
+    #
+    # So: AgX with a contrast look, chosen rather than inherited.
     try:
-        scene.view_settings.view_transform = "Standard"
+        scene.view_settings.view_transform = "AgX"
     except TypeError:
-        pass
+        print("  AgX unavailable on this build, leaving the default transform")
+
+    for look in ("AgX - Medium High Contrast", "Medium High Contrast", "AgX - Base Contrast"):
+        try:
+            scene.view_settings.look = look
+            print(f"  view transform {scene.view_settings.view_transform}, look '{look}'")
+            break
+        except TypeError:
+            continue
+
+    return fmt
 
 
 def render_frames(obj, fmt, test):
@@ -448,15 +620,128 @@ def render_frames(obj, fmt, test):
     return ext
 
 
+def render_contact(obj, fmt):
+    """Renders the elevation x yaw grid and writes an HTML sheet beside it.
+
+    ONE CELL PER COMBINATION, as separate files rather than a composited image.
+    Blender can paste tiles together with numpy, but a folder of full-resolution
+    renders plus a page that lays them out is better for the job: the sheet can
+    be zoomed to inspect an engine bell, individual cells can be dropped into
+    other tools, and nothing has to be re-rendered to change the layout.
+
+    The page is black because that is what these will be seen against. A hull
+    judged on a grey contact sheet is judged against a background it will never
+    appear on, and silhouette decisions made that way do not survive contact
+    with the deck.
+    """
+    os.makedirs(CONTACT_DIR, exist_ok=True)
+    ext = "webp" if fmt == "WEBP" else "png"
+    sign = -1.0 if FLIP_YAW else 1.0
+    obj.rotation_mode = "XYZ"
+
+    total = len(ELEVATION_SWEEP) * len(CONTACT_YAWS)
+    done = 0
+    cells = {}
+
+    for elev in ELEVATION_SWEEP:
+        setup_camera(2.0, elev)
+        for yaw in CONTACT_YAWS:
+            obj.rotation_euler = (0.0, 0.0, sign * math.radians(yaw))
+            bpy.context.view_layer.update()
+            name = f"elev-{elev:05.2f}_yaw-{yaw:02d}.{ext}"
+            path = os.path.join(CONTACT_DIR, name)
+            bpy.context.scene.render.filepath = path
+            bpy.ops.render.render(write_still=True)
+            cells[(elev, yaw)] = name
+            done += 1
+            size = os.path.getsize(path) if os.path.exists(path) else 0
+            flag = "  <-- SUSPICIOUSLY SMALL, likely blank" if size < 4000 else ""
+            print(f"  [{done}/{total}] {name}  {size:,} bytes{flag}")
+
+    write_contact_sheet(cells, ext)
+
+
+def write_contact_sheet(cells, ext):
+    """Lays the cells out as a black HTML page, one row per elevation."""
+    rows = []
+    for elev in ELEVATION_SWEEP:
+        current = " · current" if abs(elev - ELEVATION_DEG) < 0.01 else ""
+        delta = elev - ELEVATION_DEG
+        note = f"{delta:+.1f} vs current" if abs(delta) > 0.01 else "reference"
+        tiles = "".join(
+            f'<figure><img src="{cells[(elev, y)]}" alt="elevation {elev} yaw {y}">'
+            f'<figcaption>yaw {y}&deg;</figcaption></figure>'
+            for y in CONTACT_YAWS
+        )
+        rows.append(
+            f'<section><h2>{elev:.2f}&deg;{current}'
+            f'<span>sin &phi; {math.sin(math.radians(elev)):.3f} &middot; {note}</span></h2>'
+            f'<div class="row">{tiles}</div></section>'
+        )
+
+    html = """<!doctype html>
+<meta charset="utf-8">
+<title>Ship camera - elevation study</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#000; color:#f2f5f8;
+         font:13px/1.6 ui-sans-serif,-apple-system,"Segoe UI",sans-serif; padding:40px 28px 80px; }
+  h1 { font-size:24px; font-weight:600; letter-spacing:-.02em; margin:0 0 6px; }
+  p.lede { color:#98a2ad; max-width:70ch; margin:0 0 8px; }
+  p.note { color:#5b646e; max-width:78ch; margin:0 0 28px; font-size:12px; }
+  section { border-top:1px solid rgb(255 255 255/.08); padding:16px 0 8px; }
+  h2 { font:500 11px/1 ui-monospace,monospace; letter-spacing:.16em; text-transform:uppercase;
+       color:#f2f5f8; margin:0 0 12px; display:flex; gap:14px; align-items:baseline; }
+  h2 span { color:#5b646e; letter-spacing:.1em; }
+  .row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  figure { margin:0; }
+  img { width:100%; display:block; background:#000; }
+  figcaption { font:10px/1 ui-monospace,monospace; letter-spacing:.14em; color:#5b646e;
+               text-transform:uppercase; padding-top:7px; }
+</style>
+<h1>Hero camera &mdash; elevation study</h1>
+<p class="lede">Seven elevations against the four yaws the deck actually uses. Judge the
+engine bells at yaw&nbsp;0 and the silhouette at yaw&nbsp;22.</p>
+<p class="note">Yaw&nbsp;22&deg; is the hull's rendered angle when the ship aims at AURORA &mdash; the
+widest bearing on the deck at 66.6&deg;. Because <code>renderYaw</code> saturates through a tanh at
+SHIP_YAW_LIMIT, that figure is 21.8&deg; at every elevation here: the camera changes what the turn
+looks like, never how far it goes. Lighting and materials are unchanged throughout; this pass is
+camera only.</p>
+""" + "\n".join(rows) + "\n"
+
+    # Created here as well as in render_contact(): this is callable on its own to
+    # relayout an existing set of renders, and it should not depend on having
+    # just rendered them.
+    os.makedirs(CONTACT_DIR, exist_ok=True)
+    out = os.path.join(CONTACT_DIR, "index.html")
+    with open(out, "w", encoding="utf-8") as handle:
+        handle.write(html)
+    print(f"\n  contact sheet -> {out}")
+
+
 def main():
     args = argv_after_dashes()
     if not args:
         raise SystemExit("Usage: blender -b -P scripts/render-ship-frames.py -- <model>")
 
     test = "--test" in args
+    contact = "--contact" in args
     model = next(a for a in args if not a.startswith("--"))
-    print(f"Rendering {model}{'  [TEST: 2 frames, fast]' if test else ''}")
-    print(f"  camera elevation {ELEVATION_DEG:.2f}deg (from SHIP_CAMERA_TILT {SHIP_CAMERA_TILT})")
+
+    # --elevation <deg> overrides the camera for a normal render, so the angle
+    # chosen off the contact sheet can be shot without editing this file first.
+    elevation = ELEVATION_DEG
+    if "--elevation" in args:
+        elevation = float(args[args.index("--elevation") + 1])
+
+    mode = "  [CONTACT SHEET]" if contact else ("  [TEST: 2 frames, fast]" if test else "")
+    print(f"Rendering {model}{mode}")
+    if contact:
+        print(f"  elevation sweep {ELEVATION_SWEEP}")
+        print(f"  yaws {CONTACT_YAWS}")
+    else:
+        print(f"  camera elevation {elevation:.2f}deg "
+              f"(default {ELEVATION_DEG:.2f} from SHIP_CAMERA_TILT {SHIP_CAMERA_TILT})")
     print(f"  yaw {YAW_START}..{YAW_END} step {YAW_STEP} at {FRAME_PIXELS}px")
     print(f"  nose axis {NOSE_AXIS}, flip yaw {FLIP_YAW}")
 
@@ -475,9 +760,9 @@ def main():
     orient_nose(obj)
     kill_emission([obj])
     sharpen_materials([obj])
-    setup_camera(span)
+    setup_camera(span, elevation)
     setup_lights()
-    fmt = setup_render(test)
+    fmt = setup_render(test or (contact and "--cycles" not in args))
 
     # A blank frame is a valid image, so it cannot be caught after the fact —
     # check the hull is actually inside the orthographic frame before spending
@@ -490,6 +775,15 @@ def main():
         print(f"  WARNING: hull half-extent {reach:.2f} exceeds frame half-width {half:.2f}")
     if max(abs(v) for v in obj.location) > 0.001:
         raise SystemExit(f"Hull is not at the origin: {tuple(obj.location)}")
+
+    if contact:
+        # A camera study only. public/ship/ is never written in this mode, so an
+        # exploratory run can never clobber the live sprite set.
+        render_contact(obj, fmt)
+        print("\nOpen render-study/index.html and pick an elevation.")
+        print("Then: blender -b -P scripts/render-ship-frames.py -- <model> --elevation <deg>")
+        print("and set SHIP_CAMERA_TILT in src/features/spacecraft/shipFrames.ts to sin(that)." + chr(10))
+        return
 
     ext = render_frames(obj, fmt, test)
 

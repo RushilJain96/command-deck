@@ -1,3 +1,5 @@
+import { screenAngleToWorldYaw, worldYawToScreenAngle } from "@/features/missions/placement";
+
 /**
  * Pre-rendered hull frames.
  *
@@ -38,26 +40,34 @@
 
 /**
  * The hull's own camera elevation, as sin(phi) — the same encoding as
- * ORBIT_TILT, and DELIBERATELY HIGHER than it.
+ * ORBIT_TILT.
  *
- * The plane is drawn at 0.64 (39.8deg). Rendering the ship from the identical
- * elevation is the physically consistent choice and it makes a poor hero shot:
- * at 40deg you see the hull almost edge-on, the wing planform collapses, and the
- * dorsal detail that carries all the panel work is hidden. 0.78 puts the ship's
- * camera at 51.3deg, which reads as a flagship seen from above.
+ * 0.6871 is 43.4deg. IT IS A CONTRACT WITH `scripts/render-ship-frames.py`, not
+ * a free parameter: every frame in `public/ship/` is a render taken from exactly
+ * this elevation, and <ShipSprite> maps bearings to frames through this same
+ * number. Change one without the other and the rendered nose stops matching the
+ * bearing vector the deck draws — which is the one error on this deck a viewer
+ * can check by eye, against a line that is right there.
  *
- * THIS IS A DELIBERATE CHEAT AND IT HAS A COST. The ship and the plane are now
- * lit and foreshortened from two different elevations. It survives because the
- * eye has no reference edge to compare them against — the hull is a smooth
- * organic form with no straight line shared with the ellipse — but push the gap
- * much past 12deg and the ship starts to read as pasted on. If it ever does,
- * this is the number to walk back.
+ * CHOSEN OFF A CONTACT SHEET, not by argument. Seven elevations were rendered
+ * against the four yaws the deck actually uses. 43.4 is the highest angle at
+ * which the engine bells still read as three distinct apertures at yaw 0, and
+ * the lowest at which the wing planform stays legible at yaw 22 — the hull's
+ * rendered angle when the ship aims at AURORA, the widest bearing on the deck.
+ * 51.3 was rendered alongside and rejected again: the bells go to slivers and
+ * the ship reads as seen from above rather than from behind.
  *
- * The mismatch is fully absorbed in ONE place: <ShipSprite> maps bearings to
- * frames through this constant instead of ORBIT_TILT, so the rendered nose still
- * lines up with the bearing vector. Nothing else in the app knows.
+ * THE OLD NOTE HERE WAS WRONG IN BOTH DIRECTIONS. It described this constant as
+ * "deliberately HIGHER" than the plane and cited 0.78 / 51.3deg, while the value
+ * was 0.55 / 33.4deg — lower than the plane, and the render script said that low
+ * angle was deliberate. It was stale from an abandoned iteration and contradicted
+ * the pipeline on exactly the question it claimed to answer.
+ *
+ * The plane is drawn at 0.64 (39.8deg), so the hull now sits 3.6deg ABOVE it
+ * where it used to sit 6.4deg below: the two elevations disagree by LESS than
+ * they did. <ShipSprite> absorbs what remains, and nothing else in the app knows.
  */
-export const SHIP_CAMERA_TILT = 0.55;
+export const SHIP_CAMERA_TILT = 0.6871;
 
 /**
  * Hard ceiling on how far the hull is ever RENDERED as turned, in degrees.
@@ -107,12 +117,28 @@ export const MAX_YAW = (FRAME_COUNT - 1) * FRAME_STEP;
  * coordinates, so a mismatch would park the flame somewhere other than the
  * nozzles.
  *
- * TWO THINGS ARE COUPLED TO IT. `FRAME_PIXELS` below should stay at 2x this for
- * retina sharpness, and `DECK_BIAS` in placement.ts has to come down as this
- * goes up — the ship is anchored at its centre, so it grows toward the dock.
- * The layout solver models the hull at half this value.
+ * ONLY 37% OF THIS IS SHIP. The frames carry transparent margin so the hull can
+ * yaw without clipping: measured off the alpha channel, the silhouette spans
+ * 0.333-0.703 of the frame vertically and 0.217-0.781 horizontally. So a 444px
+ * box paints a hull about 250x164. Any reasoning about how large the ship
+ * *looks*, or where its top edge falls, has to go through those fractions —
+ * treating this number as the on-screen ship overestimates it by roughly 2.7x
+ * in height, which is precisely the error that left the hull looking small and
+ * parked under the orbit.
+ *
+ * TWO THINGS ARE COUPLED TO IT. `DECK_BIAS` in placement.ts has to come down as
+ * this goes up — the ship is anchored at its centre, so it grows toward the
+ * dock — and the layout solver models the hull as a square of half this value,
+ * which is conservative by design since the visible silhouette is much smaller.
+ *
+ * RETINA HEADROOM IS NOW 1.80x, NOT 2x. The frames are 800px (FRAME_PIXELS), so
+ * 404 gave 1.98x and 444 gives 1.80x: on a 2x display the hull is upscaled about
+ * 11%. That is the one real cost of this size and it was taken deliberately —
+ * re-rendering at 888px is a `scripts/render-ship-frames.py` run, not a code
+ * change, and 1.8x is far enough above 1x that the panel-line detail survives.
+ * If the ship ever grows again, re-render rather than stretching further.
  */
-export const SHIP_PIXELS = 404;
+export const SHIP_PIXELS = 444;
 
 /**
  * Rendered pixel size of each frame. Roughly twice the largest on-screen size
@@ -121,8 +147,15 @@ export const SHIP_PIXELS = 404;
  * Moved 512 -> 768 when the ship grew: at 512 a 404px hull on a retina panel was
  * being upscaled, and upscaling is exactly what destroys the panel-line detail
  * this model was chosen for.
+ *
+ * CORRECTED 768 -> 800 to match reality. `scripts/render-ship-frames.py` sets
+ * FRAME_PIXELS = 800 and the files in `public/ship/` are 800x800; this constant
+ * had drifted and was understating them. Only the img's intrinsic-size
+ * attributes read it — the element is sized entirely by CSS — so the correction
+ * changes no pixels, but the two files are supposed to be a contract and a
+ * contract that lies is worse than no contract.
  */
-export const FRAME_PIXELS = 768;
+export const FRAME_PIXELS = 800;
 
 /**
  * Flip to `true` once the frames exist in `public/ship/`.
@@ -148,6 +181,40 @@ export const SPRITE_ENABLED = true;
  */
 export function renderYaw(trueYaw: number): number {
   return SHIP_YAW_LIMIT * Math.tanh(trueYaw / SHIP_YAW_LIMIT);
+}
+
+/**
+ * The screen heading anything BOLTED TO THE HULL must be rotated by.
+ *
+ * THE HULL DOES NOT FACE WHERE IT AIMS, so neither can its exhaust. A bearing of
+ * 66deg is drawn as a hull yawed about 21deg, because `renderYaw` compresses it
+ * to keep the ship in its hero pose. The plume, however, was rotated by the raw
+ * bearing — so at the flanks of the deck the flame left the ship at roughly 45deg
+ * off the engine bells and read as a separate object trailing behind the
+ * spacecraft rather than as thrust coming out of it. That is the "detached at
+ * some viewing angles" symptom, and it is not a fade or a blend problem: it is
+ * two elements being driven by two different headings.
+ *
+ * Round-trip: un-project the bearing to a real yaw, compress it exactly as the
+ * sprite does, then re-project the compressed yaw back to screen. What comes out
+ * is the direction the hull is genuinely DRAWN facing, so the plume stays welded
+ * to the nozzles at every bearing.
+ *
+ * Through SHIP_CAMERA_TILT, not ORBIT_TILT, for the same reason <ShipSprite>
+ * uses it: the hull is rendered from a higher elevation than the plane, and this
+ * has to agree with the frames rather than with the ellipse.
+ *
+ * NOTE THE BEARING VECTOR IS DELIBERATELY NOT CHANGED. It still points at the
+ * true bearing, because it is an instrument reporting where the target is — the
+ * one thing on the deck that must stay literal. The exhaust is physics attached
+ * to a body; the vector is data. They are allowed to disagree, and the disagreement
+ * is exactly what SHIP_YAW_LIMIT is buying.
+ */
+export function plumeScreenAngle(screenAngle: number): number {
+  return worldYawToScreenAngle(
+    renderYaw(screenAngleToWorldYaw(screenAngle, SHIP_CAMERA_TILT)),
+    SHIP_CAMERA_TILT,
+  );
 }
 
 /** `/ship/yaw-00.webp` … `/ship/yaw-30.webp`. */

@@ -5,7 +5,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useAppDispatch } from "@/features/app/hooks";
 import { ARRIVAL } from "@/features/scenes/arrival";
 import { cn } from "@/lib/cn";
-import { MissionPanel } from "./MissionPanel";
+import { ACTIVATION, MissionPanel } from "./MissionPanel";
 import { STATUS_TONE, type Mission } from "./types";
 
 /**
@@ -29,16 +29,19 @@ import { STATUS_TONE, type Mission } from "./types";
  * lets the panel float above the plane while its footprint stays mathematically
  * on the ring.
  *
- * HOVER IS A SEQUENCE, NOT A STATE CHANGE. The delays below are the difference
- * between "six properties changed" and "a mechanism engaged": the marker reacts
- * instantly, the leader lights a beat later, the housing lifts after that, and
- * the glow arrives last. Delays are applied ONLY on the hover side — releasing
- * snaps everything back together, because a staggered retreat reads as lag
- * rather than as choreography.
+ * HOVER IS A SEQUENCE, NOT A STATE CHANGE. The module and the hardware it hangs
+ * from stage against one shared table — see ACTIVATION in <MissionPanel> — so
+ * the mount and the housing can never drift out of step. The marker and the
+ * leader are STRUCTURE and answer on the first frame; everything inside the
+ * housing follows.
+ *
+ * NOTHING TRANSLATES ANY MORE. The housing used to rise 4px and the leader's
+ * struts used to grow 4px to keep up with it. That was well-built and still
+ * wrong: a module bolted to a mast does not climb its mast when you point at it,
+ * and the movement was the first thing anyone noticed about the interaction —
+ * which is the definition of an effect that is too strong. What acknowledges the
+ * pointer now is the same parts returning more light, not moving.
  */
-
-/** Staged engage delays, in ms. Release is always immediate. */
-const STAGE = { marker: 0, leader: 40, lift: 90, glow: 140 } as const;
 
 export function MissionNode({
   mission,
@@ -131,14 +134,18 @@ export function MissionNode({
           }}
         />
 
-        {/* Marker on the plane. First thing to react — no delay. */}
+        {/* Marker on the plane. Structure — answers on the first frame.
+            The 10% hover scale is gone: on a 5px diamond it bought half a pixel
+            of growth and cost the module its only claim to not being a hover
+            card. Brightness alone says "acknowledged"; selection still owns the
+            scale step, which is now the only size change anywhere in the node. */}
         <span
           aria-hidden="true"
           className={cn(
-            "absolute top-0 left-0 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rotate-45 transition-all duration-300",
-            isActive ? "bg-signal scale-125" : "bg-t3 group-hover:bg-t1 group-hover:scale-110",
+            "absolute top-0 left-0 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rotate-45 transition-all duration-200",
+            isActive ? "bg-signal scale-125" : "bg-t3 group-hover:bg-t1",
           )}
-          style={{ transitionDelay: `${STAGE.marker}ms` }}
+          style={{ transitionDelay: `${ACTIVATION.structure}ms` }}
         />
         {/* Lock reticle. */}
         <span
@@ -149,19 +156,19 @@ export function MissionNode({
           )}
         />
 
-        <DockingLeader
-          isActive={isActive}
-          isCentred={isCentred}
-          run={run}
-          anchorEdge={anchorEdge}
-        />
+        {/* Housing.
+            THE DOCKING LEADER IS GONE. The collar, twin struts, cross-tie and
+            bracket that hung each callout off its point on the orbit have been
+            removed: with the field rebuilt as light rather than as drawn rings,
+            a hairline armature tying a card down to it was the last thing on the
+            deck that read as a diagram. The callouts now simply float above the
+            plane.
 
-        {/* Housing, in two nested elements ON PURPOSE: the outer carries the
-            static depth scale and the inner carries the hover lift. Putting
-            both on one element would mean the inline `transform` and the
-            utility class fight over the same property, and the lift would be
-            silently dropped. Hinged at the bottom so the housing stays attached
-            to the top of its leader. */}
+            THE OFFSET STAYS. `--callout-run` / `--callout-rise` still hold each
+            housing clear of its own anchor, which is what the layout solver in
+            `scripts/deck-layout-check.mjs` models to prove six callouts, the HUD
+            rail and the hull can coexist. Removing the connector is a visual
+            change; removing the offset would be a layout change. */}
         <span
           className="absolute"
           style={{
@@ -174,9 +181,9 @@ export function MissionNode({
           }}
         >
           {/* Arrival fade lives on its own element, animating ONLY opacity.
-              The <li> already uses opacity for the depth ramp and the sibling
-              span already uses transform for the hover lift — sharing either
-              property would silently clobber one of them. */}
+              The <li> already uses opacity for the depth ramp and the parent
+              span uses transform for the depth scale — sharing either property
+              would silently clobber one of them. */}
           <motion.span
             className="block"
             initial={{ opacity: 0 }}
@@ -187,20 +194,7 @@ export function MissionNode({
               ease: "easeOut",
             }}
           >
-            <span
-              className={cn(
-                "block origin-bottom transition-transform duration-300 ease-out",
-                "group-hover:-translate-y-1 group-focus-visible:-translate-y-1",
-              )}
-              style={{ transitionDelay: `${STAGE.lift}ms` }}
-            >
-              <MissionPanel
-                mission={mission}
-                lod={placement.lod}
-                isActive={isActive}
-                glowDelay={STAGE.glow}
-              />
-            </span>
+            <MissionPanel mission={mission} lod={placement.lod} isActive={isActive} />
           </motion.span>
         </span>
 
@@ -226,109 +220,5 @@ export function MissionNode({
         )}
       />
     </li>
-  );
-}
-
-/**
- * The leader, drawn as a docking mechanism rather than a line.
- *
- * A single hairline says "these two things are associated". A collar, a doubled
- * strut with a cross-tie, and a bracket at the far end say "this housing is
- * physically mounted to that point on the orbit" — which is the read the deck
- * wants, because it makes the panel belong to the orbital system instead of
- * floating near it. The whole assembly is hairlines and 3px squares; at a
- * glance it registers as engineering, not as ornament.
- *
- * Every piece is decorative and hidden from assistive technology: the mission
- * button already carries the accessible name and description.
- */
-function DockingLeader({
-  isActive,
-  isCentred,
-  run,
-  anchorEdge,
-}: {
-  isActive: boolean;
-  isCentred: boolean;
-  /** Horizontal reach as a CSS length; "0px" for a centred callout. */
-  run: string;
-  /** Which edge of the assembly the housing hangs from. */
-  anchorEdge: "left" | "right";
-}) {
-  const line = isActive ? "bg-signal/70" : "bg-white/20 group-hover:bg-white/35";
-  const stage = { transitionDelay: `${STAGE.leader}ms` } as CSSProperties;
-
-  return (
-    <>
-      {/* Collar at the orbit end: the fitting the strut bolts into. */}
-      <span
-        aria-hidden="true"
-        className={cn(
-          "absolute top-0 left-0 h-[3px] w-[3px] -translate-x-1/2 -translate-y-1/2 rotate-45 transition-colors duration-300",
-          isActive ? "bg-signal" : "bg-white/35 group-hover:bg-white/60",
-        )}
-        style={stage}
-      />
-
-      {/* Horizontal run. Absent on a centred callout, which mounts straight up. */}
-      {!isCentred && (
-        <span
-          aria-hidden="true"
-          className={cn("absolute top-0 h-px transition-colors duration-300", line)}
-          style={{ ...stage, width: "var(--callout-run)", [anchorEdge === "left" ? "left" : "right"]: 0 }}
-        />
-      )}
-
-      {/* Twin struts, one px apart, spanning the standoff. Two parallel lines
-          read as a structural member; one reads as a pointer. */}
-      {[0, 3].map((offset) => (
-        <span
-          key={offset}
-          aria-hidden="true"
-          className={cn(
-            "absolute w-px transition-all duration-300 ease-out",
-            "h-[var(--callout-rise)] group-hover:h-[calc(var(--callout-rise)+4px)]",
-            line,
-            // The outer strut is the lighter one, so the pair reads as a member
-            // with a lit edge rather than as a double line.
-            offset !== 0 && "opacity-45",
-          )}
-          style={
-            {
-              ...stage,
-              bottom: 0,
-              [anchorEdge]: isCentred ? `${offset}px` : `calc(${run} + ${offset}px)`,
-            } as CSSProperties
-          }
-        />
-      ))}
-
-      {/* Cross-tie at mid-height, bracing the two struts. */}
-      <span
-        aria-hidden="true"
-        className={cn("absolute h-px w-1 transition-colors duration-300", line, "opacity-70")}
-        style={
-          {
-            ...stage,
-            bottom: "calc(var(--callout-rise) * 0.42)",
-            [anchorEdge]: isCentred ? "0px" : run,
-          } as CSSProperties
-        }
-      />
-
-      {/* Bracket where the strut meets the housing: a short flange turning back
-          under the panel, so the join reads as a clamp rather than a butt. */}
-      <span
-        aria-hidden="true"
-        className={cn("absolute h-px w-[7px] transition-colors duration-300", line)}
-        style={
-          {
-            ...stage,
-            bottom: "var(--callout-rise)",
-            [anchorEdge]: isCentred ? "-3px" : `calc(${run} - 1px)`,
-          } as CSSProperties
-        }
-      />
-    </>
   );
 }

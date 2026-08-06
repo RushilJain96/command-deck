@@ -5,7 +5,7 @@
  *
  * WHY THIS EXISTS. The deck's composition is over-constrained and its failures
  * are invisible in code review. Six mission callouts, a full-height HUD rail, a
- * bottom-right instrument cluster and a 196px spacecraft have to coexist inside
+ * bottom-right instrument cluster and a 444px spacecraft have to coexist inside
  * one viewport at every size, and the callouts are positioned by trigonometry
  * rather than by layout — so nothing in the CSS can tell you that Forge has
  * ended up underneath the sidebar at 1440px. The first hand-tuned pass did
@@ -40,8 +40,8 @@
 
 // ---------------------------------------------------------------- placement.ts
 const TILT = 0.64;
-const SHIP_STANDOFF = 1.45;
-const DECK_BIAS = 0.80;
+const SHIP_STANDOFF = 1.20;
+const DECK_BIAS = 0.55;
 const CENTRE_BAND = 0.12;
 const LOD = { marker: 0.2, compact: 0.34 };
 
@@ -57,21 +57,79 @@ const MISSIONS = [
 
 // ------------------------------------------------------- measured panel boxes
 // Unscaled. At `lg` compact is the same WIDTH as full — the text column is a
-// fixed 10rem either way — and differs only in height, having dropped the
+// fixed 12.5rem either way — and differs only in height, having dropped the
 // summary. At `sm` no callout is drawn at all: the ring shows bare markers and
 // identity moves to the target readout strip.
+// Re-measured after the modules were rebuilt as banded sections. WIDTHS ARE
+// UNCHANGED — the nameplate/body/status bands pad 20px inside a 200px column
+// where the old face padded 14px and gapped 12px around a 160px one, which is
+// the same 205px outer box and the same 160px text measure, so nothing rewrapped.
+// Heights grew by the two seams and their fields: 114 -> 118 and 75 -> 78.
+//
+// The first cut of the bands used 7px fields and came out at 126/86, which put
+// NEXUS under the top bar at 1101x700 — found by this script, not by eye. The
+// fields are 5px instead. Nothing about the structure changed to fix it: the
+// seams do the sectioning, and the padding around them was simply more than the
+// composition had to spend.
+//
+// `md.full` is dead weight and always has been — TIER.md.cap clamps every
+// mission to `compact` at that tier, so the entry is never read. Kept accurate
+// rather than deleted so the table stays a faithful mirror.
 const BOX = {
-  lg: { full: { w: 205, h: 114 }, compact: { w: 205, h: 75 }, marker: { w: 70, h: 30 } },
-  md: { full: { w: 153, h: 100 }, compact: { w: 153, h: 75 }, marker: { w: 70, h: 30 } },
+  lg: { full: { w: 205, h: 118 }, compact: { w: 205, h: 78 }, marker: { w: 70, h: 30 } },
+  md: { full: { w: 153, h: 118 }, compact: { w: 153, h: 78 }, marker: { w: 70, h: 30 } },
   sm: { full: { w: 0, h: 0 }, compact: { w: 0, h: 0 }, marker: { w: 0, h: 0 } },
 };
 
 // ------------------------------------------------------------------ globals.css
+// `shipScale` is the tier's own transform on the sprite (deck-md:scale-75,
+// deck-sm:scale-50 in ShipSprite). The envelope below turns it into a box.
 const TIER = {
-  lg: { name: "lg", run: 18, rise: 26, rail: 240, railGap: 20, cluster: 420, bar: 56, dock: 72, ship: 202, cap: "full" },
-  md: { name: "md", run: 16, rise: 24, rail: 0, railGap: 0, cluster: 0, bar: 56, dock: 72, ship: 151, cap: "compact" },
-  sm: { name: "sm", run: 9, rise: 14, rail: 0, railGap: 0, cluster: 0, bar: 56, dock: 96, ship: 101, cap: "marker" },
+  lg: { name: "lg", run: 18, rise: 26, rail: 240, railGap: 20, cluster: 420, bar: 56, dock: 72, shipScale: 1, cap: "full" },
+  md: { name: "md", run: 16, rise: 24, rail: 0, railGap: 0, cluster: 0, bar: 56, dock: 72, shipScale: 0.75, cap: "compact" },
+  sm: { name: "sm", run: 9, rise: 14, rail: 0, railGap: 0, cluster: 0, bar: 56, dock: 96, shipScale: 0.5, cap: "marker" },
 };
+
+// ------------------------------------------------------------- shipFrames.ts
+const SHIP_PIXELS = 444;
+
+/**
+ * THE SHIP IS NOT A SQUARE, AND MODELLING IT AS ONE IS NOT MERELY CONSERVATIVE.
+ *
+ * This used to be a single half-size of SHIP_PIXELS/2 applied in all four
+ * directions. That is wrong by a factor of three upward: the frames carry a lot
+ * of transparent margin, and the painted hull occupies only the middle band of
+ * the box. The error did not matter while the ship sat half an orbit below the
+ * ring, because nothing came near it. The moment the vehicle was moved INTO the
+ * plane — which is the entire point of the current composition — a square box
+ * started reporting collisions against callouts separated from the hull by a
+ * hundred-plus pixels of empty alpha, and it would have vetoed the design on
+ * evidence that was not real.
+ *
+ * So these are MEASURED, not estimated, the same rule BOX above follows. Union
+ * of the alpha bounding box across all 16 frames in public/ship/, taken at
+ * alpha > 12/255 (the value is insensitive: thresholds of 12, 64 and 140 agree
+ * to within one part in a thousand):
+ *
+ *   vertical    0.333 .. 0.711 of the frame
+ *   horizontal  0.190 .. 0.782, symmetrised about the centre to 0.310 half-width
+ *               because ShipSprite mirrors the frames with scaleX(-1) for port
+ *               turns, so the swept envelope has to be symmetric in x
+ *
+ * Then rotated about the box centre — the bank is applied to the whole sprite in
+ * ShipSprite, so it sweeps the silhouette — which grows the axis-aligned
+ * envelope to the fractions below. That rotation is why `up` is 0.204 rather
+ * than the 0.167 the unrotated hull would give.
+ *
+ * The sweep was computed at 7deg of bank. FLIGHT.bankMax has since come down to
+ * 4, so this envelope is now slightly larger than the hull can actually reach —
+ * left as is, because erring wide on a collision box is the safe direction and
+ * re-deriving it would only ever loosen the check.
+ *
+ * To re-measure after a re-render, run the dev server and evaluate the alpha
+ * scan over `/ship/yaw-*.webp` in the console.
+ */
+const SHIP_ENV = { halfW: 0.34, up: 0.21, down: 0.25 };
 
 const FORM = {
   lg: { reserve: 536, vh: 0.62, min: 96, max: 470 },
@@ -138,12 +196,16 @@ function violations(w, h) {
   const shipY = bs[0].shipY;
   const out = [];
 
-  if (shipY + t.ship > h - 6) out.push("ship below frame");
-
+  // Painted hull only. The exhaust plume reaches further down and is expected
+  // to run behind the dock — it is a light source, not an obstacle.
+  const px = SHIP_PIXELS * t.shipScale;
   const ship = {
-    x0: w / 2 - t.ship, x1: w / 2 + t.ship,
-    y0: shipY - t.ship, y1: shipY + t.ship,
+    x0: w / 2 - SHIP_ENV.halfW * px, x1: w / 2 + SHIP_ENV.halfW * px,
+    y0: shipY - SHIP_ENV.up * px, y1: shipY + SHIP_ENV.down * px,
   };
+
+  if (ship.y1 > h - 6) out.push("ship below frame");
+  if (ship.y0 < t.bar + 4) out.push("ship under top bar");
   const railL = t.rail && { x0: -1e4, x1: t.railGap + t.rail, y0: t.bar + 24, y1: h - t.dock };
   const clusterR = t.rail && {
     x0: w - t.railGap - t.rail, x1: 1e4,

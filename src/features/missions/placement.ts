@@ -41,24 +41,43 @@ export const ORBIT_TILT = 0.64;
  * 360. A ship that can point backwards at something has no "forward", and
  * without a forward there is no sense of flying anything.
  *
- * GREATER THAN 1.0 ON PURPOSE. The ship no longer rides the outermost mission
- * ring — it sits half an orbit BEYOND it, so the entire mission field lies
- * ahead and above, and the vehicle reads as looking into the system rather than
- * standing in the middle of it. Raising this is the single lever that lifts the
- * missions away from the hull; `DECK_BIAS` then decides how low the ship rides
- * in the frame, and the two are tuned together.
+ * GREATER THAN 1.0 ON PURPOSE. The entire mission field lies ahead and above,
+ * so the vehicle reads as looking into the system rather than standing in the
+ * middle of it.
  *
- * The decorative outer rings in <OrbitGuides> deliberately extend past this
- * value, so an arc still sweeps around and below the hull and the plane reads
- * as continuing past the vehicle rather than stopping at it.
+ * BUT ONLY JUST GREATER. At 1.45 the hull sat half an orbit beyond the
+ * outermost ring, which put the whole ellipse — every arc, every graduation —
+ * strictly ABOVE the ship: near arc at y=532 against a hull starting at y=569
+ * on a 1600x900 deck. Nothing ever crossed the vehicle, and a ship that never
+ * intersects its own orbital plane reads as parked underneath a diagram rather
+ * than operating inside a system. At 1.20 the near arc passes BEHIND the upper
+ * fifth of the hull (the ship holds z-index 50, the guides none), so the
+ * outermost ring is interrupted by the vehicle and the plane visibly continues
+ * past it on both sides. That occlusion is the whole reason for the value.
  *
- * COST OF CHANGING IT: the further back the ship sits, the smaller its apparent
- * turn. Every mission's bearing is compressed toward dead-ahead, so the hull
- * swings through a narrower arc and uses fewer of the rendered yaw frames. At
- * 1.5 the range is about +/-38deg; at 3.0 it would be +/-21deg and the ship
- * would barely appear to turn at all.
+ * The structural outer rings in <OrbitGuides> extend to 2.16, still well past
+ * this, so an arc keeps sweeping around and below the hull.
+ *
+ * HARD FLOOR IS 0.766 — `max(ring * -cos theta)` over the roster, which is
+ * AURORA. At or below it that mission sits level with or behind the ship and
+ * the hull has to aim sideways or backwards; a ship that can point backwards
+ * has no forward, and the whole conceit collapses. 1.20 keeps a 0.43 margin,
+ * enough that re-scattering the missions will not silently cross it — but if
+ * you move a mission onto ring 1.0 near theta 180, re-check this.
+ *
+ * COST OF LOWERING IT: bearings widen. The nearer the ship sits to the field,
+ * the larger the angle subtended by the same node, so the hull swings through a
+ * wider arc. Max screen bearing goes 55.9deg at 1.45 to 66.6deg at 1.20, paid
+ * almost entirely by AURORA and FORGE on the flanks. The RENDERED hull is
+ * unaffected — `renderYaw` saturates at SHIP_YAW_LIMIT either way — so what
+ * actually widens is the gap between where the bearing vector points and where
+ * the nose points. That decoupling is already sanctioned in `shipFrames.ts`;
+ * this makes it about 10deg wider at the extremes.
+ *
+ * MOVE IT WITH DECK_BIAS. Dropping both by the same amount holds the plane
+ * still on screen and raises only the ship — see the note below.
  */
-export const SHIP_STANDOFF = 1.45;
+export const SHIP_STANDOFF = 1.2;
 
 /**
  * How far the whole world is pushed DOWN the viewport, in the same units.
@@ -68,16 +87,27 @@ export const SHIP_STANDOFF = 1.45;
  * to CSS as `--deck-bias` and applied to the world-origin anchor, so it scales
  * with the deck instead of drifting on resize.
  *
- * TIED TO THE HULL'S SIZE. This came down from 1.0 as the ship grew: the hull is
- * anchored at its centre, so it expands toward the dock in both directions.
+ * TIED TO THE HULL'S SIZE. This came down from 1.0, then to 0.55, as the ship
+ * grew: the hull is anchored at its centre, so it expands toward the dock in
+ * both directions.
  *
  * MOVE IT WITH SHIP_STANDOFF, NOT ALONE. Lowering this raises the ship AND the
  * whole plane with it, because the plane is positioned relative to the vehicle —
  * which put the topmost mission under the top bar at four viewport sizes. To
  * raise the ship against a STATIONARY plane, drop this and SHIP_STANDOFF by the
  * same amount; the two shifts cancel for the plane and compose for the ship.
+ *
+ * THAT IS EXACTLY WHAT THE 1.45/0.80 -> 1.20/0.55 PAIR DOES. Screen position is
+ * `H/2 + R*TILT*DECK_BIAS` for the ship and `H/2 + R*TILT*(DECK_BIAS -
+ * SHIP_STANDOFF)` for the plane, so the plane depends only on the DIFFERENCE.
+ * Holding it at -0.65 leaves all six missions on the exact pixel they occupied
+ * before and lifts the ship 0.25*R*TILT (59px at 1600x900) into the ring.
+ *
+ * This is the property that makes the move safe: the callout collision set the
+ * layout solver clears is a function of mission positions, and those did not
+ * change. Only the ship-vs-callout pairs had to be re-checked.
  */
-export const DECK_BIAS = 0.8;
+export const DECK_BIAS = 0.55;
 
 /**
  * Depth cutoffs for level of detail. Distance reduces prominence, never
@@ -200,7 +230,26 @@ export function resolveLod(depth: number): MissionLod {
 export function screenAngleToWorldYaw(screenAngle: number, tilt: number = ORBIT_TILT): number {
   const rad = (screenAngle * Math.PI) / 180;
   // Screen direction, then divide the squash back out of the vertical part.
-  return angleTo({ x: 0, y: 0 }, { x: Math.sin(rad), y: -Math.cos(rad) / tilt });
+  return angleTo({ x: 0, y: 0 }, { x: Math.sin(rad), y: -Math.cos(rad) * (1 / tilt) });
+}
+
+/**
+ * The exact inverse: a real yaw on the plane, projected back to the heading it
+ * APPEARS to have on screen.
+ *
+ * Same operation with the squash applied rather than divided out, so
+ * `worldYawToScreenAngle(screenAngleToWorldYaw(a, t), t) === a` for every a in
+ * (-180, 180].
+ *
+ * This exists for the exhaust. The hull is not drawn at the heading it aims at —
+ * `renderYaw` compresses it — so anything that has to stay physically attached to
+ * the hull (the plume, the engine wash on the floor) must be oriented by the
+ * heading the ship is actually DRAWN at, which means going world -> screen. See
+ * `plumeScreenAngle` in shipFrames.ts.
+ */
+export function worldYawToScreenAngle(worldYaw: number, tilt: number = ORBIT_TILT): number {
+  const rad = (worldYaw * Math.PI) / 180;
+  return angleTo({ x: 0, y: 0 }, { x: Math.sin(rad), y: -Math.cos(rad) * tilt });
 }
 
 /**

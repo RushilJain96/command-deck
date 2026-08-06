@@ -39,21 +39,35 @@ export function HudPanel({
 
   return (
     <section className={cn("relative", className)}>
-      {/* Connector stub, on the edge facing the deck. */}
+      {/* Connector stub, on the edge facing the deck. Down with everything else:
+          a hairline at 0.15 against pure black is one of the brightest marks on
+          the screen, which is a lot of attention for a decorative tie-in. */}
       <span
         aria-hidden="true"
         className={cn(
-          "absolute top-7 h-px w-3 bg-white/15",
+          "absolute top-7 h-px w-3 bg-white/10",
           side === "left" ? "left-full" : "right-full",
         )}
       />
 
-      <span className="block bg-white/[0.11] p-px" style={clip}>
+      {/* DARKENED ACROSS THE BOARD, and the bezel came down with the face.
+          The rail used to sit at rgb(25 30 38) over a #06070a ground, which was
+          a comfortable step above its background. Against pure black that same
+          panel reads as a lit grey card floating in a void — the contrast ratio
+          against the ground roughly doubled without a single value changing.
+          So the face drops to rgb(13 16 21) and the bezel from 0.11 to 0.07:
+          the panels are still legible as housings, but they are now barely above
+          the black they sit on rather than glowing off it.
+
+          The top lip came down too. An inset highlight is a specular, and a
+          specular implies a light source — with the deck's ambient light stood
+          down there is far less for these edges to be catching. */}
+      <span className="block bg-white/[0.07] p-px" style={clip}>
         <span
           className={cn(
             "relative block px-4 py-3.5",
-            "bg-[linear-gradient(158deg,rgb(25_30_38/0.95),rgb(10_13_18/0.97))]",
-            "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.08),inset_0_-1px_0_0_rgb(0_0_0/0.55)]",
+            "bg-[linear-gradient(158deg,rgb(13_16_21/0.96),rgb(4_5_8/0.98))]",
+            "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05),inset_0_-1px_0_0_rgb(0_0_0/0.6)]",
           )}
           style={clip}
         >

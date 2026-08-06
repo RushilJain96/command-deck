@@ -70,12 +70,16 @@ function DestinationSelector({ activeSceneId }: { activeSceneId: string }) {
           the mission callouts. The bezel-over-face construction is the same
           two-layer trick used everywhere else on the deck: a border on a
           clipped box loses its mitred corners. */}
-      <div className="bg-white/[0.11] p-px" style={{ clipPath: hudChamfer("left") }}>
+      {/* Matched to <HudPanel>'s darkened values. The rails and this housing are
+          one instrument; leaving the selector at its old level while the side
+          panels dropped would read as the top bar being lit by something the
+          rest of the deck is not. */}
+      <div className="bg-white/[0.07] p-px" style={{ clipPath: hudChamfer("left") }}>
         <ul
           className={cn(
             "flex items-stretch",
-            "bg-[linear-gradient(168deg,rgb(24_29_37/0.96),rgb(10_13_18/0.98))]",
-            "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.07),inset_0_-1px_0_0_rgb(0_0_0/0.5)]",
+            "bg-[linear-gradient(168deg,rgb(13_16_21/0.96),rgb(4_5_8/0.98))]",
+            "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05),inset_0_-1px_0_0_rgb(0_0_0/0.55)]",
           )}
           style={{ clipPath: hudChamfer("left") }}
         >

@@ -30,15 +30,49 @@ import { STATUS_FILL, STATUS_LABEL, STATUS_TONE, type Mission } from "./types";
  * overrides both axes and expands to full.
  */
 
+/**
+ * ACTIVATION ORDER. One table, read by this file and by <MissionNode>, so the
+ * housing and the hardware it is mounted on cannot drift out of step.
+ *
+ * A module coming up runs STRUCTURE -> SURFACE -> ACCENT -> STATUS: the frame
+ * acknowledges first, then the face catches light, then the instrument channels
+ * respond, then lifecycle reports last. That is the order a real panel powers up
+ * in, and it is the difference between "six properties changed" and "a system
+ * became available".
+ *
+ * THE WHOLE SPAN IS 105ms, AND THAT CEILING IS THE POINT. Long enough that the
+ * order is felt rather than seen; short enough that the module is fully awake
+ * inside a third of a second. The previous table ran to 140ms with the lighting
+ * arriving last, which was late enough to read as a sequence playing.
+ *
+ * STRUCTURE IS ZERO, ALWAYS. Something must move on the same frame the pointer
+ * lands or the module feels unresponsive no matter how good the rest is.
+ *
+ * Delays apply on ENGAGE ONLY. Release drops everything together — a staggered
+ * retreat reads as lag rather than as choreography, because on the way out the
+ * user has already moved on.
+ */
+export const ACTIVATION = {
+  /** Leader, collar, marker, bezel — the frame of the thing. */
+  structure: 0,
+  /** Face reflectance, seams, title. */
+  surface: 35,
+  /** Mounting rail and its channel. */
+  accent: 70,
+  /** Lifecycle strip. */
+  status: 105,
+} as const;
+
+/** Engage delay for one stage, as an inline style. Release is always immediate. */
+const at = (ms: number) => ({ transitionDelay: `${ms}ms` }) as CSSProperties;
+
 interface MissionPanelProps {
   mission: Mission;
   lod: MissionLod;
   isActive: boolean;
-  /** Engage delay for the lighting layers, in ms. See the note in MissionNode. */
-  glowDelay?: number;
 }
 
-export function MissionPanel({ mission, lod, isActive, glowDelay = 0 }: MissionPanelProps) {
+export function MissionPanel({ mission, lod, isActive }: MissionPanelProps) {
   // "center" mirrors the right-hand treatment: content reads left-to-right and
   // the deep chamfer falls on the outer bottom corner either way.
   const isLeft = mission.placement.side === "left";
@@ -72,7 +106,6 @@ export function MissionPanel({ mission, lod, isActive, glowDelay = 0 }: MissionP
         lod={lod}
         isActive={isActive}
         isLeft={isLeft}
-        glowDelay={glowDelay}
         className={panelVisibility}
       />
     </>
@@ -118,13 +151,11 @@ function PanelBody({
   lod,
   isActive,
   isLeft,
-  glowDelay,
   className,
 }: MissionPanelProps & { isLeft: boolean; className: string }) {
   const { label, codename, title, summary, status } = mission;
   const tone = STATUS_TONE[status];
   const clip = { clipPath: calloutChamfer(isLeft ? "left" : "right") } as CSSProperties;
-  const stage = { transitionDelay: `${glowDelay}ms` } as CSSProperties;
 
   // The summary is the first thing to go when space is tight: it is the only
   // part that is prose rather than identity.
@@ -132,52 +163,94 @@ function PanelBody({
 
   return (
     <span className={cn("relative", className)}>
-      {/* Cast shadow. A separate chamfered plate offset down and outward, so
-          the housing appears to hang above the plane rather than be pasted to
-          it. Offset direction matches the deck's single light source. */}
-      <span
-        aria-hidden="true"
-        className="absolute inset-0 translate-y-2 bg-black/60 transition-transform duration-300 group-hover:translate-y-3"
-        style={clip}
-      />
+      {/* Contact shadow: occlusion at the join, not separation from it. The
+          module is mounted on the deck, not floating above it.
 
-      {/* Edge light. Grows on hover, which is the "brighter edge lighting" that
-          makes the housing feel picked up rather than merely outlined. Arrives
-          last in the engage sequence. */}
+          THE HOUSING NO LONGER RISES ON HOVER, AND THE SHADOW NO LONGER TRAVELS.
+          A module bolted to a leader does not lift off its mount when you point
+          at it — that was a card animation wearing hardware clothing, and it was
+          the single most noticeable thing about the old interaction. What
+          replaces it is not motion at all: the same part catching more light.
+          The plate stays exactly where it is, at rest and engaged. */}
+      <span aria-hidden="true" className="absolute inset-0 translate-y-2 bg-black/30" style={clip} />
+
+      {/* Edge light: the deck's ambient catching the outer 3px of the housing.
+          Half strength on hover of what selection gets, so it reads as the part
+          being lit rather than as the module announcing itself. Surface stage. */}
       <span
         aria-hidden="true"
         className={cn(
           "absolute -inset-[3px] transition-opacity duration-300",
-          isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60",
+          isActive ? "opacity-100" : "opacity-0 group-hover:opacity-45",
         )}
         style={{
           ...clip,
-          ...stage,
-          background: isActive ? "rgb(255 59 48 / 0.18)" : "rgb(190 215 255 / 0.10)",
+          ...at(ACTIVATION.surface),
+          background: isActive ? "rgb(214 230 255 / 0.14)" : "rgb(190 215 255 / 0.10)",
         }}
       />
 
-      {/* Bezel: the 1px mitred edge. */}
+      {/* BEZEL: the 1px mitred edge.
+          NEUTRAL WHEN SELECTED, NOT RED. Running the whole perimeter in signal
+          red was the module's loudest statement and the weakest one — a colour
+          swap on a hairline says "this one is different" without saying
+          anything about rank, and it made every other cue redundant. Selection
+          now brightens the edge the way a part catches more light when it is
+          brought forward, and the red is spent where it means something: two
+          pixels on the nameplate.
+
+          HOVER BARELY MOVES IT, AND THAT IS DELIBERATE. The edge used to go to
+          0.25 on hover against 0.34 selected — near enough that the two states
+          were the same statement at two volumes, which is exactly the confusion
+          to avoid. Hover now steps to 0.19: enough to register as the frame
+          acknowledging, far enough from 0.34 that selection still owns the
+          bright edge. Structure stage, so this is what answers the pointer on
+          the first frame. */}
       <span
         className={cn(
-          "relative block p-px transition-colors duration-300",
-          isActive ? "bg-signal/60" : "bg-white/[0.13] group-hover:bg-white/25",
+          "relative block p-px transition-colors duration-200",
+          isActive ? "bg-white/[0.34]" : "bg-white/[0.13] group-hover:bg-white/[0.19]",
         )}
-        style={clip}
+        style={{ ...clip, ...at(ACTIVATION.structure) }}
       >
-        {/* Face */}
+        {/* FACE. No padding of its own any more — the three sections below run
+            edge to edge and carry their own. That is the whole structural move:
+            the module stops being one padded box with four lines stacked in it
+            and becomes a nameplate, a body and a status strip mounted against a
+            spine. Same content, same order, same type sizes; what changed is
+            that the hierarchy is now built rather than implied by margins.
+
+            The surface gradient is VERTICAL, not 158deg. A diagonal wash is a
+            web-card gradient — it implies a light source nothing else on the
+            deck shares. Everything here is lit from above, so the face is
+            simply brighter at the top and falls off. */}
         <span
           className={cn(
-            "relative flex items-stretch gap-3 px-3.5 py-2.5 text-left",
-            "bg-[linear-gradient(158deg,rgb(29_35_44/0.97),rgb(11_14_19/0.98))]",
+            "relative flex items-stretch text-left",
+            isActive
+              ? "bg-[linear-gradient(180deg,rgb(38_45_56/0.985),rgb(16_20_27/0.985))]"
+              : "bg-[linear-gradient(180deg,rgb(29_35_44/0.97),rgb(13_16_22/0.98))]",
             // Top lip catches the light, bottom edge falls into shadow. This
             // directional pair is what sells "machined part" on a dark surface.
-            "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.10),inset_0_-1px_0_0_rgb(0_0_0/0.6)]",
+            //
+            // THE LIP IS THE HOVER RESPONSE. Reflectance, not illumination: the
+            // deck's light does not get brighter when the pointer arrives, so
+            // nothing here should emit more. What can honestly change is how
+            // much of that fixed light the top edge returns — 0.10 to 0.16 is a
+            // specular the eye reads as the part turning very slightly into the
+            // light, and it is the only thing the face itself does.
+            "transition-shadow duration-300",
+            isActive
+              ? "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.18),inset_0_-1px_0_0_rgb(0_0_0/0.6)]"
+              : "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.10),inset_0_-1px_0_0_rgb(0_0_0/0.6)] group-hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.16),inset_0_-1px_0_0_rgb(0_0_0/0.6)]",
             isLeft && "flex-row-reverse text-right",
           )}
-          style={clip}
+          style={{ ...clip, ...at(ACTIVATION.surface) }}
         >
-          {/* Interior glow, pooled at the inner edge under the light. */}
+          {/* Interior lift. Kept as the hover hook it always was, but demoted
+              from a coloured pool to a plain brightening of the top edge — a
+              lit panel is a glowing panel, and the module should read as
+              better-lit rather than as emitting. */}
           <span
             aria-hidden="true"
             className={cn(
@@ -185,10 +258,9 @@ function PanelBody({
               isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             )}
             style={{
-              ...stage,
-              background: isActive
-                ? `radial-gradient(120% 90% at ${isLeft ? "100%" : "0%"} 0%, rgb(255 59 48 / 0.16), transparent 68%)`
-                : `radial-gradient(120% 90% at ${isLeft ? "100%" : "0%"} 0%, rgb(190 215 255 / 0.09), transparent 68%)`,
+              ...at(ACTIVATION.surface),
+              background:
+                "linear-gradient(180deg, rgb(214 230 255 / 0.055), transparent 58%)",
             }}
           />
 
@@ -199,53 +271,120 @@ function PanelBody({
               resolves "available width" to 0 and the box collapses to
               min-content — which rendered the summary one short word per line
               and made every panel a tall ragged column. `max-width` cannot fix
-              that; only an explicit width can. The values are also what the
-              layout solver measures against, so they are not free. */}
+              that; only an explicit width can.
+
+              WIDTHS ARE CHOSEN SO THE TEXT MEASURE IS UNCHANGED. The face used
+              to pad 14px and gap 12px around a 160px column; the bands now pad
+              20px inside a 200px one. 3px rail + 200 + 2px bezel is the same
+              205px outer box, and 200 - 40 is the same 160px of text, so no
+              summary rewraps and the layout solver's geometry still holds. */}
           <span
             className={cn(
               "relative flex flex-col",
-              "w-[10rem] deck-md:w-[6.75rem] deck-sm:w-[8.5rem]",
+              "w-[12.5rem] deck-md:w-[9.25rem] deck-sm:w-[11rem]",
             )}
           >
+            {/* SECTION 1 — NAMEPLATE. Recessed, seamed off from the body, and
+                the only part of the module that changes ground when selected.
+                A designator engraved into its own plate is how every piece of
+                real hardware is identified. */}
             <span
               className={cn(
-                "text-t3 tracking-micro flex items-center gap-1.5 font-mono text-[9px] leading-none",
+                "relative flex items-center gap-1.5 px-5 py-[5px]",
+                "border-b border-black/45",
+                "font-mono text-[9px] leading-none",
+                "tracking-micro transition-colors duration-300",
+                // HOVER BRINGS UP THE ENGRAVING, NOT THE PLATE. The ground stays
+                // recessed — changing it is what selection does, and the two
+                // states must not be the same gesture at different strengths.
+                // All hover does is make the designator legible enough to act
+                // on, which is what "available" means.
+                isActive ? "bg-white/[0.065] text-t2" : "text-t3 group-hover:text-t2 bg-black/[0.18]",
                 isLeft && "flex-row-reverse",
               )}
+              style={at(ACTIVATION.surface)}
             >
-              <span>{label}</span>
+              {/* Selection tab. Two pixels on the mounting edge of the
+                  nameplate — the entire red cue on a selected module. The
+                  bezel no longer turns red at all; importance is carried by the
+                  lit nameplate and the raised face behind it, and this is only
+                  the flag that says WHICH signal it is. */}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "bg-signal absolute inset-y-0 w-[2px] transition-opacity duration-300",
+                  isLeft ? "right-0" : "left-0",
+                  isActive ? "opacity-100" : "opacity-0",
+                )}
+              />
+              <span className={cn("transition-colors duration-300", isActive && "text-signal")}>
+                {label}
+              </span>
               <span aria-hidden="true" className="text-t4">
                 /
               </span>
               <span>{codename}</span>
             </span>
 
+            {/* SECTION 2 — BODY. The lit face of the module; carries the name
+                and, at full detail, the one line of prose. */}
             <span
               className={cn(
-                "mt-2 truncate text-[14.5px] leading-[1.15] font-medium tracking-[-0.01em] transition-colors duration-300",
-                isActive ? "text-t1" : "text-t1/90 group-hover:text-t1",
+                "flex flex-col px-5 py-2.5 transition-shadow duration-300",
+                // The seam is a physical join, and a join catches light. Taking
+                // it 0.05 -> 0.09 makes the module read as more assembled rather
+                // than more decorated — the panel divisions become legible
+                // without any of them getting louder.
+                isActive
+                  ? "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.09)]"
+                  : "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05)] group-hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.09)]",
               )}
+              style={at(ACTIVATION.surface)}
             >
-              {title}
-            </span>
-
-            {showSummary && (
               <span
                 className={cn(
-                  "text-t2 mt-1.5 line-clamp-2 text-[11.5px] leading-[1.45]",
-                  !isActive && "deck-md:hidden",
+                  "truncate text-[14.5px] leading-[1.15] font-medium tracking-[-0.01em] transition-colors duration-300",
+                  isActive ? "text-t1" : "text-t1/90 group-hover:text-t1",
                 )}
+                style={at(ACTIVATION.surface)}
               >
-                {summary}
+                {title}
               </span>
-            )}
 
+              {showSummary && (
+                <span
+                  className={cn(
+                    "text-t2 mt-1.5 line-clamp-2 text-[11.5px] leading-[1.45]",
+                    !isActive && "deck-md:hidden",
+                  )}
+                >
+                  {summary}
+                </span>
+              )}
+            </span>
+
+            {/* SECTION 3 — STATUS STRIP. Seamed off the same way as the
+                nameplate, so lifecycle stops being the last line of a paragraph
+                and becomes a readout with its own field. */}
             <span
               className={cn(
-                "tracking-micro mt-2.5 flex items-center gap-1.5 font-mono text-[9px] leading-none",
+                "flex items-center gap-1.5 px-5 py-[5px]",
+                "border-t border-black/45",
+                "tracking-micro font-mono text-[9px] leading-none",
+                "transition-[background-color,box-shadow] duration-300",
+                // LAST TO ANSWER. Lifecycle is the one thing on the module that
+                // is a report rather than a property, so it settles after the
+                // structure and the surface have — the order a panel powers up
+                // in. The field lightens a fraction and its seam catches the
+                // same light as the one above; the status COLOUR never changes,
+                // because it means something and hover is not new information.
+                isActive
+                  ? "bg-black/[0.07] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.09)]"
+                  : "bg-black/[0.12] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05)] group-hover:bg-black/[0.07] group-hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.09)]",
                 tone.text,
                 isLeft && "flex-row-reverse",
               )}
+              style={at(ACTIVATION.status)}
             >
               <span className={cn("h-1 w-1", tone.dot, status !== "PLANNED" && "signal-blink")} />
               {STATUS_LABEL[status]}
@@ -261,18 +400,50 @@ function PanelBody({
  * Lifecycle as a gauge, not a badge: fill HEIGHT encodes how far the mission
  * has progressed, so the three states are comparable at a glance without
  * reading the label.
+ *
+ * NOW A CHANNEL, NOT A STRIPE. It used to be a flat coloured bar with a gap
+ * between it and the text, which is the accent stripe of a web card — the same
+ * device used to colour-code a notification. Seating it flush against the
+ * module's mounting edge and cutting a recess for it (dark well, hard shadow on
+ * the inboard wall, a hairline of light on the outboard lip) turns the same
+ * three pixels into a gauge let into the housing. It also now runs the full
+ * height of all three sections, which is what makes it read as the spine the
+ * nameplate, body and status strip are mounted against.
+ *
+ * The chamfer never touches this edge — `calloutChamfer` cuts the two corners
+ * on the side facing AWAY from the spacecraft — so the rail is never clipped,
+ * on either hand.
  */
 function StatusRail({ status, isActive }: { status: Mission["status"]; isActive: boolean }) {
   const tone = STATUS_TONE[status];
   return (
-    <span className="relative w-[3px] shrink-0 self-stretch bg-black/60">
+    <span
+      className={cn(
+        "relative w-[3px] shrink-0 self-stretch bg-black/70 transition-shadow duration-300",
+        // Inboard wall in shadow, outboard lip catching light: the two-sided
+        // cue that reads as a groove rather than as paint.
+        //
+        // The LIP is what responds. A machined edge is the brightest thing on a
+        // part because it is the only surface angled back at the light, so
+        // taking it 0.07 -> 0.13 sharpens the channel without touching the
+        // gauge inside it. The groove gets crisper; nothing gets brighter.
+        isActive
+          ? "shadow-[inset_1px_0_0_0_rgb(0_0_0/0.85),inset_-1px_0_0_0_rgb(255_255_255/0.13)]"
+          : "shadow-[inset_1px_0_0_0_rgb(0_0_0/0.85),inset_-1px_0_0_0_rgb(255_255_255/0.07)] group-hover:shadow-[inset_1px_0_0_0_rgb(0_0_0/0.85),inset_-1px_0_0_0_rgb(255_255_255/0.13)]",
+      )}
+      style={at(ACTIVATION.accent)}
+    >
       <span
         className={cn(
-          "absolute bottom-0 left-0 w-full transition-all duration-300",
+          // `transition-opacity`, not `transition-all`: the fill HEIGHT is a
+          // static property of the mission's lifecycle and must never animate —
+          // a gauge that slides on hover is reporting a change that did not
+          // happen.
+          "absolute bottom-0 left-0 w-full transition-opacity duration-300",
           tone.rail,
-          isActive ? "opacity-100" : "opacity-60 group-hover:opacity-100",
+          isActive ? "opacity-100" : "opacity-55 group-hover:opacity-100",
         )}
-        style={{ height: STATUS_FILL[status] }}
+        style={{ height: STATUS_FILL[status], ...at(ACTIVATION.accent) }}
       />
       {/* Graduations turn the bar into a scale. */}
       <span className="absolute inset-x-0 top-1/3 h-px bg-black/70" />

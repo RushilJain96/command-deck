@@ -1,13 +1,13 @@
 "use client";
 
-import { motion, type MotionValue } from "framer-motion";
+import { motion, useTransform, type MotionValue } from "framer-motion";
 import { useActiveTargetId } from "@/features/app/hooks";
 import { getMissionById } from "@/features/missions/data";
 import { SHIP_Z_INDEX } from "@/features/missions/placement";
 import { BearingVector } from "./BearingVector";
 import { ExhaustPlume } from "./ExhaustPlume";
 import { ShipGeometry } from "./ShipGeometry";
-import { SPRITE_ENABLED } from "./shipFrames";
+import { SPRITE_ENABLED, plumeScreenAngle } from "./shipFrames";
 import { ShipSprite } from "./ShipSprite";
 import { SHIP_PIXELS } from "./shipFrames";
 import { useShipRotation } from "./useShipRotation";
@@ -36,8 +36,7 @@ import { useShipRotation } from "./useShipRotation";
  * Motion channels are on separate nested elements because one element has one
  * `rotate` and one `scale`:
  *
- *   outer   targeting rotation  (imperative MotionValue, zero re-renders)
- *   middle  idle drift          (declarative, so MotionConfig covers it)
+ *   outer   targeting attitude  (imperative MotionValue, zero re-renders)
  *   inner   breathing           (declarative scale, near-imperceptible)
  */
 export function Spacecraft() {
@@ -53,81 +52,37 @@ export function Spacecraft() {
   // points the hull at empty space.
   const { rotation, plume, bank } = useShipRotation(activeMission?.placement.screenAngle ?? null);
 
+  // EVERYTHING BOLTED TO THE HULL RIDES THIS, NOT `plume` DIRECTLY.
+  //
+  // `plume` is the lagged TRUE bearing, and the hull is never drawn at the true
+  // bearing — `renderYaw` compresses it to keep the ship in its hero pose. Feeding
+  // the raw value to the exhaust pointed the flame up to 45deg away from the
+  // engine bells at the flanks of the deck, which is what made the propulsion read
+  // as a separate object following the ship. `plumeScreenAngle` round-trips
+  // through the same compression the sprite uses, so the exhaust and the engine
+  // wash are oriented by the heading the hull is ACTUALLY drawn facing.
+  //
+  // The lag is untouched: this is a pure function of the already-lagged value, so
+  // the exhaust still trails the hull by exactly the frames `plumeLag` gives it.
+  const exhaustHeading = useTransform(plume, plumeScreenAngle);
+
   return (
     <>
-      {/* GROUND CONTACT, IN TWO PARTS. A single soft blob under a hovering
-          object reads as a smudge, because real contact shadows have two
-          components with different falloffs: a wide, soft ambient occlusion
-          that says "something large is above this surface", and a much tighter,
-          darker core directly beneath it that says exactly HOW FAR above. Drop
-          the core and the object floats at an indeterminate height; drop the
-          spread and it looks stuck to the floor.
+      {/* THE CONTACT SHADOWS ARE GONE TOO, AND FOR A REASON THAT IS EASY TO MISS.
+          Two black ellipses on a black ground are not merely invisible — they
+          are drawn INSIDE the camera rig, so they occlude the star field behind
+          them and cut a starless patch out of the sky around the hull. A shadow
+          with no surface to fall on becomes a hole in space. Back with the plane.
 
-          Both offset DOWN-LEFT of the hull, opposite the upper-right key. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-0 left-0 rounded-[50%]"
-        style={{
-          zIndex: SHIP_Z_INDEX - 3,
-          width: "calc(var(--orbit-radius) * 0.86)",
-          height: "calc(var(--orbit-radius) * var(--orbit-tilt) * 0.86)",
-          transform: "translate(-53%, -36%)",
-          // Softer and wider than it was: the falloff now starts earlier and
-          // ends later, so there is no visible edge to the shadow at all.
-          background: "radial-gradient(closest-side, rgb(0 0 0 / 0.52), rgb(0 0 0 / 0.2) 44%, transparent 82%)",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-0 left-0 rounded-[50%]"
-        style={{
-          zIndex: SHIP_Z_INDEX - 2,
-          width: "calc(var(--orbit-radius) * 0.38)",
-          height: "calc(var(--orbit-radius) * var(--orbit-tilt) * 0.38)",
-          transform: "translate(-56%, -30%)",
-          background: "radial-gradient(closest-side, rgb(0 0 0 / 0.82), rgb(0 0 0 / 0.34) 50%, transparent 80%)",
-        }}
-      />
-
-      {/* Ambient pool, offset UP-RIGHT toward the key light.
-          Raised about 20% from where it sat, because this is the deck's
-          FOCAL LIGHT: the eye goes to the brightest region of a dark frame, and
-          that region has to be the spacecraft. Still well under the level where
-          it would flatten the hull — diffuse fill lifts a form uniformly and
-          stops the key describing it, which is why this is a pool ON THE FLOOR
-          rather than more light on the ship. */}
-      <div
-        aria-hidden="true"
-        className="deck-respire pointer-events-none absolute top-0 left-0 rounded-[50%]"
-        style={{
-          zIndex: SHIP_Z_INDEX - 1,
-          width: "calc(var(--orbit-radius) * 1.34)",
-          height: "calc(var(--orbit-radius) * var(--orbit-tilt) * 1.34)",
-          transform: "translate(-46%, -56%)",
-          background:
-            "radial-gradient(closest-side, rgb(158 192 232 / 0.174), rgb(120 150 190 / 0.05) 46%, transparent 74%)",
-        }}
-      />
-
-      {/* Engine wash spilling onto the plane behind the ship. Rotates with the
-          LAGGED heading so the light on the floor swings in after the hull. */}
-      <motion.div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-0 left-0 origin-top-left"
-        style={{ zIndex: SHIP_Z_INDEX - 1, rotate: plume }}
-      >
-        <div
-          className="absolute top-0 left-0 rounded-[50%] transition-opacity duration-700"
-          style={{
-            width: "calc(var(--orbit-radius) * 0.5)",
-            height: "calc(var(--orbit-radius) * var(--orbit-tilt) * 0.9)",
-            transform: "translate(-50%, -6%)",
-            opacity: engaged ? 0.5 : 0.22,
-            background:
-              "radial-gradient(closest-side, rgb(255 59 48 / 0.30), rgb(255 59 48 / 0.07) 48%, transparent 76%)",
-          }}
-        />
-      </motion.div>
+          THE AMBIENT POOL AND THE ENGINE WASH ARE GONE FOR THE SAME REASON.
+          TOGETHER WITH THE PLANE.
+          Both were light cast ONTO THE ORBITAL SURFACE — a diffuse pool under
+          the hull and a red spill thrown backwards from the nozzles. With the
+          platform stood down there is no surface for either of them to land on,
+          so they stopped being reflected light and became two glowing ellipses
+          floating in a vacuum, which is the single most artificial thing a dark
+          scene can contain. Light needs something to fall on.
+          They come back with the plane. Nothing else about the ship changed. */}
 
       <div className="absolute top-0 left-0" style={{ zIndex: SHIP_Z_INDEX }}>
         <BearingVector
@@ -139,36 +94,38 @@ export function Spacecraft() {
 
       {/* Exhaust, layered by temperature rather than by alpha. */}
       <div className="absolute top-0 left-0" style={{ zIndex: SHIP_Z_INDEX }}>
-        <ExhaustPlume rotation={plume} engaged={engaged} size={SHIP_PIXELS} />
+        <ExhaustPlume rotation={exhaustHeading} engaged={engaged} size={SHIP_PIXELS} />
       </div>
 
       <div
         className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2"
         style={{ zIndex: SHIP_Z_INDEX }}
       >
+        {/* THE IDLE ATTITUDE SWAY IS GONE, AND FOR TWO REASONS.
+
+            It rotated the HULL ONLY. The exhaust is a sibling of this element,
+            not a child, so a +/-1.1deg sway rocked the ship against its own
+            plume forever — a permanent low-grade version of exactly the
+            detachment the propulsion pass existed to remove.
+
+            And a vehicle holding attitude does not wander off it. Continuous
+            unforced rotation is the one motion on this deck that could not be
+            explained by anything the ship was doing, which is the definition of
+            an animation rather than a behaviour.
+
+            Breathing stays: it is a SCALE, so it neither desyncs the exhaust nor
+            claims the ship is turning, and a 1.5% pulse reads as "powered"
+            without ever looking like movement. */}
         <motion.div
-          animate={{ rotate: [-1.1, 1.1] }}
+          animate={{ scale: [1, 1.015] }}
           transition={{
-            duration: 9,
+            duration: 4.5,
             repeat: Infinity,
             repeatType: "mirror",
             ease: "easeInOut",
           }}
         >
-          {/* Breathing. Scale rather than translation — the ship must hold
-              the centre, and a 1.5% pulse reads as "powered" without ever
-              looking like movement. */}
-          <motion.div
-            animate={{ scale: [1, 1.015] }}
-            transition={{
-              duration: 4.5,
-              repeat: Infinity,
-              repeatType: "mirror",
-              ease: "easeInOut",
-            }}
-          >
-            <ShipHull rotation={rotation} bank={bank} engaged={engaged} />
-          </motion.div>
+          <ShipHull rotation={rotation} bank={bank} engaged={engaged} />
         </motion.div>
       </div>
     </>

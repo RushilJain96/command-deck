@@ -78,7 +78,16 @@
  * to resolve.
  */
 :root {
-  --void: #06070a; /* deep space */
+  /* Deep space. PITCH BLACK, and literally so — #000, not a very dark blue.
+   *
+   * Space has no ambient term. Every previous value here (#06070a, then #030409)
+   * was a tinted floor that lifted the entire frame off zero, and on an OLED
+   * panel the difference between that and true black is the difference between a
+   * dark screen and no screen at all. With the backdrop washes and the orbital
+   * platform both stood down, nothing is left to be lit BY — so the ground goes
+   * to zero and every remaining point of luminance in the composition is
+   * something that was deliberately put there. */
+  --void: #000000;
   --hull: #12151b; /* instrument body */
   --signal: #ff3b30; /* ACTIVE TARGET ONLY */
   --nominal: #3fb98a; /* deployed */
@@ -219,6 +228,18 @@
   }
 }
 
+/**
+ * Celestial bodies. Every layer of a body is a full-bleed circle stacked on the
+ * disc; only the backgrounds differ, so the shared geometry lives here rather
+ * than being repeated as inline styles on four elements per body.
+ */
+.celestial-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
 /* Fixed viewport. The app never scrolls — navigation is spatial, not vertical. */
 html,
 body {
@@ -252,18 +273,15 @@ body {
  * compositor and cost nothing per frame.
  */
 
-/* Radar sweep across the orbital plane. Rotates in circle space, THEN squashes
-   to the ellipse — squashing first would rotate the ellipse itself. */
-@keyframes deck-sweep {
-  from {
-    transform: translate(-50%, -50%) scaleY(var(--orbit-tilt)) rotate(0deg);
-  }
-  to {
-    transform: translate(-50%, -50%) scaleY(var(--orbit-tilt)) rotate(360deg);
-  }
-}
+/* The radar sweep lived here. It was removed with the orbital-plane pass: it was
+   the only literally-animated element on the plane, and the field's variation is
+   now carried by a static per-ring lighting model (see `orbit.data.ts`), which
+   is what "alive without looking animated" asks for. The keyframe is gone rather
+   than left orphaned — see <OrbitGuides> for what to restore if it is wanted
+   back. */
 
-/* Slow breathing of the orbital glow, like a system idling. */
+/* Slow breathing of the ship's ambient pool, like a system idling. The orbital
+   plane deliberately does NOT use this; only the spacecraft does. */
 @keyframes deck-respire {
   0%,
   100% {
@@ -297,19 +315,28 @@ body {
   }
 }
 
-/* Heat haze off the engines. Scaled about the nozzle end rather than the centre
-   so the flame breathes along its length instead of pulsing as a whole — the
-   throat is anchored, the tip wanders, which is how a real plume behaves. */
-@keyframes plume-shimmer {
+/* Boundary drift on the exhaust's OUTER ENVELOPE ONLY — never the core.
+ *
+ * A steady-state engine does not pulse, and the previous 5% shimmer on the flame
+ * body read as throttle modulation: the plume visibly breathed, which says
+ * "unstable combustion" rather than "controlled thrust". What does move on a real
+ * plume is the diffuse outer boundary, where hot gas is mixing with what is
+ * around it — so the motion belongs there and nowhere else.
+ *
+ * 1.5-2%, over five and a half seconds. That is below the threshold at which
+ * anyone can name it, which is the entire AMBIENT LIFE doctrine above: the deck
+ * should feel powered on, not animated.
+ *
+ * Anchored at the NOZZLE END via fill-box, so the envelope elongates downstream
+ * and stays welded to the ship. Scaling about the centre would slide the hot end
+ * off the bells every cycle, which is the detachment this pass exists to fix. */
+@keyframes plume-drift {
   0%,
   100% {
     transform: scaleX(1) scaleY(1);
   }
-  33% {
-    transform: scaleX(1.05) scaleY(0.96);
-  }
-  66% {
-    transform: scaleX(0.97) scaleY(1.04);
+  50% {
+    transform: scaleX(0.985) scaleY(1.02);
   }
 }
 
@@ -331,9 +358,6 @@ body {
   }
 }
 
-.deck-sweep {
-  animation: deck-sweep 28s linear infinite;
-}
 .deck-respire {
   animation: deck-respire 7s ease-in-out infinite;
 }
@@ -346,18 +370,22 @@ body {
 .comms-packet {
   animation: comms-packet 11s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
-.plume-shimmer {
-  transform-origin: 50% 26%;
-  animation: plume-shimmer 2.6s ease-in-out infinite;
+.plume-drift {
+  /* fill-box, so the origin is the element's own bounding box rather than the
+     whole viewBox — `50% 0%` is then unambiguously the throat end of the
+     envelope. Without this the origin resolves against the 152-unit viewBox and
+     the anchor lands somewhere in open space. */
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+  animation: plume-drift 5.5s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .deck-sweep,
   .deck-respire,
   .signal-blink,
   .star-drift,
   .comms-packet,
-  .plume-shimmer {
+  .plume-drift {
     animation: none;
   }
 }

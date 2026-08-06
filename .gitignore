@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Exploratory camera studies from scripts/render-ship-frames.py --contact
+render-study/
+
+# Blender/Python bytecode from the frame renderer
+scripts/__pycache__/
+
+# Per-machine Claude Code settings; .claude/launch.json IS tracked.
+.claude/settings.local.json
