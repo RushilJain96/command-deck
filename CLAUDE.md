@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Rushil's personal portfolio site — a Next.js (App Router) + TypeScript + Tailwind CSS v4 project. Currently an unmodified `create-next-app` scaffold (single page at `src/app/page.tsx`); no components, routes, or tests exist yet beyond the default template.
+Rushil's personal portfolio site — a Next.js (App Router) + TypeScript + Tailwind CSS v4 project, built as an interactive Engineering Command Center rather than a page-based site. One fixed, non-scrolling viewport hosts a spatial scene: an orbital mission field, a spacecraft that aims at whatever is targeted, and a screen-space HUD.
 
 ## Commands
 
@@ -14,8 +14,9 @@ Rushil's personal portfolio site — a Next.js (App Router) + TypeScript + Tailw
 - `npm run build` — production build
 - `npm run start` — serve the production build
 - `npm run lint` — run ESLint (flat config via `eslint.config.mjs`)
+- `npm run check:layout` — headless collision solver; proves the six mission callouts, the HUD rails, the ship and the frame coexist across 25 viewports
 
-There is no test runner configured in this project.
+There is no unit-test runner. `check:layout` is the closest thing to a test suite, and it is a **hand-maintained mirror** of constants in `globals.css`, `placement.ts` and `data.ts` — change any of those and you must change it too, or it passes on stale numbers.
 
 ## Important: Next.js version mismatch with training data
 
@@ -29,7 +30,18 @@ This project pins `next@16.2.12`, which is newer than most models' training data
 - Tailwind CSS v4 is configured via PostCSS (`@tailwindcss/postcss` in `postcss.config.mjs`) rather than a `tailwind.config.js` file; theme customization happens in `globals.css` using `@theme inline`.
 - `clsx` + `tailwind-merge` are available for conditional/merged class names; `framer-motion` is available for animation; `lucide-react` for icons.
 
-Feature code lives in flat folders under `src/features/{app,camera,missions,scenes,spacecraft}`, with cross-cutting primitives in `src/lib/{math,motion}`. Add subfolders to a feature only once it exceeds ~5 files.
+Feature code lives in flat folders under `src/features/{app,camera,chrome,environment,hud,missions,scenes,spacecraft}`, with cross-cutting primitives in `src/lib/{math,motion}`. Add subfolders to a feature only once it exceeds ~5 files.
+
+- `app` — reducer, provider, hooks. Four separate primitive-valued contexts, not one object context.
+- `camera` — MotionValue-driven pan/zoom. No React state.
+- `chrome` — persistent shell (`TopBar`, `Dock`), siblings of `SceneHost` so they do not fade with scene transitions.
+- `environment` — starfield, celestial bodies, and the orbital field. The field is a `<canvas>` because it needs additive compositing.
+- `hud` — scene-scoped readouts, all built on the shared `HudPanel` housing.
+- `missions` — the roster, its polar→screen projection (`placement.ts`), and the callout cards.
+- `scenes` — `SceneHost` plus the scene registry. `boot` and `command-deck` are real; `project` is still a stub.
+- `spacecraft` — 16 pre-rendered WebP yaw frames, an attitude integrator, and an SVG exhaust plume.
+
+There is no WebGL and no three.js. The entire 2.5D projection is one constant: `ORBIT_TILT = 0.64` in `placement.ts`, which is `sin(elevation)` for a camera 39.8° above the plane. Depth is carried by parallax factors and z-index, never by perspective.
 
 ## Interaction engine invariants
 
