@@ -40,8 +40,14 @@
 
 // ---------------------------------------------------------------- placement.ts
 const TILT = 0.64;
-const SHIP_STANDOFF = 1.20;
-const DECK_BIAS = 0.55;
+const SHIP_STANDOFF = 1.05;
+// The plane's perspective divide. Mirrors ORBIT_PERSPECTIVE / planeDivisor /
+// SHIP_STANDOFF_SCREEN in placement.ts — node screen positions come out of it,
+// so a stale value here checks collisions against a deck that is not drawn.
+const PERSPECTIVE = 0.13;
+const divisor = (ring, cosTheta) => 1 + PERSPECTIVE * ring * cosTheta;
+const SHIP_STANDOFF_SCREEN = SHIP_STANDOFF / divisor(SHIP_STANDOFF, -1);
+const DECK_BIAS = 0.93;
 const CENTRE_BAND = 0.12;
 const LOD = { marker: 0.2, compact: 0.34 };
 
@@ -75,8 +81,13 @@ const MISSIONS = [
 // `md.full` is dead weight and always has been — TIER.md.cap clamps every
 // mission to `compact` at that tier, so the entry is never read. Kept accurate
 // rather than deleted so the table stays a faithful mirror.
+//
+// `lg` came down from 205 to 181 when the text column went 200 -> 176. Heights
+// are unchanged: the bands and their seams are fixed, and the summary is
+// `line-clamp-2` either way, so a narrower measure rewraps within two lines
+// rather than growing a third.
 const BOX = {
-  lg: { full: { w: 205, h: 118 }, compact: { w: 205, h: 78 }, marker: { w: 70, h: 30 } },
+  lg: { full: { w: 181, h: 118 }, compact: { w: 181, h: 78 }, marker: { w: 70, h: 30 } },
   md: { full: { w: 153, h: 118 }, compact: { w: 153, h: 78 }, marker: { w: 70, h: 30 } },
   sm: { full: { w: 0, h: 0 }, compact: { w: 0, h: 0 }, marker: { w: 0, h: 0 } },
 };
@@ -85,7 +96,7 @@ const BOX = {
 // `shipScale` is the tier's own transform on the sprite (deck-md:scale-75,
 // deck-sm:scale-50 in ShipSprite). The envelope below turns it into a box.
 const TIER = {
-  lg: { name: "lg", run: 18, rise: 26, rail: 240, railGap: 20, cluster: 420, bar: 56, dock: 72, shipScale: 1, cap: "full" },
+  lg: { name: "lg", run: 18, rise: 26, rail: 208, railGap: 20, cluster: 420, bar: 56, dock: 72, shipScale: 1, cap: "full" },
   md: { name: "md", run: 16, rise: 24, rail: 0, railGap: 0, cluster: 0, bar: 56, dock: 72, shipScale: 0.75, cap: "compact" },
   sm: { name: "sm", run: 9, rise: 14, rail: 0, railGap: 0, cluster: 0, bar: 56, dock: 96, shipScale: 0.5, cap: "marker" },
 };
@@ -131,14 +142,16 @@ const SHIP_PIXELS = 444;
  */
 const SHIP_ENV = { halfW: 0.34, up: 0.21, down: 0.25 };
 
+// `vhOff` mirrors the `- 130px` in the lg height term. Only lg needs it: md and
+// sm cap R low enough (276 / 120) that the top-bar constraint never binds.
 const FORM = {
-  lg: { reserve: 536, vh: 0.62, min: 96, max: 470 },
-  md: { reserve: 210, vh: 0.38, min: 80, max: 276 },
-  sm: { reserve: 20, vh: 0.3, min: 60, max: 120 },
+  lg: { reserve: 475, vh: 0.56, vhOff: 130, min: 96, max: 470 },
+  md: { reserve: 210, vh: 0.38, vhOff: 0, min: 80, max: 276 },
+  sm: { reserve: 20, vh: 0.3, vhOff: 0, min: 60, max: 120 },
 };
 
 const tierOf = (w, h) =>
-  w <= 620 || h <= 560 ? "sm" : w <= 1500 || h <= 700 ? "md" : "lg";
+  w <= 620 || h <= 560 ? "sm" : w <= 1340 || h <= 640 ? "md" : "lg";
 
 // ---------------------------------------------------------------------- model
 const rad = (d) => (d * Math.PI) / 180;
@@ -148,12 +161,16 @@ const clampLod = (l, cap) => (RANK[l] <= RANK[cap] ? l : cap);
 
 const placed = MISSIONS.map((m) => {
   const r = rad(m.theta);
-  const sx = Math.sin(r);
-  const sy = -Math.cos(r);
+  const d = divisor(m.ring, Math.cos(r));
+  const sx = Math.sin(r) / d;
+  const sy = -Math.cos(r) / d;
   return {
     ...m,
     sx,
     sy,
+    // Depth is an ORDERING, not a position, so it stays on the unprojected
+    // angle — it drives z-index, opacity and level of detail, none of which
+    // should shift because the camera moved closer to the plane.
     depth: (1 - m.ring * Math.cos(r)) / 2,
     side: Math.abs(m.ring * sx) < CENTRE_BAND ? "center" : sx < 0 ? "left" : "right",
   };
@@ -164,13 +181,16 @@ const REACH = Math.max(...placed.map((p) => Math.abs(p.ring * p.sx)));
 
 function radiusOf(w, h, name) {
   const f = FORM[name];
-  return Math.max(f.min, Math.min(Math.min((w / 2 - f.reserve) / REACH, f.vh * h), f.max));
+  return Math.max(
+    f.min,
+    Math.min(Math.min((w / 2 - f.reserve) / REACH, f.vh * h - f.vhOff), f.max),
+  );
 }
 
 function boxes(w, h, R, t) {
   const cx = w / 2;
   const shipY = h / 2 + R * TILT * DECK_BIAS;
-  const planeY = shipY - R * TILT * SHIP_STANDOFF;
+  const planeY = shipY - R * TILT * SHIP_STANDOFF_SCREEN;
   return placed.map((p) => {
     const scale = 0.78 + p.depth * 0.5;
     const box = BOX[t.name][clampLod(lodOf(p.depth), t.cap)];
@@ -206,7 +226,8 @@ function violations(w, h) {
 
   if (ship.y1 > h - 6) out.push("ship below frame");
   if (ship.y0 < t.bar + 4) out.push("ship under top bar");
-  const railL = t.rail && { x0: -1e4, x1: t.railGap + t.rail, y0: t.bar + 24, y1: h - t.dock };
+  // y0 mirrors the rail's own `top-[72px]` (bar 56 + 16), not the old top-20.
+  const railL = t.rail && { x0: -1e4, x1: t.railGap + t.rail, y0: t.bar + 16, y1: h - t.dock };
   const clusterR = t.rail && {
     x0: w - t.railGap - t.rail, x1: 1e4,
     y0: h - t.dock - t.cluster, y1: h - t.dock,
@@ -230,9 +251,16 @@ function violations(w, h) {
 }
 
 // ----------------------------------------------------------------------- run
+// The lg tier's LOWER BOUNDARY is sampled densely on purpose. R falls off a
+// cliff there — it is `(w/2 - 475) / 0.786`, so every 10px of width costs ~6px
+// of orbit — and for a long time the list jumped straight from 1280 to 1180,
+// which straddles the boundary without ever landing near it. A tier whose worst
+// case is never tested is a tier that passes on the strength of its best case.
 const VIEWPORTS = [
   [1920, 1080], [1728, 1117], [1600, 900], [1536, 1024], [1512, 982], [1440, 900],
-  [1366, 768], [1280, 800], [1280, 720], [1180, 820], [1101, 700],
+  [1366, 768], [1340, 800], [1300, 850], [1280, 800], [1280, 720],
+  [1260, 800], [1240, 800], [1200, 800], [1181, 820],
+  [1180, 820], [1101, 700],
   [1100, 800], [1024, 768], [900, 1200], [820, 1180], [768, 1024], [744, 1133], [932, 430],
   [620, 900], [430, 932], [402, 874], [390, 844], [360, 640], [320, 568], [844, 390],
 ];

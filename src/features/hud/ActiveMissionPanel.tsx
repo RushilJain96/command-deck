@@ -15,11 +15,21 @@ import { HudCaption, HudDivider, HudHeadline, HudPanel, HudRow } from "./HudPane
  * the active target instead and it flickers on every hover, which is precisely
  * the behaviour the split exists to prevent.
  */
+/**
+ * STOOD DOWN — not rendered anywhere. <CommandHud> no longer mounts this.
+ *
+ * It reported the LOCKED target from the left rail while <TargetReadout> reports
+ * the ACTIVE one from the right, which is a real distinction but not one worth a
+ * whole card in a column that had no room for it. The selected mission's own
+ * callout carries its selected state, and the right cluster carries the readout.
+ * Kept because the locked/active split is a deliberate part of the targeting
+ * model and this is the only component that renders the locked half.
+ */
 export function ActiveMissionPanel() {
   const mission = getMissionById(useLockedTargetId());
 
   return (
-    <HudPanel label="Active Mission" className="w-60">
+    <HudPanel label="Active Mission" className="w-52">
       {mission ? (
         <>
           <HudHeadline>{mission.title}</HudHeadline>

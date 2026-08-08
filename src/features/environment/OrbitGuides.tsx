@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { planeDivisor } from "@/features/missions/placement";
+
+/**
+ * The deck's cyan accent, as a bare rgb triple for the brush factories.
+ *
+ * Not in FIELD_PALETTE because it is not derived from `FIELD.hue` — it is the
+ * colour of the source at the middle of the plane (<PlaneAurora>), and the point
+ * of it is to be the same cyan there and here.
+ */
+const ACCENT = "0,212,255";
 import {
   FIELD,
   FIELD_MARGIN,
@@ -214,14 +224,19 @@ function scatterPass(
   const ky = bh / h;
 
   for (const ring of FIELD_RINGS) {
-    const bufR = ring.base * R * kx;
+    // Step count off the ring's LONGEST projected circumference — the near arc,
+    // where the divisor is smallest. Stepping on the unprojected radius leaves
+    // the near arc visibly under-sampled, because that is exactly the stretch
+    // perspective makes longer.
+    const bufR = (ring.base * R * kx) / planeDivisor(ring.base, -1);
     const steps = Math.max(24, Math.round((TAU * bufR) / Math.max(1.2, cfg.brush * 0.42)));
     for (let i = 0; i < steps; i++) {
       const t = (i / steps) * TAU;
       const { a } = lightAt(ring, t);
       const r = radiusAt(ring, t) * R;
-      const x = (cx + r * Math.sin(t)) * kx;
-      const y = (cy - r * Math.cos(t) * FIELD_TILT) * ky;
+      const d = planeDivisor(ring.base, Math.cos(t));
+      const x = (cx + (r * Math.sin(t)) / d) * kx;
+      const y = (cy - (r * Math.cos(t) * FIELD_TILT) / d) * ky;
       b.globalAlpha = clamp01(a * cfg.alpha);
       b.drawImage(brush, x - bd / 2, y - bd / 2);
     }
@@ -299,36 +314,98 @@ function paint(canvas: HTMLCanvasElement) {
 
   /* --- 2. NEAR HALO. Peaks about ten pixels off the thread and is gone within
            forty. Two falloffs at very different rates is what makes this read
-           as scattering rather than as one glow. */
+           as scattering rather than as one glow.
+
+           4.4, DOWN FROM 5.5, AND IT IS TIED TO `FIELD.rings`. The halo's width
+           is what decides how much clear space a ring needs either side of it.
+           When the band contracted to 0.22-1.55 the gap between rings fell from
+           ~98px to ~64px at R=240, and a halo tuned for the wider spacing bled
+           neighbours together — the exact failure the ring-count note in
+           `orbit.data.ts` describes. Narrow this and the field tolerates more
+           rings; widen it and it tolerates fewer. */
   if (FIELD.halo > 0.001) {
     scatterPass(ctx, w, h, R, cx, cy, {
       rgb: pal.halo,
       div: 3,
-      brush: 5.5 * k,
+      brush: 4.4 * k,
       alpha: 0.07,
       gain: FIELD.halo * 2.2,
     });
   }
 
-  /* --- 3. CORE, at full resolution. */
-  const corePx = 3.1 * k;
+  /* --- 3. CORE, at full resolution. With the halo pass off this is the ring:
+           every thread the eye sees is a chain of these stamps and nothing
+           else. Smaller and harder than it was (3.1 -> 2.5), because a bead has
+           to be a bead — at the old radius, adjacent stamps overlapped enough
+           to fuse back into the continuous stroke the halo used to soften. */
+  const corePx = 2.7 * k;
   const core = makeCore(pal.core, corePx * 2);
   const leakLen = FIELD.leak * 30 * k;
   const leakWide = Math.max(3, corePx * 2.1);
   const leak = leakLen > 2 ? makeLeak(pal.halo, leakWide, leakLen) : null;
 
+  /**
+   * BLOOM, AND WHY IT IS NOT `ctx.shadowBlur`.
+   *
+   * A shadow on the stroke is the obvious way to make these read as holographic
+   * projections rather than as utility lines, and on a path it would be right.
+   * This field is not a path — it is a chain of individually stamped points, and
+   * a full repaint draws on the order of four thousand of them. `shadowBlur` is
+   * evaluated PER DRAW CALL and is among the most expensive operations in Canvas
+   * 2D; applying it here would multiply the cost of the entire field by roughly
+   * the blur radius, to produce a glow around every bead including the ones too
+   * dim to see.
+   *
+   * A second, wider, softer stamp under the bright beads only is the same effect
+   * bought with an extra `drawImage` on the ~15% of points above the threshold.
+   * It is also the better LOOK: a uniform glow along the thread is what turned
+   * the rings back into a stroke with a soft edge last time the halo pass was
+   * on. Blooming only the bright beads keeps the string-of-lights structure and
+   * makes the lights in it shine.
+   */
+  const bloom = makeScatter(ACCENT, corePx * 5);
+
+  /**
+   * 0.72, NOT 0.62, AND THE GAIN IS 0.3 RATHER THAN 0.5.
+   *
+   * The first values blooming everything above 0.62 lit the gaps as well as the
+   * beads, and the rings went back to reading as continuous strokes — which is
+   * the exact thing removing the halo pass was meant to fix. Bloom and breaks
+   * are in direct tension: every bit of glow spreads light into the dark
+   * stretches that make the string of lights a string.
+   *
+   * The resolution is to bloom FEWER beads rather than to bloom them less. At
+   * 0.72 only the peaks of the density function glow, which leaves the runs
+   * between them dark and reads as a chain of bright points — where a lower
+   * threshold at a lower gain just produces a uniformly hazy line.
+   */
+  const BLOOM_FROM = 0.72;
+  const BLOOM_GAIN = 0.3;
+
+  /**
+   * The innermost ring runs in a brighter cyan than the rest. It is the tightest
+   * orbit, closest to the source at the middle of the plane, so it is the one
+   * that should look most lit — and it gives the field a focal ring instead of
+   * five equal ones.
+   */
+  const accentCore = makeCore(ACCENT, corePx * 2);
+
   ctx.globalCompositeOperation = "lighter";
 
-  for (const ring of FIELD_RINGS) {
-    const approx = TAU * ring.base * R * 0.8;
+  for (const [index, ring] of FIELD_RINGS.entries()) {
+    const brush = index === 0 ? accentCore : core;
+    // As in scatterPass: sample against the near arc's stretched length, or the
+    // core thread breaks into dots exactly where the field is widest.
+    const approx = (TAU * ring.base * R * 0.8) / planeDivisor(ring.base, -1);
     const steps = Math.max(120, Math.round(approx / (2.4 * k)));
 
     for (let i = 0; i < steps; i++) {
       const t = (i / steps) * TAU;
       const { a, lit, dens } = lightAt(ring, t);
       const r = radiusAt(ring, t) * R;
-      const x = cx + r * Math.sin(t);
-      const y = cy - r * Math.cos(t) * FIELD_TILT;
+      const d = planeDivisor(ring.base, Math.cos(t));
+      const x = cx + (r * Math.sin(t)) / d;
+      const y = cy - (r * Math.cos(t) * FIELD_TILT) / d;
       if (x < -80 || x > w + 80 || y < -80 || y > h + 80) continue;
 
       if (leak && lit > 0.22) {
@@ -341,9 +418,20 @@ function paint(canvas: HTMLCanvasElement) {
         ctx.restore();
       }
 
-      const size = core.width * (0.42 + 0.62 * dens) * 0.5;
-      ctx.globalAlpha = clamp01(a * FIELD.core * 0.8);
-      ctx.drawImage(core, x - size / 2, y - size / 2, size, size);
+      // Bloom under the bright beads only, ramped in from the threshold so no
+      // bead switches its glow on — a hard cut here would read as two kinds of
+      // star rather than as one range of brightness.
+      if (lit > BLOOM_FROM) {
+        const bs = bloom.width * 0.5;
+        ctx.globalAlpha = clamp01(a * BLOOM_GAIN * ((lit - BLOOM_FROM) / (1 - BLOOM_FROM)));
+        ctx.drawImage(bloom, x - bs / 2, y - bs / 2, bs, bs);
+      }
+
+      const size = brush.width * (0.42 + 0.62 * dens) * 0.5;
+      // The 0.8 trim came off with the halo. It existed to stop the core adding
+      // to a glow that is no longer drawn.
+      ctx.globalAlpha = clamp01(a * FIELD.core);
+      ctx.drawImage(brush, x - size / 2, y - size / 2, size, size);
     }
   }
 

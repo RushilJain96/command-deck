@@ -9,6 +9,9 @@ import { DeckFrame } from "@/features/environment/DeckFrame";
 import { OrbitalBodies } from "@/features/environment/Celestials";
 import { OrbitGuides } from "@/features/environment/OrbitGuides";
 import { OrbitPlane, PlaneSurface } from "@/features/environment/OrbitPlane";
+import { OrbitTrace } from "@/features/environment/OrbitTrace";
+import { PlaneAurora } from "@/features/environment/PlaneAurora";
+import { SpaceHaze } from "@/features/environment/SpaceHaze";
 import { Starfield } from "@/features/environment/Starfield";
 import { CommandHud } from "@/features/hud/CommandHud";
 import { MissionOrbit } from "@/features/missions/MissionOrbit";
@@ -72,13 +75,50 @@ export function CommandDeckScene() {
   return (
     <>
       {/* <DeepSpace> stays stood down. The ground is `--void`, pure black, and
-          nothing paints a backdrop onto it. */}
+          nothing paints a backdrop onto it.
+
+          ITS VIGNETTE WAS RECONSIDERED FOR THIS PASS AND REJECTED ON THE
+          EVIDENCE. The plan was to revive two of its six layers — the vignette
+          and the ship bloom — to darken the frame's corners. But the corners
+          were only ever bright because the field ran through them at
+          `outerRing: 2.6`; containing it to 1.55 and thinning the scatter took
+          the corners to black on their own, so the vignette now has nothing left
+          to do that has not already been done.
+
+          It would also cost something real. `DeepSpace` records that 0.93 there
+          erased the outermost rings and 0.90 was the value that did not — and
+          that was measured against rings at FULL weight running off the frame.
+          The outermost ring now carries a 0.34 edge fade and sits at ~58% of the
+          gradient's extent, where even 0.90 lands about 0.37 of black on it.
+          The margin the old note was protecting is gone; the same number that
+          was safe then would erase the ring now.
+
+          The ship bloom is a separate question and belongs with the floor light
+          cone, so the two get tuned together rather than one pre-empting the
+          other. */}
+
+      {/* Gas, first and furthest. Behind the stars because it is behind them:
+          a cloud you can see stars through is the correct way round, and the
+          inverse was already caught once in <Starfield>. */}
+      <SpaceHaze />
       <Starfield />
 
       <CameraRig bias={DECK_BIAS * ORBIT_TILT}>
         <OrbitPlane>
           <PlaneSurface>
-            {/* THE FIELD IS THE FIRST THING IN THE PLANE, so every mission
+            {/* The haze the rings converge into. BEFORE <OrbitGuides>, so the
+                threads sit on top of their own glow rather than under it — the
+                light is the medium the rings hang in, not a wash over them. */}
+            <motion.div
+              className="absolute top-0 left-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1.8, delay: ARRIVAL.field, ease: "easeOut" }}
+            >
+              <PlaneAurora />
+            </motion.div>
+
+            {/* THE FIELD IS THE FIRST LIT THING IN THE PLANE, so every mission
                 callout and the spacecraft paint over it without either needing
                 a z-index to say so. That ordering IS the composition: the field
                 is the surface the deck is arranged on, the vehicle flies above
@@ -90,6 +130,18 @@ export function CommandDeckScene() {
               transition={{ duration: 1.4, delay: ARRIVAL.field, ease: "easeOut" }}
             >
               <OrbitGuides />
+            </motion.div>
+
+            {/* The tracking segment. Above the field's own light so it reads as
+                something running ON the innermost track, below the bodies and
+                the callouts so it never crosses in front of them. */}
+            <motion.div
+              className="absolute top-0 left-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1.2, delay: ARRIVAL.field + 0.4, ease: "easeOut" }}
+            >
+              <OrbitTrace />
             </motion.div>
 
             {/* Bodies riding the field's own rings. Above the light, below the

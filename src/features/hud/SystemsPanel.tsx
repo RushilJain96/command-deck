@@ -66,7 +66,7 @@ export function SystemsPanel() {
   ];
 
   return (
-    <HudPanel label="Systems" side="right" className="deck-sm:w-full w-60">
+    <HudPanel label="Systems" side="right" className="deck-sm:w-full w-52">
       <ul className="flex flex-col gap-2.5">
         {rows.map((row) => (
           <Subsystem key={row.id} {...row} />

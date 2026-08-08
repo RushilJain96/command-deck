@@ -52,7 +52,7 @@ export function Telemetry() {
   const deployed = MISSIONS.filter((mission) => mission.status === "DEPLOYED").length;
 
   return (
-    <HudPanel label="Telemetry" className="w-60">
+    <HudPanel label="Telemetry" className="w-52">
       <HudRow label="Frame" tone="telemetry">
         <span className="flex items-center gap-1.5">
           <span className="signal-blink bg-telemetry h-1.5 w-1.5" />

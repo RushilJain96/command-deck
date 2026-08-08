@@ -4,7 +4,13 @@ import type { CSSProperties, ReactNode } from "react";
 import { motion, useTransform } from "framer-motion";
 import { useCamera } from "@/features/camera/CameraProvider";
 import { Celestials } from "./Celestials";
-import { STAR_LAYERS, STRUCTURES, type Structure } from "./starfield.data";
+import {
+  DUST,
+  DUST_PARALLAX,
+  STAR_LAYERS,
+  STRUCTURES,
+  type Structure,
+} from "./starfield.data";
 
 /**
  * The region of space the command centre operates in.
@@ -46,11 +52,54 @@ export function Starfield() {
       {STAR_LAYERS.map((_, index) => (
         <StarLayerView key={index} layerIndex={index} />
       ))}
+      {/* Dust sits between the star layers and the bodies: nearer than every
+          star, further than the hardware. */}
+      <DustField />
       <Celestials />
       {STRUCTURES.map((structure) => (
         <StructureView key={structure.id} id={structure.id} />
       ))}
     </div>
+  );
+}
+
+/**
+ * Cosmic dust: soft motes catching the plane's cyan source.
+ *
+ * EVERY MOTE IS A RADIAL GRADIENT, NOT A DISC WITH AN OPACITY. That is the whole
+ * distinction between this layer and the stars — a 5px hard-edged circle at 0.09
+ * opacity reads as a dim star, and a 5px one that fades to nothing at its rim
+ * reads as matter. Stars are points that emit; these are specks that catch.
+ *
+ * The drift runs as a CSS animation with a per-mote duration and a NEGATIVE
+ * delay, so the field is already scattered through its cycle on the first frame
+ * rather than every mote starting from the same corner together. It is a CSS
+ * keyframe, which means it is a third reduced-motion mechanism and has to be
+ * switched off explicitly in globals.css — it is, alongside the others.
+ */
+function DustField() {
+  const camera = useCamera();
+  const x = useTransform(camera.x, (value) => -value * DUST_PARALLAX);
+  const y = useTransform(camera.y, (value) => -value * DUST_PARALLAX);
+
+  return (
+    <motion.div className="absolute -inset-[12%]" style={{ x, y }}>
+      {DUST.map((mote, index) => (
+        <div
+          key={index}
+          className="dust-drift absolute rounded-full"
+          style={{
+            left: `${mote.x}%`,
+            top: `${mote.y}%`,
+            width: mote.d,
+            height: mote.d,
+            background: `radial-gradient(circle, rgb(${mote.tint} / ${mote.o}), transparent 70%)`,
+            animationDuration: `${mote.dur}s`,
+            animationDelay: `${mote.delay}s`,
+          }}
+        />
+      ))}
+    </motion.div>
   );
 }
 
@@ -108,14 +157,25 @@ function StarLayerView({ layerIndex }: { layerIndex: number }) {
               height: star.d,
               background: `rgb(${star.tint})`,
               opacity: star.o,
-              // POINT-SPREAD ON THE BRIGHTEST FEW ONLY — about seven stars in
-              // the whole sky. A hard-edged 3px disc reads as a dot of paint; the
-              // same disc with a hair of falloff reads as a source. Kept to
-              // roughly twice the star's own diameter, which is a long way short
-              // of anything anyone would call bloom, and carried in the star's
-              // own colour so a warm star does not gain a white edge.
+              /**
+               * POINT-SPREAD ON THE BRIGHTEST FEW ONLY. A hard-edged 3px disc
+               * reads as a dot of paint; the same disc with a hair of falloff
+               * reads as a source. Carried in the star's own colour, so a warm
+               * star does not gain a white edge.
+               *
+               * THE RED ONES BLOOM HARDER — 3.4x their diameter at 0.5 against
+               * 2.1x at 0.35. That is not favouritism, it is compensation: they
+               * sit at a much lower luminance than a white star of the same
+               * size, because two of their three channels are down. Matching
+               * the white treatment left them as dim red dots at the exact
+               * moment they were supposed to be the only warm light in a blue,
+               * white and teal frame. Spread is the cheapest way to buy back
+               * presence without touching their value or their size.
+               */
               boxShadow: star.halo
-                ? `0 0 ${(star.d * 2.1).toFixed(1)}px rgb(${star.tint} / 0.35)`
+                ? star.warm
+                  ? `0 0 ${(star.d * 3.4).toFixed(1)}px rgb(${star.tint} / 0.5)`
+                  : `0 0 ${(star.d * 2.1).toFixed(1)}px rgb(${star.tint} / 0.35)`
                 : undefined,
             }}
           />

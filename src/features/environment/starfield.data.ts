@@ -38,6 +38,42 @@ export interface Star {
   readonly tint: string;
   /** The brightest few, which get a tight point-spread. */
   readonly halo: boolean;
+  /**
+   * One of the two red tints. Drives a wider, stronger point-spread — see the
+   * halo note in <StarLayerView>. Derived here rather than re-parsed from
+   * `tint` at render time, because the renderer should not have to know which
+   * strings in the palette count as warm.
+   */
+  readonly warm: boolean;
+}
+
+/**
+ * COSMIC DUST — the third kind of thing in the sky, after stars and hardware.
+ *
+ * Soft-edged motes several times the size of a star and an order of magnitude
+ * fainter. They are not lights and must never read as one: a star is a point
+ * that emits, a mote is a speck of matter catching what the plane's cyan source
+ * is putting out. That difference is carried entirely by the EDGE — these are
+ * radial gradients that fade to nothing, where every star on the deck is a hard
+ * disc. A 5px hard disc at low opacity looks like a dim star; a 5px soft one
+ * looks like dust.
+ *
+ * Deliberately few. Their job is to give the empty stretches of the frame
+ * something between "star" and "void" so the eye reads volume rather than a
+ * black plane with dots on it, and thirty is enough to do that. Many more and
+ * the sky starts to look foggy, which is what <SpaceHaze> is already for at a
+ * much larger scale.
+ */
+export interface DustMote {
+  readonly x: number;
+  readonly y: number;
+  /** Diameter in CSS pixels. */
+  readonly d: number;
+  readonly o: number;
+  readonly tint: string;
+  /** Seconds for one drift cycle, and its offset, so no two move together. */
+  readonly dur: number;
+  readonly delay: number;
 }
 
 export interface StarLayer {
@@ -63,10 +99,26 @@ const TINTS = [
   "255 255 255",
   "255 255 255",
   "255 255 255",
+  "255 255 255",
+  "255 255 255",
+  "255 255 255",
+  "255 255 255",
+  "255 255 255",
+  "205 222 255",
   "205 222 255",
   "222 232 255",
   "255 232 208",
+  // THE RED ONES. Two entries in twenty is 10% of the field, and that is the
+  // whole budget — a sky where you notice the red stars has too many. They earn
+  // their place by being the only warm thing in a composition that is otherwise
+  // blue, white and teal, so a handful of them carries further than a fair share
+  // would suggest.
+  "255 172 142",
+  "255 138 112",
 ];
+
+/** Index into TINTS at or above which a star counts as warm. */
+const WARM_TINT_FROM = 14;
 
 /**
  * SIZE AND BRIGHTNESS PER DEPTH — and the floor of 1px is the important part.
@@ -102,11 +154,33 @@ interface StarTier {
   readonly oRange: number;
 }
 
+/**
+ * 468 STARS. THIS COUNT HAS NOW GONE 324 -> 196 -> 468, AND BOTH MOVES WERE
+ * RIGHT FOR THE FRAME THEY WERE MADE IN.
+ *
+ * At 324 the backdrop read as texture rather than distance: there was no dark
+ * between the lights for the eye to rest in. Cutting to 196 fixed that — while
+ * the orbital field still ran off every edge of the frame and filled it. Once
+ * the field was contained to a bounded ellipse and the corners went to black,
+ * the same 196 stars were spread over a frame with far more empty space in it,
+ * and the sky went from restful to bare.
+ *
+ * The lesson worth keeping is that star COUNT is not an independent variable.
+ * It is set against how much of the frame everything else is occupying, so it
+ * has to be re-judged whenever the field's extent changes — which is exactly the
+ * thing that changed twice here.
+ *
+ * The distribution is untouched, and that is what makes 468 safe: `pow(u, 2.6)`
+ * keeps the overwhelming majority at the 1px floor, so more than doubling the
+ * count roughly doubles a lit area that was four hundredths of one percent of
+ * the frame. The ground stays at zero. What actually increases is the number of
+ * FAINT stars, which is the part of a real sky that makes it read as deep.
+ */
 const STAR_TIERS: readonly StarTier[] = [
-  { seed: 0xc0ffee, count: 170, parallax: 0.025, dMin: 1, dRange: 0.9, oMin: 0.2, oRange: 0.2 },
-  { seed: 0x5eed42, count: 92, parallax: 0.055, dMin: 1, dRange: 1.1, oMin: 0.26, oRange: 0.26 },
-  { seed: 0xbadf00d, count: 44, parallax: 0.1, dMin: 1.1, dRange: 1.4, oMin: 0.34, oRange: 0.32 },
-  { seed: 0x1337a5, count: 18, parallax: 0.17, dMin: 1.2, dRange: 2, oMin: 0.44, oRange: 0.48 },
+  { seed: 0xc0ffee, count: 244, parallax: 0.025, dMin: 1, dRange: 0.9, oMin: 0.2, oRange: 0.2 },
+  { seed: 0x5eed42, count: 132, parallax: 0.055, dMin: 1, dRange: 1.1, oMin: 0.26, oRange: 0.26 },
+  { seed: 0xbadf00d, count: 62, parallax: 0.1, dMin: 1.1, dRange: 1.4, oMin: 0.34, oRange: 0.32 },
+  { seed: 0x1337a5, count: 30, parallax: 0.17, dMin: 1.2, dRange: 2, oMin: 0.44, oRange: 0.48 },
 ];
 
 /**
@@ -206,16 +280,31 @@ function buildLayer(tier: StarTier): StarLayer {
     // One magnitude roll drives size AND brightness, so bigger is brighter.
     const magnitude = Math.pow(random(), 2.6);
     const roll = random();
+    const tintIndex = Math.floor(roll * TINTS.length);
+    const warm = tintIndex >= WARM_TINT_FROM;
 
     stars.push({
       x,
       y,
       d: +(dMin + magnitude * dRange).toFixed(2),
       o: +(oMin + magnitude * oRange).toFixed(3),
-      tint: TINTS[Math.floor(roll * TINTS.length)],
-      // Only the nearer layers, and only the top of their magnitude range —
-      // about seven stars in the whole sky.
-      halo: parallax >= 0.1 && magnitude > 0.72,
+      tint: TINTS[tintIndex],
+      warm,
+      /**
+       * Halo — the bloom that makes a star read as SHINING rather than as a lit
+       * pixel. Nearer layers only, and normally only the top of their magnitude
+       * range, which is about a dozen stars in the whole sky.
+       *
+       * WARM STARS CLEAR A LOWER BAR (0.72 -> 0.46) BECAUSE THEY HAVE TO. A red
+       * point at 60% brightness against a black sky is a dim red dot; the same
+       * point with a bloom around it is a red giant. White stars do not need the
+       * help — they sit at the top of the value range already, and their colour
+       * is the sky's default, so a white star is read as a star at any size. The
+       * whole reason the warm ones are in the palette is to be noticed, and at
+       * 10% of the field they are rare enough that blooming more of them does
+       * not make the sky glow.
+       */
+      halo: parallax >= 0.1 && magnitude > (warm ? 0.32 : 0.72),
     });
   }
 
@@ -228,6 +317,39 @@ function buildLayer(tier: StarTier): StarLayer {
  * sliding at different speeds.
  */
 export const STAR_LAYERS: readonly StarLayer[] = STAR_TIERS.map(buildLayer);
+
+/**
+ * The dust field. Built from its own mulberry32 stream so adding or removing a
+ * mote cannot re-roll the stars — the same reason every star tier carries its
+ * own seed.
+ *
+ * NO CLUSTERING AND NO VOID REJECTION, unlike the stars. Dust has no reason to
+ * gather where stars do, and the central working void exists to keep the area
+ * behind the ship and the bearing vector clear of small bright points. These are
+ * neither small nor bright, and a few of them drifting behind the hull is the
+ * one place the effect actually reads.
+ */
+const DUST_PARALLAX = 0.075;
+
+export const DUST: readonly DustMote[] = (() => {
+  const random = mulberry32(0xd057);
+  return Array.from({ length: 30 }, () => {
+    // Squared roll, so most motes sit at the small end and a few are broad.
+    const size = Math.pow(random(), 2);
+    return {
+      x: random() * 100,
+      y: random() * 100,
+      d: +(3 + size * 3).toFixed(2),
+      o: +(0.05 + size * 0.07).toFixed(3),
+      tint: random() < 0.62 ? "0 212 255" : "150 190 225",
+      // 40-95s. Long enough that nothing is ever caught moving.
+      dur: +(40 + random() * 55).toFixed(1),
+      delay: +(random() * -60).toFixed(1),
+    };
+  });
+})();
+
+export { DUST_PARALLAX };
 
 export type StructureKind = "relay" | "beacon" | "array" | "truss" | "hulk";
 
@@ -318,51 +440,18 @@ export const STRUCTURES: readonly Structure[] = [
     parallax: 0.18,
     opacity: 0.52,
   },
-  {
-    id: "beacon-port",
-    purpose: "A marked orbit is a surveyed orbit. One of a pair defining the axis.",
-    kind: "beacon",
-    x: "19%",
-    y: "56%",
-    scale: 0.85,
-    tilt: -7,
-    parallax: 0.26,
-    opacity: 0.55,
-  },
-  {
-    id: "beacon-starboard",
-    purpose: "The other half of the pair, on the opposing flank.",
-    kind: "beacon",
-    // Inboard of 84%, which put it underneath the right-hand instrument cluster
-    // on wide viewports. Background belongs behind the HUD, but an object that is
-    // ENTIRELY behind it has stopped being in the scene.
-    x: "81%",
-    y: "62%",
-    scale: 0.75,
-    tilt: 6,
-    parallax: 0.26,
-    opacity: 0.5,
-  },
-  {
-    id: "truss-dock",
-    purpose: "The spacecraft came from somewhere and can go back to it.",
-    kind: "truss",
-    x: "91%",
-    y: "92%",
-    scale: 1.1,
-    tilt: -9,
-    parallax: 0.3,
-    opacity: 0.5,
-  },
-  {
-    id: "hulk-derelict",
-    purpose: "Working hardware says the place is operational. Wreckage says it has been for years.",
-    kind: "hulk",
-    x: "26%",
-    y: "86%",
-    scale: 0.95,
-    tilt: 32,
-    parallax: 0.28,
-    opacity: 0.36,
-  },
+  /* FOUR MORE STOOD HERE: a pair of beacons at 19%/56% and 81%/62%, a docking
+     truss at 91%/92% and a derelict hulk at 26%/86%.
+   *
+   * Each was individually justified — the beacons marked the plane's axis, the
+   * truss said the ship came from somewhere, the hulk said the place had been
+   * operational for years. All true, and all of it argued for ADDING one more
+   * object without anyone ever counting the total. Seven pieces of hardware plus
+   * sixteen bodies plus 324 stars is not a backdrop, it is a second subject.
+   *
+   * The three that remain are the three above the horizon and the three that
+   * form one idea rather than four separate ones: a relay, the relay it talks
+   * past, and the array powering them. The bottom corners are now empty, and
+   * empty is what makes the frame read as space rather than as a diagram of it.
+   */
 ];

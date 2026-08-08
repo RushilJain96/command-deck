@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, type MotionValue } from "framer-motion";
+import { motion, useTransform, type MotionValue } from "framer-motion";
 
 /**
  * A hairline running from the spacecraft out to whatever the operator is
@@ -52,13 +52,38 @@ export function BearingVector({
 
           The length transition is slower than the fade so that switching
           targets sweeps rather than jumps. */}
+      {/* DOTTED, NOT SOLID, AND THE DOTS ARE THE POINT.
+          A continuous hairline is a beam — a thing that was fired. A broken one
+          is a measurement, which is what a bearing is. The `repeating-linear-
+          gradient` runs 3px lit against 6px clear, and the whole pattern is then
+          multiplied by the along-length gradient in a mask, so the dots inherit
+          the dim-at-the-hull, bright-at-the-target ramp rather than fighting it.
+
+          Two layers rather than one: the 1px thread carries the reading, and a
+          3px blurred copy underneath carries the bloom. `filter: blur` on a 1px
+          element would blur the thread itself into a grey smear — putting the
+          glow on its own wider element leaves the thread crisp. */}
+      <div
+        className="absolute bottom-0 left-0 w-[3px] transition-[opacity,height] duration-500 ease-out"
+        style={{
+          height: length,
+          opacity: engaged ? 0.55 : 0,
+          transform: "translateX(-1px)",
+          filter: "blur(2.5px)",
+          background:
+            "repeating-linear-gradient(to top, rgb(255 77 77 / 0.9) 0 3px, transparent 3px 9px)",
+          maskImage: "linear-gradient(to top, transparent, #000 26%, #000)",
+        }}
+      />
       <div
         className="absolute bottom-0 left-0 w-px transition-[opacity,height] duration-500 ease-out"
         style={{
           height: length,
           opacity: engaged ? 1 : 0,
           background:
-            "linear-gradient(to top, transparent, rgb(255 59 48 / 0.10) 26%, rgb(255 59 48 / 0.34) 78%, rgb(255 59 48 / 0.5))",
+            "repeating-linear-gradient(to top, rgb(255 77 77) 0 3px, transparent 3px 9px)",
+          maskImage:
+            "linear-gradient(to top, transparent, rgb(0 0 0 / 0.2) 26%, rgb(0 0 0 / 0.68) 78%, #000)",
         }}
       />
       {/* Range ticks: turn the line into a scale instead of a beam. Positioned
@@ -80,6 +105,38 @@ export function BearingVector({
           }}
         />
       ))}
+
+      {/* THE RETICLE, AT THE TARGET END OF THE LINE.
+          Counter-rotated by the same heading the wrapper applies, so the diamond
+          stays square to the SCREEN while the line it terminates swings around
+          the deck. Without that it would roll with the bearing and read as a
+          decoration welded to the beam rather than as a sight sitting over the
+          target.
+
+          A second, larger, unfilled diamond sits behind it — a filled dot says
+          "here is a point", a dot inside a ring says "this point is being
+          held", which is the difference between a marker and a lock. */}
+      <div
+        className="absolute left-0 transition-[opacity,bottom] duration-500 ease-out"
+        style={{ bottom: length, opacity: engaged ? 1 : 0 }}
+      >
+        <motion.div
+          className="absolute top-0 left-0"
+          style={{ rotate: useTransform(rotation, (value) => -value) }}
+        >
+          <span
+            className="absolute top-0 left-0 h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rotate-45"
+            style={{
+              background: "rgb(255 77 77)",
+              boxShadow: "0 0 10px rgb(255 77 77 / 0.85)",
+            }}
+          />
+          <span
+            className="absolute top-0 left-0 h-[15px] w-[15px] -translate-x-1/2 -translate-y-1/2 rotate-45 border"
+            style={{ borderColor: "rgb(255 77 77 / 0.55)" }}
+          />
+        </motion.div>
+      </div>
     </motion.div>
   );
 }

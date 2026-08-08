@@ -106,30 +106,58 @@
   /**
    * THE RADIUS IS SOLVED, NOT GUESSED.
    *
-   * The binding constraint is horizontal. The outermost mission sits at 0.719R
-   * from the centre line (that is `max(ring * |sin theta|)` over the roster in
-   * missions/data.ts) and hangs a panel outboard of it, so the deck's real reach
-   * is `0.719R + run + panelWidth`. On this tier it must ALSO clear the
+   * The binding constraint is horizontal. The outermost mission sits at 0.786R
+   * from the centre line and hangs a panel outboard of it, so the deck's real
+   * reach is `0.786R + run + panelWidth`. On this tier it must ALSO clear the
    * full-height HUD rail. Because the panel and the rail are both FIXED pixel
    * widths, a plain percentage of the viewport cannot satisfy both a 1512px
    * window and a 1920px one — it either clips the former or wastes the latter.
-   * Rearranging `0.719R + reserve <= 50svw` for R gives the expression below.
+   * Rearranging `0.786R + reserve <= 50svw` for R gives the expression below.
    *
-   * `reserve` = rail 240 + rail margin 20 + leader run 18 + widest panel 244
-   *           + 14 slack = 536px, and 0.719 is the reach. Both numbers are
+   * `reserve` = rail 208 + rail margin 20 + leader run 18 + widest panel 215
+   *           + 14 slack = 475px, and 0.786 is the reach.
+   *
+   * THE REACH IS NO LONGER `max(ring * |sin theta|)`. It is that quantity AFTER
+   * the plane's perspective divide — `max(ring * sin(theta) / (1 + P*ring*
+   * cos(theta)))` — and it went 0.719 -> 0.786 when P became 0.20. The mission
+   * that sets it is FORGE, on the NEAR side of ring 1.0, which is precisely
+   * where perspective spreads the plane widest. Recompute it from
+   * `npm run check:layout`, which prints it on the second line; do not derive it
+   * by hand from data.ts, because that gives the old orthographic answer and it
+   * is 9% too small. Both numbers are
    * MEASURED, not estimated — panel boxes came off the live DOM after an
    * estimate of 203px turned out to be 205 plus a 3px inset edge light, which
    * was enough to push a mission under the sidebar.
+   *
+   * The rail and panel terms came down from 240 and 244 to buy the `deck-md`
+   * threshold below. 215 is the 181px panel box (a 176px text column plus the
+   * 3px status rail and the 2px bezel) carried through the 1.22 depth scale the
+   * outermost missions are drawn at — AURORA and FORGE both sit on ring 1.0 at
+   * depth ~0.88, and it is their scaled width, not the unscaled one, that has
+   * to clear the rail.
    *
    * Do not hand-tune this. A headless solver models these formulas exactly and
    * checks every callout against every other callout, the rail, the ship and
    * the frame across 25 viewports; the first hand-tuned attempt hid a mission
    * under the sidebar at every desktop size and nothing in the code said so.
    *
+   * THE HEIGHT TERM CARRIES AN OFFSET, AND IT IS NOT DECORATIVE. It used to be
+   * a plain `62svh`, which was safe only because the old 536px reserve kept R
+   * small on wide viewports. At the 475px reserve a 1600x900 window solves to
+   * R=452, and at that radius DATAFLOW and NEXUS — the two missions nearest the
+   * top of the ring — are drawn straight through the top bar.
+   *
+   * The binding mission is DATAFLOW (theta 338, ring 0.80). Its box top lands at
+   * `h/2 - 0.8906R - 51.3` and has to clear `bar + 4`, which rearranges to
+   * `R <= 0.5613h - 125`. That is a line with an intercept, so no `Nsvh` alone
+   * can express it: a fraction low enough to hold at 900px throws away ~5% of
+   * the orbit at 1080px. `56svh - 130px` tracks the real constraint with about
+   * 6px of slack at every height instead.
+   *
    * Small-viewport units so the ring never jitters as mobile browser chrome
    * hides and shows.
    */
-  --orbit-radius: clamp(96px, min((50svw - 536px) / 0.719, 62svh), 470px);
+  --orbit-radius: clamp(96px, min((50svw - 475px) / 0.786, 56svh - 130px), 470px);
 
   /**
    * How far a callout stands off its anchor: horizontal reach, then elevation.
@@ -177,23 +205,50 @@
  * full panels even when it is very wide.
  */
 /**
- * `deck-md` STARTS AT 1500px, NOT AT A ROUND TABLET NUMBER.
+ * `deck-md` STARTS AT 1340px. IT USED TO START AT 1500px, AND THAT WAS WRONG.
  *
- * That is where the composition actually breaks, and it is much wider than it
- * looks like it should be. A full-height 240px HUD rail plus a callout on the
- * far flank consumes 536px of the 50svw half-width; below roughly 1500px there
- * is not enough left over for an orbit big enough to keep the six callouts from
- * overlapping each other. So the rail stands down and the deck takes the width.
+ * The old threshold was derived honestly: a 240px rail plus a far-flank callout
+ * consumed 536px of the 50svw half-width, and below ~1500px there was not enough
+ * left for an orbit big enough to keep six callouts apart. The arithmetic was
+ * right. The conclusion was not, because of what it cost.
  *
- * That is the right trade for this application rather than a concession: the
- * spatial interface is the product, and a cramped deck framed by instruments
- * communicates less than an uncramped deck with the instruments deferred.
+ * Above this line the deck shows the top nav, a full-height left rail and a
+ * bottom-right cluster — nine instrument surfaces. Below it, all of that stands
+ * down and the deck runs bare. At 1500px THE BARE DECK WAS THE COMMON CASE, not
+ * the fallback: a 1440x900 laptop got it, and 1366x768 got it twice over,
+ * because the companion height clause fired at 700px and a 768px screen has
+ * about 680px of viewport once browser chrome is subtracted. The instruments
+ * are as much the product as the deck is, and almost nobody was seeing them.
+ *
+ * So the composition was narrowed rather than the threshold defended: the rail
+ * 240 -> 208 and the callout column 200 -> 176, which drops the reserve to 475.
+ * The height clause comes down to 640px so a 720p window keeps its instruments.
+ *
+ * 1340 AND NOT 1180, WHICH WAS THE FIRST ANSWER AND WAS NOT CHECKED PROPERLY.
+ * The real limit is not the reserve at all — it is that ORION sits on ring 0.34
+ * near the centre line and NEXUS on ring 0.66, and below about R=250 ORION's
+ * full-size panel reaches NEXUS's anchor no matter how much room the rails give
+ * back. `R = (w/2 - 475) / 0.741` crosses 250 at roughly w=1320.
+ *
+ * The first pass put this at 1180 and the solver agreed, because its viewport
+ * list jumped straight from 1280 to 1180 and never landed in between. 1280
+ * passed; 1200 was never asked. A tier whose worst case is not in the list is a
+ * tier that passes on the strength of its best case. The list now samples the
+ * boundary at 1340/1300/1280/1260/1240/1200/1181, which is what found this.
+ *
+ * The perspective divide made the range slightly narrower — it widens the reach
+ * from 0.719 to 0.741 and pulls the far-side missions toward the centre — but it
+ * did not create the hole. It only made the hole big enough to land in.
+ *
+ * Below 1340 the original trade still stands, on its original reasoning: a
+ * cramped deck framed by instruments communicates less than an uncramped deck
+ * with the instruments deferred.
  */
 @custom-variant deck-md {
-  @media (max-width: 1500px) {
+  @media (max-width: 1340px) {
     @slot;
   }
-  @media (max-height: 700px) {
+  @media (max-height: 640px) {
     @slot;
   }
 }
@@ -207,16 +262,22 @@
   }
 }
 
+/* A `deck-short` height variant briefly lived here. It existed to trim the left
+   rail when it carried three panels and needed ~594px it did not have below
+   730px of viewport. The rail is now two panels and fits at every height the
+   `lg` tier reaches, so the variant went with the problem rather than being
+   left standing as a breakpoint nothing reads. */
+
 /* Standoff and radius shrink together with the tier. Kept next to the variants
    so the three can never drift apart — the `reserve` term in each radius
    expression is the panel box AT THAT TIER plus whatever chrome that tier still
    shows, so changing one without the others silently reintroduces overlap.
    No rail below deck-md, hence the much smaller reserve. */
-@media (max-width: 1500px), (max-height: 700px) {
+@media (max-width: 1340px), (max-height: 640px) {
   :root {
     --callout-run: 16px;
     --callout-rise: 24px;
-    --orbit-radius: clamp(80px, min((50svw - 210px) / 0.719, 38svh), 276px);
+    --orbit-radius: clamp(80px, min((50svw - 210px) / 0.786, 38svh), 276px);
   }
 }
 
@@ -224,7 +285,7 @@
   :root {
     --callout-run: 9px;
     --callout-rise: 14px;
-    --orbit-radius: clamp(60px, min((50svw - 20px) / 0.719, 30svh), 120px);
+    --orbit-radius: clamp(60px, min((50svw - 20px) / 0.786, 30svh), 120px);
   }
 }
 
@@ -305,6 +366,35 @@ body {
   }
 }
 
+/* A tracking segment travelling the innermost orbit. LINEAR, and every other
+   timing function on the deck is eased — an easing curve here would make the
+   segment accelerate and slow on each lap, which is the signature of a thing
+   being animated rather than a thing in orbit. The offset is negative so the
+   dash runs in the direction of increasing theta, matching the way the ring is
+   sampled. 430 is the dash plus the gap; anything else leaves a seam where the
+   pattern restarts. */
+@keyframes trace-flow {
+  to {
+    stroke-dashoffset: -430;
+  }
+}
+
+/* Cosmic dust, drifting. Longer and further than `star-drift` because these are
+   nearer than the stars and matter moves; stars do not. Each mote runs its own
+   duration and a negative delay, so the field is already mid-drift on the first
+   frame and no two are ever in step. */
+@keyframes dust-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(14px, -9px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 /* Distant drift, decoupled from camera parallax. */
 @keyframes star-drift {
   from {
@@ -367,6 +457,15 @@ body {
 .star-drift {
   animation: star-drift 190s ease-in-out infinite alternate;
 }
+.trace-flow {
+  animation: trace-flow 9s linear infinite;
+}
+.dust-drift {
+  animation-name: dust-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  /* duration and delay are per-mote inline. */
+}
 .comms-packet {
   animation: comms-packet 11s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -384,6 +483,8 @@ body {
   .deck-respire,
   .signal-blink,
   .star-drift,
+  .dust-drift,
+  .trace-flow,
   .comms-packet,
   .plume-drift {
     animation: none;

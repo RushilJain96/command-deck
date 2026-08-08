@@ -41,7 +41,14 @@ Feature code lives in flat folders under `src/features/{app,camera,chrome,enviro
 - `scenes` — `SceneHost` plus the scene registry. `boot` and `command-deck` are real; `project` is still a stub.
 - `spacecraft` — 16 pre-rendered WebP yaw frames, an attitude integrator, and an SVG exhaust plume.
 
-There is no WebGL and no three.js. The entire 2.5D projection is one constant: `ORBIT_TILT = 0.64` in `placement.ts`, which is `sin(elevation)` for a camera 39.8° above the plane. Depth is carried by parallax factors and z-index, never by perspective.
+There is no WebGL and no three.js. The 2.5D projection is two constants in `placement.ts`:
+
+- `ORBIT_TILT = 0.64` — `sin(elevation)` for a camera 39.8° above the plane. Sets the overall squash.
+- `ORBIT_PERSPECTIVE = 0.13` — a perspective divide. Every plane point's orthographic coordinates are divided by `1 + P * ring * cos(theta)`, so the far side compresses and the near side spreads.
+
+The perspective term is newer. The deck was purely orthographic, and under a pure squash the ring spacing above the centre and below it are identical by construction, which made the field read as concentric circles pinned to the screen rather than a floor receding below the viewer. Everything that projects the plane must go through `planeDivisor()`: the field canvas, the mission nodes, the bodies riding the rings, and `deck-layout-check.mjs`'s mirror of all three. A consumer that skips it draws on a different surface from the rest of the deck.
+
+Depth *ordering* is still carried by parallax factors and z-index — `depth` in `derivePlacement` deliberately stays on the unprojected angle, because it drives z-index, opacity and level of detail, none of which should change because the camera moved closer.
 
 ## Interaction engine invariants
 

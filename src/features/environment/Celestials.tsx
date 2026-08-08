@@ -12,6 +12,7 @@ import {
   type PlaneBody,
   type Vec3,
 } from "./celestial.data";
+import { ORBIT_TILT, planeDivisor } from "@/features/missions/placement";
 import { FIELD_RINGS } from "./orbit.data";
 
 /**
@@ -143,9 +144,31 @@ function BodyView({ id }: { id: string }) {
       className="absolute"
       style={{ x, y, left: body.x, top: body.y, width: body.size, height: body.size }}
     >
-      <BodySurface body={body} />
+      <BodySurface body={body} centre={backdropCentreDir(body)} />
     </motion.div>
   );
+}
+
+/**
+ * Direction from a backdrop body toward the plane's centre, for the cyan rim.
+ *
+ * Uses the body's `x`/`y` — which are the box's CORNER, not its middle, and are
+ * percentages of a layer inset past the viewport. Both of those make this an
+ * approximation, and an approximation is the right amount of precision here: it
+ * feeds a lighting DIRECTION on a disc, where being a few degrees off is not
+ * visible, and computing it exactly would mean measuring the element.
+ *
+ * PLANE_CENTRE_Y is 42 rather than 50 because the plane's middle sits above the
+ * viewport's — see DECK_BIAS and SHIP_STANDOFF in placement.ts.
+ */
+const PLANE_CENTRE_X = 50;
+const PLANE_CENTRE_Y = 42;
+
+function backdropCentreDir(body: Body): readonly [number, number] {
+  const px = parseFloat(body.x);
+  const py = parseFloat(body.y);
+  if (Number.isNaN(px) || Number.isNaN(py)) return [0, -1];
+  return [PLANE_CENTRE_X - px, PLANE_CENTRE_Y - py];
 }
 
 /**
@@ -159,8 +182,12 @@ function PlaneBodyView({ id }: { id: string }) {
   const body = PLANE_BODIES.find((candidate) => candidate.id === id)!;
   const ring = FIELD_RINGS[Math.min(body.ring, FIELD_RINGS.length - 1)];
   const rad = (body.theta * Math.PI) / 180;
-  const sx = Math.sin(rad);
-  const sy = -Math.cos(rad);
+  // Through the same perspective divide the rings and the mission nodes use.
+  // Skipping it here would park each body a few pixels off the very track it is
+  // supposed to be riding — and the further out the ring, the further off.
+  const d = planeDivisor(ring.base, Math.cos(rad));
+  const sx = Math.sin(rad) / d;
+  const sy = -Math.cos(rad) / d;
 
   return (
     <div
@@ -174,7 +201,9 @@ function PlaneBodyView({ id }: { id: string }) {
           "translate(-50%, -50%)",
       }}
     >
-      <BodySurface body={body} />
+      {/* A ring body's direction to the centre is exact, not approximate: it is
+          simply the negative of its own offset from that centre. */}
+      <BodySurface body={body} centre={[-sx, -sy * ORBIT_TILT]} />
     </div>
   );
 }
@@ -189,7 +218,19 @@ function PlaneBodyView({ id }: { id: string }) {
  * while the layers above keep the exact appearance they were tuned to (they were
  * compositing against black already).
  */
-function BodySurface({ body }: { body: Body | PlaneBody }) {
+function BodySurface({
+  body,
+  centre,
+}: {
+  body: Body | PlaneBody;
+  /**
+   * Direction from this body toward the middle of the orbital plane, screen
+   * space, y down. Need not be normalised — <BodySurface> does that. Callers
+   * compute it because only they know where the body is: a backdrop body from
+   * its viewport percentages, a ring body from its angle on the ring.
+   */
+  centre: readonly [number, number];
+}) {
   const shouldReduceMotion = useReducedMotion();
 
   const craterHost = useRef<HTMLDivElement>(null);
@@ -237,8 +278,51 @@ function BodySurface({ body }: { body: Body | PlaneBody }) {
   const nx = (-sun.x / h).toFixed(3);
   const ny = (sun.y / h).toFixed(3);
 
+  // Direction from this body toward the middle of the orbital plane, where the
+  // deck's cyan source sits. Screen space, y down.
+  const cd = Math.hypot(centre[0], centre[1]) || 1;
+  const cx = (centre[0] / cd).toFixed(3);
+  const cy = (centre[1] / cd).toFixed(3);
+
   return (
     <>
+      {/**
+       * RING SYSTEM, BEFORE THE BACKING DISC.
+       *
+       * Drawn behind the body, which gets the FAR half of the ring right — it
+       * passes behind the planet and is occluded — and the near half wrong, since
+       * that should cross in front. Doing it properly means splitting the ellipse
+       * and clipping each half, and at a 42px body with a 0.25-alpha ring the
+       * difference is a few pixels nobody will ever resolve. What reads is the
+       * ring extending either side of the disc, and that is correct here.
+       *
+       * Two ellipses rather than one: a real ring system has a gap in it, and the
+       * gap is most of what stops it looking like a drawn circle.
+       */}
+      {body.rings && (
+        <div
+          className="absolute top-1/2 left-1/2"
+          style={{
+            width: `${body.rings.spread * 100}%`,
+            height: `${body.rings.spread * 100}%`,
+            transform: `translate(-50%, -50%) rotate(${body.rings.tilt}deg) scaleY(0.28)`,
+          }}
+        >
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{ border: `1px solid ${body.rings.color}` }}
+          />
+          <div
+            className="absolute rounded-full"
+            style={{
+              inset: "16%",
+              border: `1px solid ${body.rings.color}`,
+              opacity: 0.6,
+            }}
+          />
+        </div>
+      )}
+
       {/* Opaque backing: the body occludes the sky behind it. */}
       <div
         className="absolute inset-0 rounded-full"
@@ -246,7 +330,13 @@ function BodySurface({ body }: { body: Body | PlaneBody }) {
       />
       <div
         className="celestial relative h-full w-full rounded-full"
-        style={{ background: body.albedo, opacity: body.opacity }}
+        style={{
+          background: body.albedo,
+          opacity: body.opacity,
+          // Atmospheric haze on the smallest bodies. On the disc rather than on
+          // the wrapper, so the ring system above keeps its crisp edge.
+          filter: body.blur ? `blur(${body.blur}px)` : undefined,
+        }}
       >
         {body.bands && (
           <div className="celestial-layer overflow-hidden">
@@ -317,6 +407,42 @@ function BodySurface({ body }: { body: Body | PlaneBody }) {
             maskImage:
               "radial-gradient(ellipse closest-side at 50% 50%, transparent 74%, #000 95%)",
             opacity: body.rimO,
+          }}
+        />
+
+        {/**
+         * CENTRE RIM — the plane's own light, caught on the inward-facing limb.
+         *
+         * Every other lighting layer on this body comes from its sun, and each
+         * body carries its own sun angle as a phase. This one does not: it is
+         * the cyan source at the middle of the orbital plane, which is the same
+         * source for every body on the deck, so its direction is computed per
+         * body from where that body sits relative to the centre.
+         *
+         * WHY IT IS WORTH HAVING. Before it, the bodies were the only objects on
+         * the deck that did not know the plane was lit — they sat in a frame with
+         * a cyan glow at its middle and were lit exclusively from somewhere else.
+         * A dark limb facing a bright source is the kind of wrongness nobody
+         * names and everybody registers.
+         *
+         * Masked to the outer band with the same closest-side ring the
+         * backscatter uses, so it stays a LIMB and never becomes a wash across
+         * the disc. It is additive on top of the shade, which means it lifts the
+         * night side exactly where the plane would actually be lighting it.
+         */}
+        <div
+          className="celestial-layer"
+          style={{
+            background:
+              `radial-gradient(ellipse 62% 62% at calc(50% + ${cx} * 44%) calc(50% + ${cy} * 44%),` +
+              `rgb(0 212 255 / 0.85) 0%, transparent 66%)`,
+            // The band the crescent occupies. 58% rather than 70% makes it a
+            // limb you can see rather than a hairline you have to look for —
+            // at the sizes these bodies are now, a 4%-wide rim on a 40px disc
+            // is one and a half pixels.
+            maskImage:
+              "radial-gradient(ellipse closest-side at 50% 50%, transparent 58%, #000 92%)",
+            opacity: 0.9,
           }}
         />
       </div>

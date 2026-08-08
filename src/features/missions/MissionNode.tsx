@@ -134,18 +134,42 @@ export function MissionNode({
           }}
         />
 
-        {/* Marker on the plane. Structure — answers on the first frame.
-            The 10% hover scale is gone: on a 5px diamond it bought half a pixel
+        {/* WAYPOINT MARKER — where this mission meets its orbit.
+            Structure stage, so it answers on the first frame.
+
+            The 10% hover scale is gone: on a 6px diamond it bought half a pixel
             of growth and cost the module its only claim to not being a hover
             card. Brightness alone says "acknowledged"; selection still owns the
-            scale step, which is now the only size change anywhere in the node. */}
+            scale step, which is now the only size change anywhere in the node.
+
+            LIT CYAN AT REST, NOT GREY. It used to be `bg-t3` — an instrument
+            label colour on a plate that is not a label. The marker is the one
+            place a mission touches the orbital plane, and the plane is lit; a
+            waypoint that does not carry the field's own light reads as printed
+            on the glass rather than sitting on the track.
+
+            THE BLOOM IS THE PART THAT MATTERS AND IT IS DELIBERATELY MODEST.
+            A 6px square with an 8px shadow at full strength is a 22px ball of
+            light, and six of those turn a field that was just tuned for restraint
+            back into a Christmas tree. At 0.55 and 6px it reads as a lit marker
+            from a normal viewing distance and never as a lamp.
+
+            Selection still takes it to `--signal` red, which is the one thing on
+            the deck that means "you are pointing at this". Cyan is the resting
+            state of everything the plane lights; red is a statement about the
+            operator, and the two must not be the same colour. */}
         <span
           aria-hidden="true"
           className={cn(
-            "absolute top-0 left-0 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rotate-45 transition-all duration-200",
-            isActive ? "bg-signal scale-125" : "bg-t3 group-hover:bg-t1",
+            "absolute top-0 left-0 h-[6px] w-[6px] -translate-x-1/2 -translate-y-1/2 rotate-45 transition-all duration-200",
+            isActive ? "bg-signal scale-125" : "bg-[rgb(120_226_255)] group-hover:bg-white",
           )}
-          style={{ transitionDelay: `${ACTIVATION.structure}ms` }}
+          style={{
+            transitionDelay: `${ACTIVATION.structure}ms`,
+            boxShadow: isActive
+              ? "0 0 9px rgb(255 59 48 / 0.7)"
+              : "0 0 6px rgb(0 212 255 / 0.55)",
+          }}
         />
         {/* Lock reticle. */}
         <span

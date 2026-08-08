@@ -58,12 +58,23 @@ export const ORBIT_TILT = 0.64;
  * The structural outer rings in <OrbitGuides> extend to 2.16, still well past
  * this, so an arc keeps sweeping around and below the hull.
  *
- * HARD FLOOR IS 0.766 — `max(ring * -cos theta)` over the roster, which is
- * AURORA. At or below it that mission sits level with or behind the ship and
- * the hull has to aim sideways or backwards; a ship that can point backwards
- * has no forward, and the whole conceit collapses. 1.20 keeps a 0.43 margin,
- * enough that re-scattering the missions will not silently cross it — but if
- * you move a mission onto ring 1.0 near theta 180, re-check this.
+ * HARD FLOOR IS 0.851, AND IT MOVED WHEN PERSPECTIVE LANDED. It used to be
+ * 0.766 — `max(ring * -cos theta)` over the roster, which is AURORA. That is
+ * now the UNPROJECTED reach; what matters is AURORA's reach after the plane
+ * divide, `0.766 / (1 - 0.13*0.766)` = 0.851. At or below it that mission sits
+ * level with or behind the ship and the hull has to aim sideways or backwards;
+ * a ship that can point backwards has no forward, and the whole conceit
+ * collapses. Recompute this whenever ORBIT_PERSPECTIVE changes.
+ *
+ * 1.05 KEEPS A 0.20 MARGIN, DOWN FROM 0.43 AT 1.20. It came down to drop the
+ * plane's centre roughly 60px further down the frame at 1080p — the field was
+ * sitting high enough that the composition read as looking AT the plane rather
+ * than across it. Because the plane's screen position depends on
+ * `DECK_BIAS - SHIP_STANDOFF_SCREEN`, lowering the standoff alone moves the
+ * plane down and leaves the ship where it is, which is exactly the wanted move.
+ *
+ * The margin is now thin enough to matter: move any mission onto ring 1.0 near
+ * theta 180, or raise ORBIT_PERSPECTIVE, and re-check this before anything else.
  *
  * COST OF LOWERING IT: bearings widen. The nearer the ship sits to the field,
  * the larger the angle subtended by the same node, so the hull swings through a
@@ -77,7 +88,76 @@ export const ORBIT_TILT = 0.64;
  * MOVE IT WITH DECK_BIAS. Dropping both by the same amount holds the plane
  * still on screen and raises only the ship — see the note below.
  */
-export const SHIP_STANDOFF = 1.2;
+export const SHIP_STANDOFF = 1.05;
+
+/**
+ * PERSPECTIVE. THE PLANE IS A FLOOR BELOW THE CAMERA, NOT A DISC ON THE GLASS.
+ *
+ * This deck was orthographic: every plane point was `(u sin t, u cos t * TILT)`,
+ * a circle with its vertical axis scaled. That is a real projection — it is what
+ * you get from a camera infinitely far away — and it has one property that gave
+ * the whole composition away. Under a pure squash the ring spacing ABOVE the
+ * centre and BELOW it are identical by construction: the top of a ring sits at
+ * `cy - r*TILT` and the bottom at `cy + r*TILT`, so concentric rings step by the
+ * same amount in both directions. A real floor does not do that. Its far rings
+ * bunch toward the horizon and its near rings spread toward your feet, and that
+ * asymmetry is most of what tells you a surface is receding rather than facing
+ * you. Without it the field read as concentric circles pinned to the middle of
+ * the screen, however well it was lit.
+ *
+ * THE WHOLE FIX IS ONE DIVIDE. For a plane point at ring radius `u` (in units of
+ * --orbit-radius) and angle `t`, take the orthographic coordinates and divide
+ * both by `1 + P*u*cos(t)`. That is the perspective divide of a pinhole camera
+ * whose distance to the plane's centre is `1/P` in the same units — near points
+ * (cos t = -1) get a divisor below 1 and spread outward, far points (cos t = +1)
+ * get one above 1 and compress. Nothing else about the model changes: angles are
+ * still degrees clockwise from screen-up, depth is still carried by z-index and
+ * parallax, and the tilt still sets the overall squash.
+ *
+ * 0.20 IS A COMPOSITION CHOICE, NOT A MEASUREMENT. It is the camera distance
+ * that makes the outermost ring's near arc sweep below the hull and off the
+ * bottom of the frame while its far arc stays inside the top. Raising it
+ * strengthens the recession and eventually pushes the near arc off-screen;
+ * lowering it walks back toward the orthographic look. The hard ceiling is
+ * `1 / FIELD.outerRing` (~0.645), where the near arc's divisor reaches zero and
+ * the projection blows up.
+ *
+ * THE SPRITE FRAMES ARE UNAFFECTED. They are rendered orthographically at
+ * SHIP_CAMERA_TILT and that is still correct — the hull is a small object close
+ * to the camera, where perspective distortion within the object is negligible.
+ * This projection applies to the PLANE, which spans many times the hull's size.
+ */
+export const ORBIT_PERSPECTIVE = 0.13;
+
+/**
+ * The perspective divisor at a point on the plane. `cosTheta` is `cos` of the
+ * angle measured clockwise from screen-up, so +1 is the FAR side of the ring and
+ * -1 the near side — the same convention as `lightAt` in `orbit.data.ts`.
+ *
+ * Every projection of the plane must go through this: the field canvas, the
+ * mission nodes, the bodies riding the rings, and the layout solver's mirror of
+ * all three. A consumer that skips it draws on a different surface than the rest
+ * of the deck, and the symptom is a mission node sitting just off its own orbit.
+ */
+export function planeDivisor(ring: number, cosTheta: number): number {
+  return 1 + ORBIT_PERSPECTIVE * ring * cosTheta;
+}
+
+/**
+ * The ship's standoff AS DRAWN, after the perspective divide.
+ *
+ * SHIP_STANDOFF is a world quantity: the vehicle sits `1.20` out from the
+ * plane's centre on the near side. Its screen offset is that number put through
+ * the same projection at `cos t = -1`, which is a larger number — 1.50 at
+ * P = 0.20. Using the world value directly for the screen offset would put the
+ * hull where the plane's u = 1.20 arc USED to be and leave the arc itself well
+ * below it, which reads as the ship floating above a floor it is supposed to be
+ * flying over.
+ *
+ * This is what <OrbitPlane> publishes as `--ship-standoff`, and it is why that
+ * variable is TypeScript-owned rather than a literal in the stylesheet.
+ */
+export const SHIP_STANDOFF_SCREEN = SHIP_STANDOFF / planeDivisor(SHIP_STANDOFF, -1);
 
 /**
  * How far the whole world is pushed DOWN the viewport, in the same units.
@@ -97,17 +177,27 @@ export const SHIP_STANDOFF = 1.2;
  * raise the ship against a STATIONARY plane, drop this and SHIP_STANDOFF by the
  * same amount; the two shifts cancel for the plane and compose for the ship.
  *
- * THAT IS EXACTLY WHAT THE 1.45/0.80 -> 1.20/0.55 PAIR DOES. Screen position is
+ * THAT IS EXACTLY WHAT THE 1.45/0.80 -> 1.20/0.55 PAIR DID. Screen position is
  * `H/2 + R*TILT*DECK_BIAS` for the ship and `H/2 + R*TILT*(DECK_BIAS -
  * SHIP_STANDOFF)` for the plane, so the plane depends only on the DIFFERENCE.
- * Holding it at -0.65 leaves all six missions on the exact pixel they occupied
- * before and lifts the ship 0.25*R*TILT (59px at 1600x900) into the ring.
+ * Holding it at -0.65 left all six missions on the exact pixel they occupied
+ * before and lifted the ship 0.25*R*TILT (59px at 1600x900) into the ring.
+ *
+ * 0.55 -> 0.93 IS THE SAME MOVE RUN BACKWARDS, FOR PERSPECTIVE. The ship's
+ * standoff AS DRAWN is now SHIP_STANDOFF_SCREEN (1.50 at P = 0.20, against a
+ * world value of 1.20), and the plane tracks the drawn one. Left alone that
+ * lifted the entire field 0.30*R*TILT up the viewport and put NEXUS, ECHO and
+ * DATAFLOW through the top bar at eleven of the twenty-five checked viewports.
+ * Raising the bias by the same 0.38 restores the difference to -0.65, which
+ * holds every mission on the pixel it was already on and spends the whole
+ * change on the ship instead — which is the correct place for it, because a
+ * receding floor is supposed to put the viewer HIGHER above the plane.
  *
  * This is the property that makes the move safe: the callout collision set the
  * layout solver clears is a function of mission positions, and those did not
  * change. Only the ship-vs-callout pairs had to be re-checked.
  */
-export const DECK_BIAS = 0.55;
+export const DECK_BIAS = 0.93;
 
 /**
  * Depth cutoffs for level of detail. Distance reduces prominence, never
@@ -287,8 +377,9 @@ export function derivePlacement(
   tilt: number = ORBIT_TILT,
 ): MissionPlacement {
   const rad = (theta * Math.PI) / 180;
-  const sx = Math.sin(rad);
-  const sy = -Math.cos(rad);
+  const d = planeDivisor(ring, Math.cos(rad));
+  const sx = Math.sin(rad) / d;
+  const sy = -Math.cos(rad) / d;
 
   // Ring radius feeds depth as well as position: a node on an inner orbit is
   // nearer the middle of the plane, so it reads mid-distance no matter which
@@ -299,7 +390,7 @@ export function derivePlacement(
   // downward and the ship is one standoff below the centre, so subtracting the
   // standoff is what puts the node ahead of the vehicle.
   const dx = ring * sx;
-  const dy = tilt * (ring * sy - SHIP_STANDOFF);
+  const dy = tilt * (ring * sy - SHIP_STANDOFF_SCREEN);
 
   return {
     sx,

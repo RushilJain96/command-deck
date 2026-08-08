@@ -24,7 +24,7 @@ export function TargetReadout() {
   const mission = getMissionById(useActiveTargetId());
 
   return (
-    <HudPanel label="Target" side="right" className="deck-sm:w-full w-60">
+    <HudPanel label="Target" side="right" className="deck-sm:w-full w-52">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={mission?.id ?? "none"}

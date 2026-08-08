@@ -50,16 +50,20 @@ const mix = (a: readonly number[], b: readonly number[], f: number) =>
 
 export const FIELD = {
   /**
-   * Ring count.
+   * Ring count. DESCRIPTIVE NOW, NOT GENERATIVE — the radii are listed in
+   * TRACK_RADII below and this simply reports how many there are. It is kept
+   * because other files reason about it: `Celestials` clamps plane-body ring
+   * indices against `FIELD_RINGS.length`, and the halo-width note in
+   * <OrbitGuides> is written in terms of ring spacing.
    *
-   * SIX, ACROSS THE SAME 0.16-2.6 BAND. Nine rings over this span crowded the
-   * middle of the field — the gaps in the dense inner half fell below the width
-   * of the halo, so adjacent rings bled into each other and the whole core read
-   * as one bright mass rather than as separate tracks. Six over the same extent
-   * gives every ring room for its own halo, which is what makes them read as
-   * distinct orbits rather than as texture.
+   * SEVEN, UP FROM FIVE, AND THE OLD CROWDING RULE STILL APPLIES. A ring needs
+   * room either side of it or adjacent rings bleed into one mass. What changed
+   * is the budget: with the halo pass off, the only thing that has width is the
+   * 2.7px core bead, so rings can sit far closer than they could when each one
+   * carried a 40px scattering glow. The tightest gap in the new set is
+   * 0.22 -> 0.34, which is 56px at R=470 and comfortably clear.
    */
-  rings: 6,
+  rings: 7,
   seed: 0x51e11a,
 
   /**
@@ -69,18 +73,33 @@ export const FIELD = {
    * this band, which keeps the inner rings clear of each other no matter how the
    * growth terms are tuned.
    *
-   * THE OUTER FIGURE RUNS OFF THE SCREEN, DELIBERATELY. SHIP_STANDOFF puts the
-   * spacecraft 1.20 below the plane's centre, so a field that stopped at 1.0
-   * ended above the hull and the vehicle read as parked in front of a picture of
-   * it. At 2.6 the outer rings leave the frame entirely on every side, which is
-   * the difference between a diagram of a system and being inside one — you
-   * never see the edge of the thing you are flying in.
+   * THE FIELD HAS AN EDGE NOW. IT DID NOT, AND THAT WAS THE PROBLEM.
+   *
+   * This was 2.6, chosen so the outer rings left the frame on every side — "the
+   * difference between a diagram of a system and being inside one; you never see
+   * the edge of the thing you are flying in." That is a real idea and it was
+   * executed properly. It is also the wrong idea for this deck, and it is why
+   * the composition read as crowded rather than as vast: a frame with rings
+   * running through all four corners has no empty space left, and space reads as
+   * space because of the emptiness, not because of what is drawn in it. Every
+   * other symptom — the field feeling busy, the mission callouts fighting the
+   * background, the eye having nowhere to rest — followed from this one number.
+   *
+   * 1.55 is not arbitrary. The constraint is SHIP_STANDOFF = 1.20: the field has
+   * to reach PAST the hull or the ship reads as parked in front of a picture of
+   * a plane. At 1.55 the outermost ring crosses 0.35 * R * tilt below the ship's
+   * origin — through the lower half of the hull — so the vehicle interrupts the
+   * ring and the plane visibly continues past it on both sides. That is the
+   * payoff `placement.ts` describes; at 2.6 it came from some middle ring and
+   * the outer ones were merely off-screen.
    *
    * The inner figure is tight on purpose: a dense core is most of what makes the
-   * field converge rather than spreading evenly across the frame.
+   * field converge rather than spreading evenly across the frame. 0.22 rather
+   * than 0.16 only because the innermost ring at 0.16 sat inside the halo of the
+   * one outside it once the band contracted.
    */
-  innerRing: 0.16,
-  outerRing: 2.6,
+  innerRing: 0.22,
+  outerRing: 1.55,
 
   /**
    * Shape and spacing. All three are effectively OFF right now, which is a
@@ -94,21 +113,78 @@ export const FIELD = {
   spread: 0,
   scatter: 0.02,
 
-  /** Bright-to-dim ratio around each ring, and the floor the dim parts hold. */
-  contrast: 0.05,
-  ember: 0.34,
+  /**
+   * Bright-to-dim ratio around each ring, and the floor the dim parts hold.
+   *
+   * THE RINGS ARE STRINGS OF LIGHTS NOW, AND `ember` IS WHAT MAKES THE GAPS.
+   * It was 0.34, with the note: "Dim stretches fall to `ember` and hold there.
+   * They never reach zero: a hard cut is a dashed line, and a dashed line is a
+   * drawing." The instinct was right and the value was too cautious — at 0.34 no
+   * part of a ring ever drops below a third of full, so the density variation
+   * read as a slight shimmer along a continuous thread rather than as separate
+   * lights. The ring was a drawn line either way; it was just a smooth one.
+   *
+   * At 0.10 the dim stretches fall close enough to the void to break the thread,
+   * and because the density function is a sum of four sines the breaks arrive at
+   * irregular intervals and with soft ends — which is the difference between a
+   * string of lights and a dashed stroke. The old warning still stands as a
+   * limit: take `ember` to 0 and the ends go hard, and it reads as a dash
+   * pattern again.
+   *
+   * `contrast` rises with it because it sets FIELD_CUT, the threshold the
+   * density is measured against. Raising `ember` alone would just dim the whole
+   * ring; raising both is what widens the gap between the lit and unlit runs.
+   */
+  contrast: 0.17,
+  ember: 0.13,
 
-  /** Per-layer levels. */
-  core: 1,
-  halo: 1,
-  atmosphere: 0.61,
+  /**
+   * Per-layer levels.
+   *
+   * HALO IS OFF. It was a 5-40px scattering glow hugging every thread, and it
+   * is the single thing most responsible for the field reading as drawn rather
+   * than as points of light — a bead with a glow welded to it is a stroke with a
+   * soft edge, however it was composited. Killing it costs the two-falloff
+   * scattering model the pass was built for, and the field is better without it:
+   * the core beads carry the ring, and `atmosphere` still supplies the wide,
+   * shapeless region-of-space term that keeps the plane from looking like line
+   * art on black.
+   *
+   * The pass is skipped entirely at this value (see `FIELD.halo > 0.001` in
+   * <OrbitGuides>), so this also buys back the fill it used to cost.
+   */
+  /**
+   * `core` IS A GAIN, NOT A CEILING — per-stamp alpha is clamped to 1 after it
+   * multiplies in. It went 1 -> 2.2 in the same pass that switched the halo off,
+   * and that is not a coincidence: the halo was contributing most of the field's
+   * actual luminance, and the first attempt at bead rings kept `core` at 1 and
+   * produced a plane that had the right STRUCTURE and was almost invisible.
+   *
+   * Above 1 the brightest beads saturate — they land on the palette's core
+   * colour at full opacity — while the mid-range ones lift proportionally. That
+   * is the correct shape for this: a string of lights should have lights in it
+   * that are simply ON, and a gain that only ever approaches full is a gain that
+   * makes everything grey.
+   */
+  core: 2.6,
+  halo: 0,
+  atmosphere: 0.34,
   /** Atmospheric radius. */
   reach: 0.6,
   /** Inward drift off each arc. */
   leak: 0.67,
 
-  /** 0 is a true blue, 1 a blue-white. */
-  hue: 0.33,
+  /**
+   * 0 is a true blue, 1 a blue-white.
+   *
+   * 0.55, up from 0.33. The saturated end of the ramp reads as a coloured line
+   * — an LED strip laid in a circle — and colour is the wrong thing for this
+   * layer to be carrying: the rings are structure, and structure should sit
+   * behind the missions rather than compete with them for the eye. Moving up
+   * the ramp desaturates without dimming, because the stops travel blue -> white
+   * rather than around the wheel.
+   */
+  hue: 0.55,
 } as const;
 
 export interface FieldRing {
@@ -120,20 +196,51 @@ export interface FieldRing {
 }
 
 /**
- * Radii grow geometrically with a widening step plus a scatter term, then the
- * whole set is normalised and remapped into `innerRing`..1.
+ * THE DRAWN TRACKS ARE THE MISSION ORBITS. THEY DID NOT USED TO BE.
+ *
+ * The radii here were generated: a geometric progression with a widening step
+ * and a scatter term, normalised and remapped into `innerRing`..`outerRing`.
+ * That produced a handsome, entirely decorative set — 0.22, 0.457, 0.722, 1.128,
+ * 1.55 — which had nothing to do with the radii the six missions actually ride
+ * (0.34, 0.66, 0.80, 1.00). The two sets never coincided, so every mission
+ * anchor floated in the gap between two tracks.
+ *
+ * Nobody notices that while the anchors are 5px grey diamonds. It becomes the
+ * whole problem the moment they are luminous waypoints, because a waypoint is a
+ * claim that something is ON a track. A glowing marker sitting sixty pixels off
+ * the nearest ring is a claim the picture immediately contradicts.
+ *
+ * SO THE FIELD SNAPPED TO THE MISSIONS, NOT THE MISSIONS TO THE FIELD. The other
+ * direction was available and is much worse: mission radii feed `REACH`, which
+ * sets `--orbit-radius`, which the layout solver clears across 31 viewports.
+ * Moving them to land on decorative rings would have re-opened a solved layout
+ * to fix a cosmetic mismatch. The rings are the free variable here; the roster
+ * is not.
+ *
+ * STRUCTURAL RINGS FILL THE REST. Four mission tracks alone would leave the
+ * field with a hole inside 0.34 and nothing past 1.00 — and the outer band is
+ * what reaches past the hull so the vehicle interrupts the plane. Three more
+ * carry that: one inside, two outside.
+ *
+ * The generator is kept and still runs, because it is what produces the
+ * harmonics, the phase and the per-ring weight that stop the rings looking
+ * identical. Only the RADII are now given rather than derived.
  */
+const MISSION_TRACKS = [0.34, 0.66, 0.8, 1.0] as const;
+const STRUCTURAL_TRACKS = [0.22, 1.28, 1.55] as const;
+
+const TRACK_RADII: readonly number[] = [...MISSION_TRACKS, ...STRUCTURAL_TRACKS].sort(
+  (a, b) => a - b,
+);
+
 function buildRings(): FieldRing[] {
   const random = mulberry32(FIELD.seed);
-  // Mutable while the progression is being built; frozen into `FieldRing` on
-  // the way out, once the normalise-and-remap pass has settled every radius.
   const rings: { base: number; harmonics: FieldRing["harmonics"]; phase: number; weight: number }[] =
     [];
-  let r = 1;
 
-  for (let i = 0; i < FIELD.rings; i++) {
+  for (const base of TRACK_RADII) {
     // Drawn even at zero irregularity: these calls advance the generator, and
-    // the ring spacing below depends on where it lands.
+    // the phase and weight below depend on where it lands.
     const raw = [
       { k: 1, a: random() * 2 - 1, p: random() * TAU },
       { k: 2, a: random() * 2 - 1, p: random() * TAU },
@@ -142,24 +249,37 @@ function buildRings(): FieldRing[] {
     const total = raw.reduce((sum, h) => sum + Math.abs(h.a), 0) || 1;
 
     rings.push({
-      base: r,
+      base,
       harmonics: raw.map((h) => ({ ...h, a: h.a / total })),
       phase: random() * 1000,
       weight: 0.66 + random() * 0.34,
     });
-
-    r *= 1.12 + random() * (0.06 + FIELD.scatter * 0.34) + i * (0.02 + FIELD.spread * 0.05);
   }
 
-  const outer = rings[rings.length - 1].base;
-  for (const ring of rings) ring.base /= outer;
-  const inner = rings[0].base;
-  const span = 1 - inner || 1;
-  return rings.map((ring) => ({
-    ...ring,
-    base:
-      FIELD.innerRing + ((ring.base - inner) / span) * (FIELD.outerRing - FIELD.innerRing),
-  }));
+  const inner = TRACK_RADII[0];
+  const span = TRACK_RADII[TRACK_RADII.length - 1] - inner || 1;
+  return rings.map((ring) => {
+    const t = (ring.base - inner) / span;
+    /**
+     * EDGE FADE. The outermost ring has to dissolve, not stop.
+     *
+     * While the field ran to 2.6 this was unnecessary: the viewport cut it, and
+     * a ring that leaves the frame never has to explain where it ends. A field
+     * with a visible edge does. Without this the last ring terminates at full
+     * weight in open black, which is the one thing that would make a bounded
+     * field look like a bounded IMAGE.
+     *
+     * Flat across the inner 62% so the core keeps its density, then down to a
+     * third of weight at the rim. `weight` is otherwise an uncorrelated per-ring
+     * jitter, which is why this multiplies it rather than replacing it — the
+     * rings should still not be uniform, they should just get quieter outward.
+     */
+    const fade = 1 - smoothstep(0.62, 1, t) * 0.66;
+    // `base` is NOT remapped any more. It is the track radius, exactly, because
+    // four of these have to land on mission anchors to the pixel — a remap would
+    // move them off by however much the band's endpoints happen to differ.
+    return { ...ring, weight: ring.weight * fade };
+  });
 }
 
 export const FIELD_RINGS: readonly FieldRing[] = buildRings();
@@ -204,28 +324,77 @@ export function lightAt(ring: FieldRing, t: number): FieldLight {
   // Dim stretches fall to `ember` and hold there. They never reach zero: a hard
   // cut is a dashed line, and a dashed line is a drawing.
   let a = FIELD.ember + (1 - FIELD.ember) * lit;
-  // The near arc carries about twice the far one. This is the only cue that the
-  // ring is a plane lying away from the viewer rather than a shape on glass.
+  /**
+   * THE NEAR ARC CARRIES FOUR AND A HALF TIMES THE FAR ONE.
+   *
+   * This is the only cue that the ring is a plane lying away from the viewer
+   * rather than a shape on glass, and it was set at 0.34/0.66 — a 2.9:1 ratio,
+   * which is not enough to read as recession. At that ratio the far arc is only
+   * a little dimmer than the near one, so six concentric ellipses of nearly even
+   * weight resolve as what they literally are: circles drawn on the screen.
+   *
+   * At 0.18/0.82 the far arc fell close to the ember floor and the eye stopped
+   * being able to complete the ellipse without effort — which is exactly what
+   * happens looking across a real plane, and is what makes the near arc read as
+   * passing in FRONT of the ship rather than around it.
+   *
+   * BACKED OFF TO 0.28 WHEN THE HALO WENT. 0.18 was measured against a field
+   * whose threads still carried a scattering glow, and that glow was doing the
+   * work of keeping the far arc present while this term pushed it down. With
+   * only bare beads left, 0.18 took the far side under the threshold of being
+   * seen at all — and a ring you cannot complete is not a receding ring, it is
+   * half a ring.
+   *
+   * NOW 0.14, WHICH IS A 7:1 RATIO, AND THIS TERM HAS BEEN RAISED THREE TIMES.
+   *
+   * That history is the useful part of this note. It went 0.34 -> 0.18 -> 0.24
+   * -> 0.14, and every move but one was upward, because "the rings look flat"
+   * kept coming back after each round of tuning that was not this number. The
+   * lesson: front-to-back attenuation is the ONLY cue that a ring is a plane
+   * seen at an angle rather than a circle on glass, and the amount of it needed
+   * to read as recession is far more than looks right in isolation. A far arc
+   * that seems too dim when you stare at it is about correct when you are
+   * looking at the composition.
+   *
+   * 0.14 puts the back of a ring at roughly a seventh of the front, which is the
+   * 10%/80% relationship a spec asked for in endpoints rather than in slope.
+   * The bloom pass is what makes it survivable — it keeps the bright beads on
+   * the far arc present even as the average falls, so the ring can still be
+   * completed by eye without being anything like as bright as the near side.
+   *
+   * The floor is somewhere near 0.10. Below that the far arc stops being dim and
+   * starts being absent, and a ring you cannot complete at all is not a receding
+   * ring — it is an arc.
+   */
   const near = (1 - Math.cos(t)) / 2;
-  a *= (0.34 + 0.66 * near) * ring.weight;
+  a *= (0.14 + 0.86 * near) * ring.weight;
   return { a, lit, dens };
 }
 
 /**
- * BLUE AT EVERY SCALE, AND NEVER CYAN.
+ * CYAN-TINTED SLATE. THIS FILE USED TO SAY "BLUE AT EVERY SCALE, AND NEVER
+ * CYAN", AND THAT RULE IS NOW DELIBERATELY RETIRED.
  *
- * One base hue; the core is mixed a third of the way to white and the
- * atmosphere a little deeper. Because the mixes travel along the blue-to-white
- * axis rather than around the colour wheel, saturation falls as brightness
- * rises — which is the actual difference between cold light in thin particles
- * and an LED strip.
+ * The old reasoning: mixes that travel the blue-to-white axis lose saturation as
+ * they gain brightness, which is the difference between cold light in thin
+ * particles and an LED strip — and cyan is the direction an LED strip lies in.
+ * That argument was sound while nothing else in the frame was cyan. It is not
+ * sound now, because <PlaneAurora> puts a cyan source at the middle of the plane
+ * and the rings are the thing that source is lighting. A ring lit by a cyan glow
+ * that stays pure blue is not disciplined, it is disconnected.
+ *
+ * The safeguard the old rule existed to provide is kept by other means: the core
+ * still mixes most of the way to WHITE, so the brightest beads desaturate as
+ * they brighten and never sit at full-chroma cyan. What shifts is the base and
+ * the atmosphere — the dim end — which is where a tint reads as a medium rather
+ * than as a neon.
  */
 const BASE_STOPS = [
-  [64, 124, 240],
-  [96, 146, 238],
-  [132, 170, 234],
-  [168, 194, 234],
-  [200, 216, 240],
+  [40, 130, 200],
+  [64, 150, 210],
+  [90, 160, 200],
+  [140, 190, 220],
+  [200, 224, 240],
 ];
 
 function palette(h: number) {

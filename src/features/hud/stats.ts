@@ -1,4 +1,12 @@
-import { Coffee, GitCommitHorizontal, Flame, Boxes, Code2, type LucideIcon } from "lucide-react";
+import {
+  Coffee,
+  GitCommitHorizontal,
+  Flame,
+  Boxes,
+  Code2,
+  Target,
+  type LucideIcon,
+} from "lucide-react";
 
 /**
  * Operator track record.
@@ -17,7 +25,14 @@ import { Coffee, GitCommitHorizontal, Flame, Boxes, Code2, type LucideIcon } fro
 export interface Stat {
   readonly id: string;
   readonly label: string;
-  readonly value: number | null;
+  /**
+   * A number is formatted and set in the large tabular figure size. A string is
+   * a standing statement rather than a count, so it is set smaller — at this
+   * column width "Distributed Systems" in the figure size would not fit on one
+   * line, and a wrapped headline number stops reading as a number. `null` is a
+   * figure that has no value yet and renders as an em dash.
+   */
+  readonly value: number | string | null;
   /** Unit or qualifier shown under the figure. */
   readonly unit: string;
   readonly icon: LucideIcon;
@@ -31,11 +46,19 @@ export const STATS: readonly Stat[] = [
     id: "github",
     label: "GitHub Contributions",
     value: 1538,
-    unit: "Past 12 months",
+    unit: "Total contributions",
     icon: GitCommitHorizontal,
     live: false,
   },
   { id: "streak", label: "Current Streak", value: 87, unit: "Days", icon: Flame, live: false },
   { id: "projects", label: "Projects Built", value: 12, unit: "Live systems", icon: Boxes, live: false },
   { id: "coffee", label: "Coffee Consumed", value: 1248, unit: "Cups", icon: Coffee, live: false },
+  {
+    id: "focus",
+    label: "Current Focus",
+    value: "Distributed Systems",
+    unit: "Next: event-driven pipelines",
+    icon: Target,
+    live: false,
+  },
 ];

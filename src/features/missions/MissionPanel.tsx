@@ -176,17 +176,31 @@ function PanelBody({
 
       {/* Edge light: the deck's ambient catching the outer 3px of the housing.
           Half strength on hover of what selection gets, so it reads as the part
-          being lit rather than as the module announcing itself. Surface stage. */}
+          being lit rather than as the module announcing itself. Surface stage.
+
+          THIS IS THE MODULE'S OUTER GLOW, AND IT HAS TO BE — a `box-shadow`
+          cannot do the job here. Every layer of this housing is clipped with
+          `clip-path` to get the mitred chamfer, and clip-path clips box-shadow
+          with it, so an outward glow declared on the face or the bezel is
+          removed before it is ever painted. A slightly larger sibling BEHIND the
+          bezel is the only way to put light outside a clipped shape.
+
+          Now cyan rather than neutral: the deck's ambient IS cyan (see
+          <PlaneAurora>), so a module catching it should catch that colour. It
+          is also permanently on at low level rather than only appearing on
+          hover, which is what separates the cards from the background the spec
+          asked for — a module that is invisible until pointed at is not mounted
+          on anything. */}
       <span
         aria-hidden="true"
         className={cn(
           "absolute -inset-[3px] transition-opacity duration-300",
-          isActive ? "opacity-100" : "opacity-0 group-hover:opacity-45",
+          isActive ? "opacity-100" : "opacity-45 group-hover:opacity-80",
         )}
         style={{
           ...clip,
           ...at(ACTIVATION.surface),
-          background: isActive ? "rgb(214 230 255 / 0.14)" : "rgb(190 215 255 / 0.10)",
+          background: isActive ? "rgb(0 212 255 / 0.24)" : "rgb(0 212 255 / 0.16)",
         }}
       />
 
@@ -208,8 +222,13 @@ function PanelBody({
           the first frame. */}
       <span
         className={cn(
+          // Cyan-tinted rather than neutral white, for the same reason as the
+          // edge light above: this hairline is reflecting the deck's ambient,
+          // and the deck's ambient is cyan.
           "relative block p-px transition-colors duration-200",
-          isActive ? "bg-white/[0.34]" : "bg-white/[0.13] group-hover:bg-white/[0.19]",
+          isActive
+            ? "bg-[rgb(120_220_255/0.42)]"
+            : "bg-[rgb(0_212_255/0.25)] group-hover:bg-[rgb(0_212_255/0.36)]",
         )}
         style={{ ...clip, ...at(ACTIVATION.structure) }}
       >
@@ -273,15 +292,24 @@ function PanelBody({
               and made every panel a tall ragged column. `max-width` cannot fix
               that; only an explicit width can.
 
-              WIDTHS ARE CHOSEN SO THE TEXT MEASURE IS UNCHANGED. The face used
-              to pad 14px and gap 12px around a 160px column; the bands now pad
-              20px inside a 200px one. 3px rail + 200 + 2px bezel is the same
-              205px outer box, and 200 - 40 is the same 160px of text, so no
-              summary rewraps and the layout solver's geometry still holds. */}
+              THE `lg` COLUMN CAME DOWN FROM 200px TO 176px, AND THE TEXT
+              MEASURE WITH IT — 160px to 136px. That is a real cost: two-line
+              summaries clamp harder than they used to. It buys the deck-md
+              threshold, which is the larger prize. The panel box is the second
+              biggest term in the --orbit-radius reserve after the rail, and
+              dropping both is what let the full instrument layout reach 1180px
+              instead of stopping at 1500px, where most laptops never saw it.
+              3px rail + 176 + 2px bezel = the 181px outer box the solver models.
+
+              `deck-sm` is the same 11rem as `lg` and is NOT redundant: below
+              620px BOTH media queries match, so it exists to beat deck-md's
+              9.25rem in the cascade. (It is moot in practice — no callout is
+              drawn at that tier — but a silently wrong value here would be
+              waiting for whoever changes that.) */}
           <span
             className={cn(
               "relative flex flex-col",
-              "w-[12.5rem] deck-md:w-[9.25rem] deck-sm:w-[11rem]",
+              "w-[11rem] deck-md:w-[9.25rem] deck-sm:w-[11rem]",
             )}
           >
             {/* SECTION 1 — NAMEPLATE. Recessed, seamed off from the body, and

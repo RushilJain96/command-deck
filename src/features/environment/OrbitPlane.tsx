@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { ORBIT_TILT, SHIP_STANDOFF } from "@/features/missions/placement";
+import { ORBIT_TILT, SHIP_STANDOFF_SCREEN } from "@/features/missions/placement";
 
 /**
  * Publishes the orbital plane's geometry to CSS.
@@ -25,7 +25,8 @@ export function OrbitPlane({ children }: { children: ReactNode }) {
       style={
         {
           "--orbit-tilt": ORBIT_TILT,
-          "--ship-standoff": SHIP_STANDOFF,
+          // The PROJECTED standoff, not the world one. See SHIP_STANDOFF_SCREEN.
+          "--ship-standoff": SHIP_STANDOFF_SCREEN,
         } as CSSProperties
       }
     >

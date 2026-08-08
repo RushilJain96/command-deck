@@ -141,6 +141,29 @@ export interface Body {
    * one feature everybody can name on Jupiter is a spot.
    */
   readonly spots?: readonly Crater[];
+
+  /**
+   * Atmospheric haze, in CSS pixels of blur. For the most distant bodies only.
+   *
+   * A real optical effect at the wrong scale — nothing a few hundred kilometres
+   * away is blurred by intervening space. It is here because it does what
+   * distance does to a small object in a frame: removes its edge. A crisp 8px
+   * disc and a crisp 40px disc read as the same distance at different sizes; the
+   * blurred one reads as further away. Keep it to a single pixel and to bodies
+   * under about 12px, or it stops looking like distance and starts looking like
+   * a mistake.
+   */
+  readonly blur?: number;
+
+  /**
+   * A tilted ring system. `tilt` is degrees, `spread` is the ring's outer
+   * diameter as a multiple of the body's own.
+   */
+  readonly rings?: {
+    readonly tilt: number;
+    readonly spread: number;
+    readonly color: string;
+  };
 }
 
 /**
@@ -149,21 +172,36 @@ export interface Body {
  * read as hue differences between rocks, not as coloured lights.
  *
  * THE DISCS ARE DARK AND THE RIMS ARE NOT, and that split is deliberate. A body
- * is mostly area, and area is what lifts a black frame — the first pass ran
- * these albedos two stops higher and the near planetoid became the brightest
- * object on the deck, brighter than the spacecraft. The rim is a hairline, so it
- * costs almost nothing in total light and it is the layer carrying the
+ * is mostly area, and area is what lifts a black frame — an early pass ran these
+ * albedos two stops higher and the near planetoid became the brightest object on
+ * the deck, brighter than the spacecraft. The rim is a hairline, so it costs
+ * almost nothing in total light and it is the layer carrying the
  * three-dimensionality. Dropping the disc and keeping the rim buys back the
  * black without flattening a single body.
+ *
+ * THE ALBEDOS NOW CARRY HUE AT THE SAME LUMINANCE, WHICH IS THE WHOLE TRICK.
+ * The bodies read as "completely black" not because they were too dark but
+ * because they were too NEUTRAL — #1a1714 is a grey with a rumour of brown in
+ * it, and at 2% of white nobody sees the brown. #0a192f is a slate blue anyone
+ * can name, and its relative luminance is 23.4 against the old 23.3. It is not
+ * one stop brighter. It is the same value with somewhere to be.
+ *
+ * That is why the warning above still stands unchanged: the thing that lifted
+ * the frame last time was VALUE, and none of these moved. Saturation is free.
+ *
+ * The rims are now the deck's own accents rather than generic sunlight — cyan
+ * for the ice giants, amber for the one warm body, violet for the two cool
+ * outliers. A rim is the light of wherever the body is, and the deck's light is
+ * cyan.
  */
-const IRON = { albedo: "#1a1714", rim: "rgb(232 212 190)" };
-const REGOLITH = { albedo: "#1c2028", rim: "rgb(190 210 244)" };
-const OCHRE = { albedo: "#191713", rim: "rgb(228 206 172)" };
-const RUST = { albedo: "#1d1413", rim: "rgb(238 198 186)" };
-const STEEL = { albedo: "#131a24", rim: "rgb(182 208 244)" };
-const VERDIGRIS = { albedo: "#131c1a", rim: "rgb(188 226 214)" };
-const VIOLET = { albedo: "#17151f", rim: "rgb(206 200 240)" };
-const CARBON = { albedo: "#101319", rim: "rgb(160 184 220)" };
+const IRON = { albedo: "#0a192f", rim: "rgb(0 212 255)" };
+const REGOLITH = { albedo: "#101a26", rim: "rgb(150 200 240)" };
+const OCHRE = { albedo: "#1c1710", rim: "rgb(255 158 100)" };
+const RUST = { albedo: "#1b1220", rim: "rgb(187 154 247)" };
+const STEEL = { albedo: "#0b1826", rim: "rgb(120 190 235)" };
+const VERDIGRIS = { albedo: "#0c1c1a", rim: "rgb(140 220 210)" };
+const VIOLET = { albedo: "#141024", rim: "rgb(187 154 247)" };
+const CARBON = { albedo: "#0a0f18", rim: "rgb(130 170 210)" };
 
 /**
  * PLACEMENT AVOIDS THE CALLOUT BAND.
@@ -180,40 +218,80 @@ const CARBON = { albedo: "#101319", rim: "rgb(160 184 220)" };
  */
 export const BODIES: readonly Body[] = [
   /* ---------------------------------------------------------------- NEAR --
-     One large body, cropped by two edges of the top-right corner. Cropping is
-     what sells the size: an object fully inside the frame reads as an object
-     placed in a picture, where one running off two edges reads as far larger
-     than the frame. Gibbous rather than full, so the terminator falls across
-     the visible face and the form is legible. */
+     The nearest body. Gibbous rather than full, so the terminator falls across
+     the visible face and the form is legible.
+
+     IT USED TO BE A 34vmin GIANT CROPPED BY THE TOP-RIGHT CORNER, and cropping
+     genuinely was what sold its size — an object fully inside the frame reads as
+     an object placed in a picture, where one running off two edges reads as
+     larger than the frame. That trick is abandoned here, for a reason worth
+     recording so nobody reinstates it:
+
+     A CROPPED BODY NEEDS A FREE EDGE, AND THIS DECK HAS NONE. Chrome occupies
+     all four: the top bar, the dock, the instrument rail down the left and the
+     cluster up the right. Cropping only works where the body is large enough to
+     reach past that chrome into open frame — and at that size, on the right, it
+     became the second-largest object on screen sitting on the ship's starboard
+     flank, where it beat the vehicle for attention. Shrunk, it disappears behind
+     whichever panel it is nearest. There is no size that solves both.
+
+     So it is a body INSIDE the field instead, in the clear gap between the Echo
+     Relay and Orion callouts — which is where the reference composition keeps
+     its one visible planet, and at roughly the same size.
+
+     NOTE `left`/`top` ARE THE BOX'S CORNER, NOT ITS CENTRE (see <BodyView>).
+     A first attempt at y: -14% put the entire disc above the viewport. */
   {
     id: "planetoid-iron",
     ...IRON,
-    x: "82%",
-    y: "-9%",
-    size: "34vmin",
+    /* THE ICE GIANT. Down from 12vmin to 7vmin — 42% off the diameter, which is
+       two thirds off the AREA, and area is what "visually heavy" measures. At
+       12vmin it was the largest single object in the frame after the hull and it
+       sat inside the ring system rather than behind it. Background decor should
+       lose an argument with the foreground without having to be moved out of
+       the way. */
+    x: "34%",
+    y: "14%",
+    size: "7vmin",
     az: 285,
     el: 24,
     rimO: 0.62,
-    opacity: 0.5,
+    /* EVERY BACKDROP BODY LOST ANOTHER ~18% OF ITS OPACITY IN THIS PASS.
+       Not its size — that was the previous pass, and there is a floor on it. The
+       lever left is how much of the void shows through, and it is the better one
+       for "recede" anyway: a smaller body is a nearer small thing, a fainter one
+       is the same thing further away. Note the rim opacities are UNCHANGED, so
+       what recedes is the mass while the lit limb holds — which is what distance
+       actually does to a body catching light. */
+    opacity: 0.41,
     parallax: 0.03,
     spin: 0,
     craters: makeCraters(0x1207, 34, 3.5, 15),
   },
 
   /* ----------------------------------------------------------------- MID --
-     Three bodies that turn. Spread to three different quadrants so they never
-     read as a set, and slow enough that the motion is only visible if you stop
-     and watch — a full rotation takes between four and seven minutes. */
+     Two bodies that turn, slow enough that the motion is only visible if you
+     stop and watch — a full rotation takes between four and seven minutes.
+
+     WAS THREE, AND THEY WERE ALL LOW. Together with the far and distant tiers
+     they put nine objects across the bottom half of the frame, which is the half
+     the ship, its plume and the field's bright near arc already occupy. The
+     backdrop is meant to be what the deck sits IN; below the horizon it was
+     competing with what the deck IS. `moon-regolith-b` (3%/84%) went entirely
+     and `moon-regolith-a` moved to the upper right. */
   {
     id: "giant-banded",
     ...OCHRE,
+    // The warm accent. OCHRE is now the only amber body on the deck, which is
+    // why this one keeps its bands and spots: it is the one place warm colour
+    // appears, so it should have something to show.
     x: "20%",
     y: "58%",
-    size: "92px",
+    size: "52px",
     az: 62,
     el: 26,
     rimO: 0.55,
-    opacity: 0.5,
+    opacity: 0.41,
     parallax: 0.09,
     spin: 0.016,
     bands: GIANT_BANDS,
@@ -222,106 +300,73 @@ export const BODIES: readonly Body[] = [
   {
     id: "moon-regolith-a",
     ...REGOLITH,
-    x: "63%",
-    y: "76%",
-    size: "76px",
+    x: "90%",
+    y: "18%",
+    size: "42px",
+    // The ringed one. Small enough that the rings read as an ornament rather
+    // than as a second orbital system competing with the deck's own.
+    rings: { tilt: -22, spread: 2.4, color: "rgb(0 212 255 / 0.25)" },
     az: 48,
     el: 30,
     rimO: 0.66,
-    opacity: 0.52,
+    opacity: 0.43,
     parallax: 0.12,
     spin: 0.019,
     craters: makeCraters(0x2c04, 26, 4, 17),
   },
-  {
-    id: "moon-regolith-b",
-    ...REGOLITH,
-    x: "3%",
-    y: "84%",
-    size: "62px",
-    az: 312,
-    el: 22,
-    rimO: 0.62,
-    opacity: 0.46,
-    parallax: 0.14,
-    spin: -0.014,
-    craters: makeCraters(0x2c05, 22, 4, 16),
-  },
-
   /* ------------------------------------------------------------------ FAR --
-     Four coloured bodies, static, all crescent. Azimuths are deliberately
-     scattered across both hemispheres so the lit edges point four different
-     ways. */
-  {
-    id: "far-rust",
-    ...RUST,
-    x: "22%",
-    y: "80%",
-    size: "34px",
-    az: 128,
-    el: 18,
-    rimO: 0.76,
-    opacity: 0.52,
-    parallax: 0.16,
-    spin: 0,
-    // NO CRATERS, DELIBERATELY. This body is a strong crescent, so only about
-    // one in ten of its craters ever falls on the lit sliver — and a single
-    // crater on a 34px disc reads as a blemish rather than as terrain. Below
-    // roughly 40px, or at any strong phase, the crescent is the whole story.
-  },
+     Two coloured bodies, static, both crescent, with azimuths on opposite
+     hemispheres so their lit edges point different ways.
+
+     `far-rust` (22%/80%) and `far-violet` (36%/91%) were removed with the same
+     reasoning as the mid tier: both sat along the bottom edge, under the plume.
+     `far-rust` carried the note about why a 34px crescent gets no craters —
+     below ~40px, or at any strong phase, the crescent is the whole story. That
+     rule still governs everything in this tier and the one below it. */
   {
     id: "far-steel",
     ...STEEL,
     x: "76%",
     y: "56%",
-    size: "27px",
+    size: "15px",
     az: 232,
     el: 14,
     rimO: 0.8,
-    opacity: 0.5,
+    opacity: 0.41,
     parallax: 0.18,
     spin: 0,
   },
-  {
-    id: "far-verdigris",
-    ...VERDIGRIS,
-    x: "94%",
-    y: "13%",
-    size: "31px",
-    az: 152,
-    el: -10,
-    rimO: 0.78,
-    opacity: 0.48,
-    parallax: 0.15,
-    spin: 0,
-  },
-  {
-    id: "far-violet",
-    ...VIOLET,
-    x: "36%",
-    y: "91%",
-    size: "23px",
-    az: 205,
-    el: 26,
-    rimO: 0.8,
-    opacity: 0.46,
-    parallax: 0.19,
-    spin: 0,
-  },
+  /* `far-verdigris` (94%/13%) went with `d2` (93%/37%). Moving `moon-regolith-a`
+     up to 90%/18% put five objects into one corner — those two, the moon, and
+     both relays — which is the same crowding this pass removed from the bottom,
+     just relocated. Thinning a busy region by moving something into a quiet one
+     only works if you then look at the region you moved it to. */
 
   /* -------------------------------------------------------------- DISTANT --
-     Eight specks, 9-16px, crescent only. At this size there is no room for
+     Four specks, 10-16px, crescent only. At this size there is no room for
      surface detail, so the phase is doing all the work — and it is exactly what
      separates these from the star field they sit among. A full bright dot is a
-     star; a dot with a dark limb is an object. */
-  { id: "d1", ...CARBON, x: "5%", y: "30%", size: "12px", az: 140, el: 20, rimO: 0.85, opacity: 0.5, parallax: 0.2, spin: 0 },
-  { id: "d2", ...STEEL, x: "93%", y: "37%", size: "10px", az: 224, el: -6, rimO: 0.9, opacity: 0.48, parallax: 0.22, spin: 0 },
-  { id: "d3", ...REGOLITH, x: "69%", y: "10%", size: "14px", az: 118, el: 30, rimO: 0.8, opacity: 0.52, parallax: 0.17, spin: 0 },
-  { id: "d4", ...RUST, x: "30%", y: "69%", size: "9px", az: 248, el: 12, rimO: 0.9, opacity: 0.46, parallax: 0.24, spin: 0 },
-  { id: "d5", ...VERDIGRIS, x: "48%", y: "88%", size: "13px", az: 166, el: -18, rimO: 0.82, opacity: 0.5, parallax: 0.21, spin: 0 },
-  { id: "d6", ...VIOLET, x: "88%", y: "79%", size: "11px", az: 200, el: 34, rimO: 0.86, opacity: 0.47, parallax: 0.23, spin: 0 },
-  { id: "d7", ...CARBON, x: "14%", y: "48%", size: "16px", az: 133, el: 6, rimO: 0.78, opacity: 0.54, parallax: 0.16, spin: 0 },
-  { id: "d8", ...OCHRE, x: "79%", y: "93%", size: "10px", az: 258, el: 20, rimO: 0.88, opacity: 0.45, parallax: 0.25, spin: 0 },
+     star; a dot with a dark limb is an object.
+
+     Was eight. The four that went (`d4` 30%/69%, `d5` 48%/88%, `d6` 88%/79%,
+     `d8` 79%/93%) were the four below the horizon; the four that stayed are all
+     above it. Halving the tier is not a loss here — at 10px these read as
+     texture, and the difference between four and eight pieces of texture is
+     nothing next to the difference between a clear lower frame and a busy one. */
+  /* THE DISTANT TIER TAKES A SMALLER CUT THAN THE REST — roughly a third rather
+     than 45%. These are already near the floor at which a crescent stops being a
+     crescent: the note in the FAR tier puts that at about 8px, below which the
+     lit sliver is a single antialiased pixel and the body reads as a slightly
+     dim star. Halving them would have deleted the tier rather than shrunk it.
+
+     They carry a 1px blur instead, which buys the same recession by removing the
+     edge rather than the area. */
+  { id: "d1", ...CARBON, x: "5%", y: "30%", size: "8px", az: 140, el: 20, rimO: 0.85, opacity: 0.37, parallax: 0.2, spin: 0, blur: 2 },
+  { id: "d3", ...REGOLITH, x: "69%", y: "10%", size: "9px", az: 118, el: 30, rimO: 0.8, opacity: 0.39, parallax: 0.17, spin: 0, blur: 2 },
+  // VIOLET rather than a second CARBON: with the tier halved, two of the four
+  // survivors were the same material, and four specks is few enough that a
+  // repeat reads as a repeat.
+  { id: "d7", ...VIOLET, x: "14%", y: "48%", size: "10px", az: 133, el: 6, rimO: 0.78, opacity: 0.41, parallax: 0.16, spin: 0, blur: 2 },
 ];
 
 /**
@@ -355,7 +400,10 @@ export const PLANE_BODIES: readonly PlaneBody[] = [
   {
     id: "track-steel",
     ...STEEL,
-    ring: 4,
+    // Reindexed 4 -> 3 when FIELD.rings went 6 -> 5. `Celestials` CLAMPS an
+    // out-of-range index to the outermost ring instead of erroring, so a stale
+    // index here does not fail — it silently parks two bodies on one track.
+    ring: 3,
     theta: 118,
     size: "26px",
     az: 138,
@@ -379,6 +427,7 @@ export const PLANE_BODIES: readonly PlaneBody[] = [
   {
     id: "track-regolith",
     ...REGOLITH,
+    // Back out to 5 now that the field carries seven tracks rather than five.
     ring: 5,
     theta: 208,
     size: "31px",
@@ -392,13 +441,106 @@ export const PLANE_BODIES: readonly PlaneBody[] = [
   {
     id: "track-verdigris",
     ...VERDIGRIS,
-    ring: 3,
+    // 3 -> 2, keeping the original inner-to-outer order: rust, verdigris,
+    // steel, regolith.
+    ring: 2,
     theta: 44,
     size: "16px",
     az: 158,
     el: 30,
     rimO: 0.88,
     opacity: 0.55,
+    spin: 0,
+  },
+
+  /* ------------------------------------------------------------- TRAFFIC --
+     Six more, all small, all static, spread so that every ring carries at
+     least two and no two on the same ring sit within 60deg of each other.
+
+     THE FOUR ABOVE WERE ENOUGH TO MAKE THE POINT AND NOT ENOUGH TO MAKE THE
+     PATTERN. One body on a track reads as an object that happens to be there;
+     several reads as a populated orbit, which is the difference between a
+     diagram with a decoration on it and a system with things in it. The cost is
+     nothing — these are CSS-positioned discs off the same custom properties the
+     mission nodes use, with no craters at this size (see the note in the FAR
+     tier: below ~40px the phase is the whole story).
+
+     They are deliberately UNLIT-LOOKING — low `opacity`, high `rimO`. A body on
+     a ring competing with the ring's own beads would turn the field back into
+     texture, which is what the whole containment pass was undoing. These are
+     meant to be found, not seen. */
+  {
+    id: "track-carbon-a",
+    ...CARBON,
+    ring: 0,
+    theta: 126,
+    size: "11px",
+    az: 210,
+    el: 16,
+    rimO: 0.9,
+    opacity: 0.5,
+    spin: 0,
+  },
+  {
+    id: "track-ochre",
+    ...OCHRE,
+    ring: 1,
+    theta: 74,
+    size: "13px",
+    az: 84,
+    el: -12,
+    rimO: 0.86,
+    opacity: 0.52,
+    spin: 0,
+  },
+  {
+    id: "track-steel-b",
+    ...STEEL,
+    ring: 2,
+    theta: 232,
+    size: "14px",
+    az: 302,
+    el: 22,
+    rimO: 0.84,
+    opacity: 0.54,
+    spin: 0,
+  },
+  {
+    id: "track-violet",
+    ...VIOLET,
+    ring: 3,
+    theta: 158,
+    size: "12px",
+    az: 128,
+    el: -6,
+    rimO: 0.88,
+    opacity: 0.5,
+    spin: 0,
+  },
+  {
+    id: "track-iron",
+    ...IRON,
+    ring: 3,
+    theta: 318,
+    size: "17px",
+    az: 24,
+    el: 28,
+    rimO: 0.8,
+    opacity: 0.56,
+    spin: 0,
+  },
+  {
+    id: "track-rust-b",
+    // The outermost track. Nothing else rides 1.55, and an empty outer ring
+    // reads as the edge of a drawing rather than the edge of a system.
+    ...RUST,
+    ring: 6,
+    theta: 96,
+    size: "15px",
+    az: 194,
+    el: 10,
+    rimO: 0.85,
+    opacity: 0.52,
     spin: 0,
   },
 ];

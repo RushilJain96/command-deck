@@ -65,7 +65,7 @@ export function HudPanel({
       <span className="block bg-white/[0.07] p-px" style={clip}>
         <span
           className={cn(
-            "relative block px-4 py-3.5",
+            "relative block px-4 py-3",
             "bg-[linear-gradient(158deg,rgb(13_16_21/0.96),rgb(4_5_8/0.98))]",
             "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05),inset_0_-1px_0_0_rgb(0_0_0/0.6)]",
           )}
@@ -82,7 +82,7 @@ export function HudPanel({
 /** Eyebrow. Small, wide-tracked and quiet — it names the panel, nothing more. */
 export function HudLabel({ children }: { children: ReactNode }) {
   return (
-    <h2 className="text-t3 tracking-label mb-3.5 font-mono text-[9px] leading-none uppercase">
+    <h2 className="text-t3 tracking-label mb-2.5 font-mono text-[9px] leading-none uppercase">
       {children}
     </h2>
   );
@@ -107,7 +107,7 @@ export function HudCaption({ children }: { children: ReactNode }) {
 
 /** Divides identity from data. */
 export function HudDivider() {
-  return <div className="mt-3.5 mb-2 h-px bg-white/[0.08]" />;
+  return <div className="mt-2.5 mb-2 h-px bg-white/[0.08]" />;
 }
 
 /** A label/value row. `tabular-nums` keeps readouts from reflowing as they tick. */
