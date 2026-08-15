@@ -60,8 +60,48 @@ import {
  * IF THE FRAMES ARE EVER RE-RENDERED, RE-CHECK THIS. The two are coupled: a
  * change to the rig in `scripts/render-ship-frames.py` moves the headroom this
  * grade is spending.
+ *
+ * NOW BELOW UNITY — 0.88, DOWN FROM 1.06, WITH CONTRAST UP TO 1.18.
+ *
+ * The table above measures against PURE BLACK, and the note under it says the
+ * lift exists so the ship "holds the frame as the deck's focal point against
+ * pure black". The frame is no longer pure black: there is a lit cyan plane, an
+ * aurora at its middle and a hazy sky, and against all that a hull graded up
+ * read as a studio model on a lightbox — brightly and evenly lit from nowhere
+ * the scene contains.
+ *
+ * Dropping below 1.0 cannot clip, so the clipping column stops being the
+ * constraint and the mean becomes the thing to watch: 175 -> roughly 145, a 17%
+ * drop. The contrast lift is what stops that reading as a flat grey ship — it
+ * pushes the panel crevices down faster than the lit faces, so what is lost is
+ * ambient fill and what survives is the render's own key.
  */
-const SHIP_GRADE = "brightness(1.06) contrast(1.10) saturate(0.86)";
+const SHIP_GRADE = "brightness(0.88) contrast(1.18) saturate(0.86)";
+
+/**
+ * ENGINE UNDERCAST — the hull's own exhaust, caught on its underside.
+ *
+ * The rim gradient behind the hull already turns warm at the bottom, but that is
+ * a BACKLIGHT: it silhouettes the trailing edges and puts no light on any
+ * surface facing the viewer. This is the other half — light landing on the lower
+ * fins and nacelles from the plume directly beneath them.
+ *
+ * Masked by the frame itself, exactly like the rim, so it can only ever fall on
+ * hull and never on the transparent film around it. `screen` blending because
+ * this is light being ADDED to a lit surface; `multiply` or a plain overlay
+ * would darken the midtones it lands on, which is the opposite of what a
+ * reflection does.
+ *
+ * Confined to the bottom quarter. Above 70% the plume is behind the airframe
+ * and cannot illuminate anything facing forward, and a warm wash across the
+ * whole hull would undo the dimming the grade above just applied.
+ */
+const UNDERCAST_GRADIENT =
+  "linear-gradient(180deg," +
+  "transparent 0%," +
+  "transparent 70%," +
+  "rgb(255 122 60 / 0.15) 86%," +
+  "rgb(255 92 48 / 0.28) 100%)";
 
 /**
  * BACKLIGHT — a tiny blue source behind the vehicle, built WITHOUT A FILTER.
@@ -103,13 +143,31 @@ const RIM_SCALE = 1.016;
  */
 const RIM_ORIGIN = "50% 51.8%";
 
+/**
+ * The backlight behind the hull, and it is TWO light sources, not one ramp.
+ *
+ * It used to run cool blue from top to bottom, which was correct when the deck
+ * had one light in it. The deck now has two, and they are on opposite sides of
+ * this vehicle: the orbital plane's cyan source is ahead and above, and the
+ * ship's own engines are directly below. A hull between them does not catch a
+ * single colour — it catches cyan on its leading edges and engine red along its
+ * trailing ones, and the crossover happens across the middle of the airframe.
+ *
+ * That is why the stops turn over at 46%: above it the rim is the plane, below
+ * it the rim is the exhaust. Getting this wrong in the other direction — red on
+ * top, cool below — would put the engine light in front of the ship, which is
+ * the sort of error nobody can name and everybody feels.
+ *
+ * The warm end is deliberately weaker than the cool end (0.45 against 0.9). The
+ * engines are close but small; the plane is distant but enormous.
+ */
 const RIM_GRADIENT =
   "linear-gradient(180deg," +
-  "rgb(188 218 255 / 0.95) 0%," +
-  "rgb(152 192 248 / 0.82) 26%," +
-  "rgb(112 158 228 / 0.6) 50%," +
-  "rgb(80 124 196 / 0.34) 72%," +
-  "rgb(62 98 162 / 0.12) 88%," +
+  "rgb(150 215 255 / 0.9) 0%," +
+  "rgb(120 190 240 / 0.78) 24%," +
+  "rgb(140 152 212 / 0.55) 46%," +
+  "rgb(220 112 92 / 0.45) 68%," +
+  "rgb(255 92 72 / 0.26) 86%," +
   "transparent 100%)";
 
 export function ShipSprite({
@@ -183,6 +241,13 @@ export function ShipSprite({
               <Frame key={index} index={index} yaw={yaw} />
             ))}
           </div>
+
+          {/* Engine light on the underside. AFTER the graded hull, so it is not
+              dimmed by the grade — a reflection is light arriving at the surface,
+              not part of the surface's own exposure. */}
+          {Array.from({ length: FRAME_COUNT }, (_, index) => (
+            <UndercastFrame key={index} index={index} yaw={yaw} />
+          ))}
         </motion.div>
       </motion.div>
     </div>
@@ -217,6 +282,44 @@ function RimFrame({ index, yaw }: { index: number; yaw: MotionValue<number> }) {
     <motion.div
       className="absolute inset-0"
       style={{ opacity, background: RIM_GRADIENT, mask, WebkitMask: mask }}
+    />
+  );
+}
+
+/**
+ * One frame of the engine undercast, cut from the same alpha as the hull.
+ *
+ * Identical crossfade weights to <Frame> and <RimFrame> — all three have to show
+ * the same silhouette on every intermediate yaw, or the ship grows a coloured
+ * fringe mid-turn.
+ *
+ * `mix-blend-mode: screen`, because this is light ARRIVING at a surface: screen
+ * adds where normal compositing replaces, so the lower hull gains exposure
+ * rather than being tinted toward orange.
+ *
+ * IF THIS EVER RENDERS AS A FLAT SILHOUETTE, SUSPECT THE RENDERER BEFORE THE
+ * CODE. Chrome's pure software rasteriser (`--disable-gpu`) draws this whole
+ * subtree — sixteen masked layers inside a transformed, filtered group — as an
+ * untextured blob with only the rim and this undercast surviving. It is correct
+ * on the GPU path, correct under SwiftShader, and correct in every real browser
+ * tested. A screenshot harness that passes `--disable-gpu` will report a bug
+ * that does not exist, and it cost a full debugging pass here before the
+ * difference was isolated by rendering the same page both ways.
+ */
+function UndercastFrame({ index, yaw }: { index: number; yaw: MotionValue<number> }) {
+  const opacity = useTransform(yaw, (value) => {
+    const { lower, upper, blend } = frameBlend(value);
+    if (index === lower) return 1 - blend;
+    if (index === upper) return blend;
+    return 0;
+  });
+
+  const mask = `url(${frameSrc(index)}) center / 100% 100% no-repeat`;
+
+  return (
+    <motion.div
+      className="absolute inset-0 mix-blend-screen"
+      style={{ opacity, background: UNDERCAST_GRADIENT, mask, WebkitMask: mask }}
     />
   );
 }

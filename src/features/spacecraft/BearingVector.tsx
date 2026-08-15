@@ -34,7 +34,29 @@ export function BearingVector({
   /** Ship-to-target distance, in units of `--orbit-radius`. */
   range: number;
 }) {
-  const length = `calc(var(--orbit-radius) * ${range})`;
+  /**
+   * STOPS AT THE CARD'S BOTTOM EDGE.
+   *
+   * `range` is already the distance to the card's bottom-MIDDLE, because
+   * BEAM_TARGET_DROP aims the whole heading there rather than at the centre. So
+   * all that is left here is a small clearance gap, which is what
+   * `--card-beam-standoff` now holds.
+   *
+   * IT USED TO CARRY A `1/cos(bearing)` CORRECTION AND THAT WAS THE WRONG FIX.
+   * While the heading pointed at the card's CENTRE, shortening the beam could
+   * only walk the tip back along that same line — so on a slanted bearing it
+   * exited through the corner facing the ship, not the bottom edge. Measured on
+   * FORGE, the tip landed 9px outside the bottom-right corner. Correcting the
+   * HEADING removes the problem at its source and this becomes a plain gap.
+   *
+   * A CSS variable rather than a number because the gap steps by tier while
+   * --orbit-radius varies continuously; `calc()` mixes them without JS ever
+   * measuring the viewport.
+   *
+   * `max()` guards the degenerate case: a target closer than the gap collapses
+   * the beam to zero rather than inverting it.
+   */
+  const length = `max(0px, calc(var(--orbit-radius) * ${range} - var(--card-beam-standoff)))`;
 
   return (
     <motion.div
@@ -59,33 +81,56 @@ export function BearingVector({
           multiplied by the along-length gradient in a mask, so the dots inherit
           the dim-at-the-hull, bright-at-the-target ramp rather than fighting it.
 
-          Two layers rather than one: the 1px thread carries the reading, and a
-          3px blurred copy underneath carries the bloom. `filter: blur` on a 1px
-          element would blur the thread itself into a grey smear — putting the
-          glow on its own wider element leaves the thread crisp. */}
+          THE GLOW IS A `drop-shadow`, AND THE NESTING IS WHAT MAKES IT WORK.
+          A blurred duplicate of the line underneath was the first approach and
+          it produced a soft red bar rather than glowing dashes — blurring a
+          dashed pattern fills its own gaps in.
+
+          `drop-shadow` is different in exactly the way that matters: it works
+          off the ALPHA CHANNEL, so it traces each dash individually and leaves
+          the gaps dark. Every dash gets its own halo and the line reads as a
+          chain of lit points rather than a smear.
+
+          But it has to sit INSIDE the mask, not beside it. CSS applies `filter`
+          BEFORE `mask`, so a drop-shadow declared on the same element as the
+          along-length ramp is computed from the unmasked shape and then clipped
+          — which puts full-strength glow at the hull end where the line is
+          supposed to be fading out. The wrapper owns the ramp; the inner
+          element owns the dashes and their glow. */}
+      {/* 3px WIDE AND MOSTLY LIT, UP FROM A 1px HAIRLINE THAT WAS MOSTLY GAP.
+          The old ratio — 4px lit against 5px clear — read as a faint dotted
+          measurement from any normal viewing distance, which was the intent at
+          the time. It is now a beam that is supposed to be visibly ILLUMINATING
+          the module at its far end, and light that arrives at a lit surface has
+          to be brighter than the thing it lights. 7px lit against 5px clear
+          keeps the broken character (so it is still a sight line rather than a
+          solid bar) while roughly tripling the emitted area.
+
+          The white-hot core is what sells it as a beam rather than a red line:
+          a real emitter clips to white at its centre and falls to its hue at the
+          edges, so the cross-gradient runs white through the middle 40%. */}
       <div
-        className="absolute bottom-0 left-0 w-[3px] transition-[opacity,height] duration-500 ease-out"
-        style={{
-          height: length,
-          opacity: engaged ? 0.55 : 0,
-          transform: "translateX(-1px)",
-          filter: "blur(2.5px)",
-          background:
-            "repeating-linear-gradient(to top, rgb(255 77 77 / 0.9) 0 3px, transparent 3px 9px)",
-          maskImage: "linear-gradient(to top, transparent, #000 26%, #000)",
-        }}
-      />
-      <div
-        className="absolute bottom-0 left-0 w-px transition-[opacity,height] duration-500 ease-out"
+        className="absolute bottom-0 left-0 w-[3px] -translate-x-[1px] transition-[opacity,height] duration-500 ease-out"
         style={{
           height: length,
           opacity: engaged ? 1 : 0,
-          background:
-            "repeating-linear-gradient(to top, rgb(255 77 77) 0 3px, transparent 3px 9px)",
           maskImage:
-            "linear-gradient(to top, transparent, rgb(0 0 0 / 0.2) 26%, rgb(0 0 0 / 0.68) 78%, #000)",
+            "linear-gradient(to top, transparent, rgb(0 0 0 / 0.42) 22%, rgb(0 0 0 / 0.85) 70%, #000)",
         }}
-      />
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "repeating-linear-gradient(to top, rgb(255 60 60) 0 7px, transparent 7px 12px)," +
+              "linear-gradient(to right, transparent, rgb(255 190 190 / 0.9) 30% 70%, transparent)",
+            backgroundBlendMode: "lighten",
+            filter:
+              "drop-shadow(0 0 10px rgb(255 42 42 / 0.95)) drop-shadow(0 0 22px rgb(255 42 42 / 0.6))" +
+              " drop-shadow(0 0 3px rgb(255 190 190 / 0.95))",
+          }}
+        />
+      </div>
       {/* Range ticks: turn the line into a scale instead of a beam. Positioned
           as fractions of the target range, so they stay evenly distributed
           however near or far the target is. */}
@@ -124,16 +169,27 @@ export function BearingVector({
           className="absolute top-0 left-0"
           style={{ rotate: useTransform(rotation, (value) => -value) }}
         >
+          {/* IMPACT BLOOM. The tip now lands ON the card's bottom edge rather
+              than at a point in empty space, so what belongs here is the flare
+              of a beam meeting a surface — a wide soft pool under a small hot
+              core. Painted FIRST so the reticle sits on top of it. */}
           <span
-            className="absolute top-0 left-0 h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rotate-45"
+            className="absolute top-0 left-0 h-[70px] w-[70px] -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
-              background: "rgb(255 77 77)",
-              boxShadow: "0 0 10px rgb(255 77 77 / 0.85)",
+              background:
+                "radial-gradient(closest-side, rgb(255 90 90 / 0.5), rgb(255 42 42 / 0.18) 45%, transparent)",
             }}
           />
           <span
-            className="absolute top-0 left-0 h-[15px] w-[15px] -translate-x-1/2 -translate-y-1/2 rotate-45 border"
-            style={{ borderColor: "rgb(255 77 77 / 0.55)" }}
+            className="absolute top-0 left-0 h-[9px] w-[9px] -translate-x-1/2 -translate-y-1/2 rotate-45"
+            style={{
+              background: "rgb(255 210 210)",
+              boxShadow: "0 0 14px rgb(255 42 42 / 0.95), 0 0 30px rgb(255 42 42 / 0.7)",
+            }}
+          />
+          <span
+            className="absolute top-0 left-0 h-[17px] w-[17px] -translate-x-1/2 -translate-y-1/2 rotate-45 border"
+            style={{ borderColor: "rgb(255 42 42 / 0.7)" }}
           />
         </motion.div>
       </div>
