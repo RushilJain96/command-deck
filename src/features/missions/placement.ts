@@ -9,16 +9,32 @@ import { angleTo } from "@/lib/math/angle";
  * axis is sin(phi) of its major, so this number IS sin(phi) — 0.64 puts the
  * camera 39.8deg above the plane.
  *
- * CHANGING IT INVALIDATES THE SHIP FRAMES. `scripts/render-ship-frames.py`
- * derives its camera elevation from exactly this constant, so every rendered
- * yaw frame in `public/ship/` is baked at the current value. Move it and the
- * hull is lit and foreshortened for a camera that no longer exists — the ship
- * will look composited in from another scene, which is subtle enough that
- * nobody names it and obvious enough that everybody feels it. Re-render.
+ * IT DOES NOT INVALIDATE THE SHIP FRAMES, AND THE NOTE HERE THAT SAID SO WAS
+ * WRONG. It claimed `scripts/render-ship-frames.py` derives its camera elevation
+ * from this constant. It does not — the renderer reads SHIP_CAMERA_TILT (0.6871,
+ * 43.4deg), which is DELIBERATELY decoupled, and so do <ShipSprite> and
+ * `plumeScreenAngle`. The app has always absorbed a disagreement between the two
+ * elevations; the stale warning simply froze this value for no reason.
  *
- * It also sets how TALL the orbital field is: the whole ring system spans
- * 2 * R * tilt vertically. At 0.46 the missions could only occupy about a third
- * of the frame height and left a dead band above the ship.
+ * WHAT IT DOES COST IS THAT DISAGREEMENT. The hull is rendered from 43.4deg and
+ * the plane is drawn at asin(this). The gap was 3.6deg; at 0.46 it is 16deg,
+ * which is the real price of flattening the floor without a Blender re-render.
+ * It is payable because the hull is a foreground object seen against the plane
+ * rather than lying in it — what reads is the FLOOR receding, and the ship is
+ * simply a vehicle above it. If the gap ever needs closing, re-render at a lower
+ * `--elevation` rather than raising this back.
+ *
+ * 0.64 -> 0.46 IS THE WHOLE "MAKE IT A FLOOR" CHANGE. sin(phi) is the ellipse
+ * squash, so this is the camera's height above the plane: 0.64 put it 39.8deg
+ * up, looking down INTO a disc, and 0.46 puts it at 27.4deg, looking ACROSS a
+ * surface that recedes. Nothing else produces that read — perspective sharpens
+ * it and the bias positions it, but the elevation is what decides whether you
+ * are above the plane or on it.
+ *
+ * It also sets how TALL the field is: the ring system spans 2 * R * tilt
+ * vertically, so flattening buys back a third of the frame height that the
+ * ellipse used to occupy — which is what leaves room for the cards to sit
+ * clearly ABOVE it.
  *
  * SINGLE SOURCE OF TRUTH. CSS receives this as an inline `--orbit-tilt` on
  * <OrbitPlane>; never write the literal into a stylesheet. If the two drift,
@@ -28,7 +44,7 @@ import { angleTo } from "@/lib/math/angle";
  * because the radius cancels out of `atan2`. A tilt that varied by breakpoint
  * would force JS viewport measurement for the ship's aim, which is banned.
  */
-export const ORBIT_TILT = 0.64;
+export const ORBIT_TILT = 0.46;
 
 /**
  * How far the spacecraft's station sits BELOW the centre of the orbital plane,
@@ -88,7 +104,7 @@ export const ORBIT_TILT = 0.64;
  * MOVE IT WITH DECK_BIAS. Dropping both by the same amount holds the plane
  * still on screen and raises only the ship — see the note below.
  */
-export const SHIP_STANDOFF = 1.05;
+export const SHIP_STANDOFF = 0.85;
 
 /**
  * PERSPECTIVE. THE PLANE IS A FLOOR BELOW THE CAMERA, NOT A DISC ON THE GLASS.
@@ -127,7 +143,7 @@ export const SHIP_STANDOFF = 1.05;
  * to the camera, where perspective distortion within the object is negligible.
  * This projection applies to the PLANE, which spans many times the hull's size.
  */
-export const ORBIT_PERSPECTIVE = 0.13;
+export const ORBIT_PERSPECTIVE = 0.28;
 
 /**
  * The perspective divisor at a point on the plane. `cosTheta` is `cos` of the
@@ -197,7 +213,7 @@ export const SHIP_STANDOFF_SCREEN = SHIP_STANDOFF / planeDivisor(SHIP_STANDOFF, 
  * layout solver clears is a function of mission positions, and those did not
  * change. Only the ship-vs-callout pairs had to be re-checked.
  */
-export const DECK_BIAS = 0.93;
+export const DECK_BIAS = 1.24;
 
 /**
  * Depth cutoffs for level of detail. Distance reduces prominence, never
@@ -219,7 +235,32 @@ export const DECK_BIAS = 0.93;
  * To collapse to two levels (compact/full), set `marker: 0`. No other code
  * changes: `resolveLod` simply stops returning "marker".
  */
-export const LOD_THRESHOLDS = { marker: 0.2, compact: 0.34 } as const;
+/**
+ * BOTH ARE ZERO, WHICH MEANS THERE IS ONE LEVEL AND EVERY MODULE IS DRAWN AT IT.
+ *
+ * The note above records why they were 0.2 / 0.34, and the layout argument it
+ * makes was true: six full-size callouts, a full-height rail and the hull did
+ * not fit, and stepping the far modules down to compact and marker is what made
+ * the composition solvable.
+ *
+ * It stopped being the right trade when the callouts were centred and the size
+ * bands were flattened. A depth-derived level of detail means the operator is
+ * shown less about the missions that happen to sit further round the ring, and
+ * "further round the ring" is not a statement about the work — it is an artefact
+ * of where the composition put it. The marker tier in particular reduced a
+ * mission to two lines of type, which is not a distant card, it is an absent
+ * one.
+ *
+ * The layout budget that paid for it came from elsewhere instead: the column is
+ * narrower (168px against 220px), the cards are centred rather than side-hung,
+ * and the roster was re-spaced. `npm run check:layout` is what proves it, and it
+ * models a uniform full-size box for every mission now.
+ *
+ * The machinery is deliberately left standing rather than deleted — `resolveLod`
+ * and `clampLod` still work, and the responsive cap below deck-md still uses
+ * them — so restoring a tier is a matter of putting a number back here.
+ */
+export const LOD_THRESHOLDS = { marker: 0, compact: 0 } as const;
 
 export type MissionLod = "marker" | "compact" | "full";
 
@@ -245,13 +286,11 @@ export const CENTRE_BAND = 0.12;
 export type CalloutSide = "left" | "right" | "center";
 
 export interface MissionPlacement {
-  /** sin(theta). Multiply by --orbit-radius AND `ring` for the x offset. */
-  readonly sx: number;
-  /** -cos(theta). Multiply by --orbit-radius, --orbit-tilt AND `ring` for y. */
-  readonly sy: number;
-  /** Which orbit the mission rides, as a fraction of --orbit-radius. */
-  readonly ring: number;
-  /** 0 = far rim, 0.5 = plane centre, 1 = near rim. */
+  /** Authored x offset from the plane centre, in units of --orbit-radius. */
+  readonly x: number;
+  /** Authored y offset, BEFORE the tilt squash. Negative is up the screen. */
+  readonly y: number;
+  /** 0 = furthest, 1 = nearest. Derived from `y`: higher up reads as further. */
   readonly depth: number;
   readonly lod: MissionLod;
   /**
@@ -270,15 +309,12 @@ export interface MissionPlacement {
    */
   readonly screenAngle: number;
   /**
-   * Bearing from the PLANE'S CENTRE to the projected point — what `screenAngle`
-   * used to be before the ship moved off centre.
-   *
-   * Only the orbit guides want this: a graduation tick has to lie tangent to
-   * the ring it marks, which is a property of the ellipse and has nothing to do
-   * with where the vehicle is parked. Feeding the ship-relative `screenAngle`
-   * to a tick rotates the entire scale into a spiral.
+   * `radialAngle` USED TO BE HERE — the bearing from the plane's CENTRE to the
+   * projected point, for orienting graduation ticks tangent to their ring. It is
+   * removed rather than left computing: it was a property of a mission's polar
+   * coordinate, missions no longer have one, and nothing outside this file ever
+   * read it. The orbit guides draw their own ticks from their own geometry.
    */
-  readonly radialAngle: number;
   /**
    * Ship-to-node distance in units of --orbit-radius, for the bearing vector's
    * length and the target readout's RANGE row. Same cancellation as above.
@@ -349,61 +385,128 @@ export function worldYawToScreenAngle(worldYaw: number, tilt: number = ORBIT_TIL
  * the frontmost object in the world and nodes no longer interleave around it.
  * That is a simplification the old centred framing could not have: every node
  * sorts strictly below this value.
+ *
+ * 50 -> 60 WHEN THE CALLOUT TIERS LANDED. `CALLOUT_TIER.hero` is z-index 50, and
+ * a targeted module is promoted to it — so at 50 the hero card and the hull were
+ * tied, and a tie is resolved by DOM order, which put a mission callout in front
+ * of the vehicle for exactly the missions that happen to render later. The band
+ * moved rather than the tier's, because 50/40/30/20 is the authored scale and the
+ * ship's number is an implementation detail. Any new tier must stay below this.
  */
-export const SHIP_Z_INDEX = 50;
+export const SHIP_Z_INDEX = 60;
+
+/* CALLOUT_STANDOFF is gone, along with `--callout-rise` in globals.css. It
+ * described how far a card floated above its waypoint on the plane. Cards are
+ * detached now — `x`/`y` in the roster name the card's own centre and there is
+ * no waypoint beneath it — so there is no standoff left to describe. */
 
 /**
- * How far a callout stands off its anchor point on the orbital plane, at the
- * largest tier. `run` is the horizontal reach, `rise` the elevation; together
- * they form an L-shaped leader.
+ * How far BELOW a card's centre the spacecraft actually aims, in the same
+ * pre-tilt `y` units as the roster.
  *
- * The elevation is the whole point: a panel sitting ON the ellipse reads as a
- * card lying flat in the same plane as everything else, whereas a panel visibly
- * held ABOVE its footprint separates the mission layer from the orbital layer.
- * That separation is what makes the deck feel like a space rather than a
- * diagram.
+ * The target is the card's bottom-middle edge. That is where a sight line should
+ * terminate on a panel you are meant to read — through the middle and it crosses
+ * the title and the summary, which is the one place a targeting cue must not go.
  *
- * THE LIVE VALUES ARE `--callout-run` / `--callout-rise` IN globals.css, which
- * shrink at smaller tiers. These constants exist so the headless geometry check
- * can model the largest case; they are not read at runtime. Change one and you
- * must change the other, then re-run the check — the radius formula reserves a
- * fixed pixel budget tuned against these exact numbers.
+ * 0.31 IS A HALF-CARD AT THE COMMON RADIUS, AND IT IS AN APPROXIMATION. The
+ * card is a fixed pixel height (145, or 167 at the active scale) while
+ * --orbit-radius varies continuously, so the exact drop is
+ * `83 / (R * tilt)` — 0.31 at R = 420, which is what a 1600x900 deck solves to.
+ * It cannot be exact at every radius without measuring the viewport in JS, which
+ * is banned, and the error is benign in both directions: at a larger radius the
+ * beam stops a little short of the edge, at a smaller one a little inside it.
+ * Never near the text either way, which is the property that matters.
  */
-export const CALLOUT_STANDOFF = { run: 18, rise: 26 } as const;
+export const BEAM_TARGET_DROP = 0.176;
 
-export function derivePlacement(
+/**
+ * Projects a POLAR station on the orbital plane into the screen offsets the
+ * roster stores as `x`/`y`, in units of --orbit-radius.
+ *
+ * `theta` is degrees clockwise from screen-up, so it reads as a clock face: 0 is
+ * twelve, 90 is three, 240 is eight. `ring` is the orbit, as a fraction of
+ * --orbit-radius.
+ *
+ * WHY THIS EXISTS RATHER THAN HAND-AUTHORED x/y. The cards were briefly placed
+ * by typing screen offsets directly, which was the right move at the time — it
+ * broke the orbit's grip on how big they could be. But it also meant the
+ * arrangement was a list of six coordinates with no shape to them, and asking
+ * for "eight o'clock, mid ring" had to be solved backwards by hand.
+ *
+ * This restores the polar vocabulary WITHOUT restoring the old coupling. The
+ * projection runs once at module load and what the components consume is still a
+ * plain offset — nothing at runtime knows an angle, the cards are still free to
+ * be any size, and nothing is tethered to a point on the ring. The ellipse is
+ * back as a way of SPEAKING about the layout, not as a constraint on it.
+ *
+ * The tilt is folded in here, which is why `y` needs no further squashing
+ * downstream: a station's vertical offset is already the projected one.
+ */
+export function orbitalStation(
   theta: number,
-  ring: number = 1,
+  ring: number,
   tilt: number = ORBIT_TILT,
-): MissionPlacement {
+): { x: number; y: number } {
   const rad = (theta * Math.PI) / 180;
   const d = planeDivisor(ring, Math.cos(rad));
-  const sx = Math.sin(rad) / d;
-  const sy = -Math.cos(rad) / d;
+  return {
+    x: (ring * Math.sin(rad)) / d,
+    y: (tilt * (ring * -Math.cos(rad))) / d,
+  };
+}
 
-  // Ring radius feeds depth as well as position: a node on an inner orbit is
-  // nearer the middle of the plane, so it reads mid-distance no matter which
-  // way round the ring it sits.
-  const depth = (1 - ring * Math.cos(rad)) / 2;
+/**
+ * Resolves an AUTHORED card position into everything the deck needs from it.
+ *
+ * `x` and `y` are offsets from the plane's centre in units of --orbit-radius,
+ * with `y` measured BEFORE the tilt squash. There is no trigonometry left here
+ * and no projection: the card is where the roster says it is. What this function
+ * still does is derive the things that must stay consistent with that position —
+ * chiefly the bearing the spacecraft has to aim along.
+ *
+ * THE SHIP AIMS AT THE CARD. It used to aim at a waypoint on the orbital plane,
+ * which was correct while the card was tethered to that waypoint. With the cards
+ * detached, the waypoint is not a thing any more — there is nothing there and
+ * nothing drawn there — so pointing the hull at it would be aiming at empty
+ * space beside the object the operator is looking at.
+ */
+export function derivePlacement(
+  x: number,
+  y: number,
+  /**
+   * The card's resting tier scale. The beam aims at the card's BOTTOM EDGE, and
+   * a card drawn at 0.75 has a bottom edge nearer its centre than one at 1.2 —
+   * so the drop has to scale with it or the beam lands mid-card on the small
+   * ones and short of the large ones.
+   */
+  cardScale: number = 1,
+  tilt: number = ORBIT_TILT,
+): MissionPlacement {
+  // Depth: further UP the frame reads as further away. `y` runs roughly -0.75
+  // (back rank) to +0.18 (front rank), so this maps to about 0.13 and 0.59.
+  const depth = (y + 1) / 2;
 
   // Displacement from the SHIP, not from the plane centre. Screen y grows
-  // downward and the ship is one standoff below the centre, so subtracting the
-  // standoff is what puts the node ahead of the vehicle.
-  const dx = ring * sx;
-  const dy = tilt * (ring * sy - SHIP_STANDOFF_SCREEN);
+  // downward and the ship sits one standoff below the centre, so subtracting the
+  // standoff is what puts the card ahead of the vehicle.
+  //
+  // AIMED AT THE CARD'S BOTTOM EDGE, NOT ITS CENTRE — see BEAM_TARGET_DROP. The
+  // bearing beam runs along this heading, and a beam aimed at the centre crosses
+  // the title and the summary to get there. Shortening such a beam does not fix
+  // it: the tip only ever walks back along the SAME line, so it leaves the card
+  // through whichever corner faces the ship rather than through the bottom
+  // middle. The line itself has to point lower.
+  const dx = x;
+  const dy = y + BEAM_TARGET_DROP * cardScale - tilt * SHIP_STANDOFF_SCREEN;
 
   return {
-    sx,
-    sy,
-    ring,
+    x,
+    y,
     depth,
     lod: resolveLod(depth),
     screenAngle: angleTo({ x: 0, y: 0 }, { x: dx, y: dy }),
-    // Ring cancels here (it scales both components equally), so this is the
-    // tangent direction of the ellipse at theta regardless of which orbit.
-    radialAngle: angleTo({ x: 0, y: 0 }, { x: sx, y: sy * tilt }),
     range: Math.hypot(dx, dy),
     zIndex: 10 + Math.round(depth * 35),
-    side: Math.abs(ring * sx) < CENTRE_BAND ? "center" : sx < 0 ? "left" : "right",
+    side: Math.abs(x) < CENTRE_BAND ? "center" : x < 0 ? "left" : "right",
   };
 }

@@ -49,33 +49,49 @@
   initial-value: 0;
 }
 
-/* Per-node projection: sin(theta), -cos(theta), and which orbit it rides. */
-@property --node-sx {
+/* Card position, in units of --orbit-radius, ALREADY PROJECTED. `orbitalStation`
+   in placement.ts folds the tilt and the perspective divide in at module load, so
+   the drawn offset is a plain `x * radius` and `y * radius` with no further
+   squashing — do not reintroduce a `* var(--orbit-tilt)` here.
+
+   These replaced --node-sx / --node-sy / --node-ring, which carried the sine,
+   cosine and ring of a polar coordinate for the CSS to project per node. The
+   trigonometry happens once in TypeScript now; CSS only translates. */
+@property --node-x {
   syntax: "<number>";
   inherits: false;
   initial-value: 0;
 }
-@property --node-sy {
+@property --node-y {
   syntax: "<number>";
   inherits: false;
   initial-value: 0;
-}
-@property --node-ring {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 1;
 }
 
 /**
  * PALETTE — every colour has exactly one job.
  *
  * The discipline matters more than the count: when a hue appears, it must mean
- * something. Signal red is reserved for the operator's current target and is
- * used NOWHERE else, so the eye learns in one hover that red means "this is
- * what you are pointing at". Lifecycle state gets its own instrument-panel
- * pair (nominal / caution) borrowed from annunciator conventions rather than
- * competing with the target colour, which is the ambiguity this palette exists
- * to resolve.
+ * something.
+ *
+ * RED IS THE SYSTEM ACCENT NOW. It used to be reserved for the operator's
+ * current target and used NOWHERE else, on the reasoning that the eye would
+ * learn in one hover that red means "this is what you are pointing at". That
+ * rule worked and has been retired deliberately, because it cost the deck an
+ * identity: with red spent only on a transient state, nothing on screen was
+ * ever the product's own colour, and a command centre with no colour of its own
+ * reads as a template with content in it.
+ *
+ * The rule that replaces it is narrower but still a rule. Red means THE SYSTEM
+ * AND YOUR PLACE IN IT — the deck's name, the live channel, the module you are
+ * pointing at, the axis between the ship and that module. Cyan means the
+ * environment: the plane's light and everything catching it. The two never
+ * swap, so a module going from cyan to red still reads as a change of state
+ * rather than a change of palette.
+ *
+ * Lifecycle keeps its own annunciator pair (nominal / caution). It is overridden
+ * by red on the SELECTED module only — see the note in <MissionPanel> — and
+ * nowhere else.
  */
 :root {
   /* Deep space. PITCH BLACK, and literally so — #000, not a very dark blue.
@@ -89,7 +105,22 @@
    * something that was deliberately put there. */
   --void: #000000;
   --hull: #12151b; /* instrument body */
-  --signal: #ff3b30; /* ACTIVE TARGET ONLY */
+  /**
+   * System accent: identity, live channel, current target.
+   *
+   * #ff2a2a, UP FROM #ff3b30. The old value is Apple's system red, and it is
+   * tuned for white interfaces — it carries a deliberate orange bias (59 green
+   * against 48 blue) that keeps it from vibrating on a light background. On a
+   * near-black deck sitting in a cyan environment that bias reads as muddy,
+   * because there is nothing bright around it for the warmth to register
+   * against; it just lowers the chroma.
+   *
+   * Pure-channel red at full saturation is the correct choice here for the same
+   * reason the reverse is correct on white: red against cyan is the strongest
+   * opposition available on the wheel, and the whole job of this colour is to be
+   * the one thing on screen that is not part of the environment.
+   */
+  --signal: #ff2a2a;
   --nominal: #3fb98a; /* deployed */
   --caution: #d99a2b; /* in development */
   --telemetry: #7d9cbc; /* live machine data */
@@ -106,66 +137,80 @@
   /**
    * THE RADIUS IS SOLVED, NOT GUESSED.
    *
-   * The binding constraint is horizontal. The outermost mission sits at 0.786R
-   * from the centre line and hangs a panel outboard of it, so the deck's real
-   * reach is `0.786R + run + panelWidth`. On this tier it must ALSO clear the
-   * full-height HUD rail. Because the panel and the rail are both FIXED pixel
-   * widths, a plain percentage of the viewport cannot satisfy both a 1512px
-   * window and a 1920px one — it either clips the former or wastes the latter.
-   * Rearranging `0.786R + reserve <= 50svw` for R gives the expression below.
+   * --orbit-radius is still the deck's one unit of scale, but it no longer sizes
+   * an orbit the missions ride. It sizes the FIELD, the ship's standoff, and the
+   * spacing of the composed card arrangement that floats above both.
    *
-   * `reserve` = rail 208 + rail margin 20 + leader run 18 + widest panel 215
-   *           + 14 slack = 475px, and 0.786 is the reach.
+   * THREE BOUNDS, and each one is a different part of the frame running out.
    *
-   * THE REACH IS NO LONGER `max(ring * |sin theta|)`. It is that quantity AFTER
-   * the plane's perspective divide — `max(ring * sin(theta) / (1 + P*ring*
-   * cos(theta)))` — and it went 0.719 -> 0.786 when P became 0.20. The mission
-   * that sets it is FORGE, on the NEAR side of ring 1.0, which is precisely
-   * where perspective spreads the plane widest. Recompute it from
-   * `npm run check:layout`, which prints it on the second line; do not derive it
-   * by hand from data.ts, because that gives the old orthographic answer and it
-   * is 9% too small. Both numbers are
-   * MEASURED, not estimated — panel boxes came off the live DOM after an
-   * estimate of 203px turned out to be 205 plus a 3px inset edge light, which
-   * was enough to push a mission under the sidebar.
+   *   HORIZONTAL — the widest station sits at 0.878R from the centre line and its
+   *   card is centred there, so it reaches `0.878R + halfCard` and must clear the
+   *   full-height HUD rail. `reserve` = rail 208 + margin 20 + half the widest
+   *   ACTIVE card 154 + 8 slack = 390. The hero rests at 1.2 and any card gains a
+   *   further 1.12 under the pointer, so 229 * 1.2 * 1.12 / 2 is 154 — reserving
+   *   against a resting width would fit until someone hovered the hero.
    *
-   * The rail and panel terms came down from 240 and 244 to buy the `deck-md`
-   * threshold below. 215 is the 181px panel box (a 176px text column plus the
-   * 3px status rail and the 2px bezel) carried through the 1.22 depth scale the
-   * outermost missions are drawn at — AURORA and FORGE both sit on ring 1.0 at
-   * depth ~0.88, and it is their scaled width, not the unscaled one, that has
-   * to clear the rail.
+   *   TOP BAR — DATAFLOW rides twelve o'clock and lands at y = -0.78 while the
+   *   plane's centre sits 0.057R BELOW the frame's middle, so its card top is
+   *   `h/2 - 0.723R - 61` and has to clear `bar + 4`: `R <= 0.692h - 168`. 61
+   *   rather than 83 because that card is drawn at 0.75. This is the tightest of
+   *   the three bounds on tall viewports, and it is what caps the deck at 1080p.
+   *
+   *   DOCK — the hull hangs `0.570R + 111` below the frame's middle and must not
+   *   sink behind the dock, giving `R <= 0.877h - 321`. This is usually the
+   *   binding constraint on wide-but-short viewports, and it is the one the
+   *   solver had no check for until recently.
+   *
+   * THE REACH DIVISOR IS 0.88. It used to be
+   * a hand-authored `max(|x|)` over six typed-in offsets. The stations are polar
+   * again (see `orbitalStation`), so it is back to being the widest point of a
+   * projected ellipse — but computed once at module load rather than re-derived
+   * per consumer. `npm run check:layout` prints it on the second line; take it
+   * from there rather than deriving it.
    *
    * Do not hand-tune this. A headless solver models these formulas exactly and
-   * checks every callout against every other callout, the rail, the ship and
-   * the frame across 25 viewports; the first hand-tuned attempt hid a mission
-   * under the sidebar at every desktop size and nothing in the code said so.
-   *
-   * THE HEIGHT TERM CARRIES AN OFFSET, AND IT IS NOT DECORATIVE. It used to be
-   * a plain `62svh`, which was safe only because the old 536px reserve kept R
-   * small on wide viewports. At the 475px reserve a 1600x900 window solves to
-   * R=452, and at that radius DATAFLOW and NEXUS — the two missions nearest the
-   * top of the ring — are drawn straight through the top bar.
-   *
-   * The binding mission is DATAFLOW (theta 338, ring 0.80). Its box top lands at
-   * `h/2 - 0.8906R - 51.3` and has to clear `bar + 4`, which rearranges to
-   * `R <= 0.5613h - 125`. That is a line with an intercept, so no `Nsvh` alone
-   * can express it: a fraction low enough to hold at 900px throws away ~5% of
-   * the orbit at 1080px. `56svh - 130px` tracks the real constraint with about
-   * 6px of slack at every height instead.
+   * checks every card against every other card, the rail, the cluster, the ship
+   * and the frame across 36 viewports, including a sweep with each card in turn
+   * under the pointer.
    *
    * Small-viewport units so the ring never jitters as mobile browser chrome
    * hides and shows.
    */
-  --orbit-radius: clamp(96px, min((50svw - 475px) / 0.786, 56svh - 130px), 470px);
+  --orbit-radius: clamp(
+    96px,
+    min((50svw - 367px) / 0.88, 92.1svh - 258px, 87.6svh - 321px),
+    470px
+  );
 
   /**
-   * How far a callout stands off its anchor: horizontal reach, then elevation.
+   * How far short of a targeted card's CENTRE the bearing beam stops.
+   *
+   * Half the card's height at the ACTIVE scale, plus an 8px gap — so the tip
+   * lands just under the bottom edge instead of running up through the title.
+   * See <BearingVector>.
+   *
+   * Per-tier because the card is a fixed pixel size that steps at breakpoints,
+   * while --orbit-radius varies continuously. `calc()` mixes the two; neither
+   * needs measuring in JS.
+   */
+  --card-beam-standoff: 10px;
+
+  /**
+   * How far a callout floats ABOVE its waypoint — the length of the tether.
+   *
+   * There is no companion `--callout-run` any more. Callouts used to be offset
+   * horizontally as well, hanging off one side of their anchor; they are centred
+   * over it now, so elevation is the only standoff left and this is the only
+   * number that describes it.
+   *
    * Responsive because a fixed standoff that reads well on a desktop pushes
    * panels off the edge of a phone. CSS-only, so no measurement is involved.
    */
-  --callout-run: 18px;
-  --callout-rise: 26px;
+  /* 40 -> 24. Every module is a full-size card now, and the tallest stack on the
+     deck — DATAFLOW's card plus its tether — has to clear the top bar. The
+     tether is the only term in that sum that costs nothing to shorten: 16px off
+     it is 16px of headroom, and at 24px the card still reads as held above its
+     waypoint rather than sitting on it. */
 }
 
 @theme inline {
@@ -248,7 +293,12 @@
   @media (max-width: 1340px) {
     @slot;
   }
-  @media (max-height: 640px) {
+  /* 640 -> 830, IN LOCKSTEP WITH THE RADIUS MEDIA QUERY BELOW. These two must
+     name the same viewport set: this variant is what hides the summary and the
+     HUD rails, and the query below is what sizes the orbit on the assumption
+     that they ARE hidden. Let them drift and the deck computes a radius for a
+     compact card while rendering a full one. */
+  @media (max-height: 830px) {
     @slot;
   }
 }
@@ -273,19 +323,35 @@
    expression is the panel box AT THAT TIER plus whatever chrome that tier still
    shows, so changing one without the others silently reintroduces overlap.
    No rail below deck-md, hence the much smaller reserve. */
-@media (max-width: 1340px), (max-height: 640px) {
+/* THE HEIGHT THRESHOLD IS 830px, UP FROM 640px, and it is a product decision
+   rather than a tuning one. With every module drawn at full size, two bounds
+   converge as the viewport shortens: three 161px cards on the back rank need
+   `R >= 290`, and keeping the highest of them out of the top bar needs
+   `R <= 0.775h - 355`. Those cross at about h=830, and below it the feasible set
+   is EMPTY — no radius satisfies both.
+
+   Dropping to this tier hides the summary, which takes the card from 126px to
+   84px and separates the bounds again. A 1366x768 laptop gets six readable
+   modules without prose instead of six modules that overlap. */
+@media (max-width: 1340px), (max-height: 830px) {
   :root {
-    --callout-run: 16px;
-    --callout-rise: 24px;
-    --orbit-radius: clamp(80px, min((50svw - 210px) / 0.786, 38svh), 276px);
+    /* No rail at this tier, so the reserve is half the widest panel plus slack:
+       the 141px box at the active 1.15 is 162, half 81, plus 14 = 95. */
+    --orbit-radius: clamp(
+      80px,
+      min((50svw - 121px) / 0.88, 38svh, 92.1svh - 214px, 87.6svh - 321px),
+      305px
+    );
+    /* Compact card (no summary), so a shorter box. */
+    --card-beam-standoff: 8px;
   }
 }
 
 @media (max-width: 620px), (max-height: 560px) {
   :root {
-    --callout-run: 9px;
-    --callout-rise: 14px;
-    --orbit-radius: clamp(60px, min((50svw - 20px) / 0.786, 30svh), 120px);
+    --orbit-radius: clamp(60px, min((50svw - 20px) / 0.88, 30svh), 120px);
+    /* No cards are drawn at this tier, so nothing to stand off from. */
+    --card-beam-standoff: 0px;
   }
 }
 
@@ -470,10 +536,15 @@ body {
   animation: comms-packet 11s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 .plume-drift {
-  /* fill-box, so the origin is the element's own bounding box rather than the
-     whole viewBox — `50% 0%` is then unambiguously the throat end of the
-     envelope. Without this the origin resolves against the 152-unit viewBox and
-     the anchor lands somewhere in open space. */
+  /* `50% 0%` is the throat end of the envelope — the plume must stretch
+     downstream and stay welded to the bells, where scaling about the centre
+     slides the hot end off them every cycle.
+
+     `transform-box: fill-box` is a leftover from when this class was on an SVG
+     shape inside a 152-unit viewBox, where the origin would otherwise have
+     resolved against the viewBox and landed in open space. The plume is plain
+     elements now and the property is inert on them, but it is kept: it costs
+     nothing and it is correct for either. */
   transform-box: fill-box;
   transform-origin: 50% 0%;
   animation: plume-drift 5.5s ease-in-out infinite;
