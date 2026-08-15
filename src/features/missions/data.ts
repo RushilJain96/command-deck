@@ -1,4 +1,5 @@
-import { derivePlacement } from "./placement";
+import { Brain, Hammer, Network, Radio, Shield, Workflow } from "lucide-react";
+import { derivePlacement, orbitalStation } from "./placement";
 import type { Mission, MissionSlot } from "./types";
 
 /**
@@ -8,27 +9,41 @@ import type { Mission, MissionSlot } from "./types";
  * Entries describe intended engineering work and its lifecycle state, not
  * claimed accomplishments. A PLANNED mission is honest about not existing yet.
  *
- * LAYOUT. `theta` is degrees clockwise from screen-up; `ring` is the orbit,
- * as a fraction of --orbit-radius. Two rules govern the arrangement:
+ * LAYOUT IS A CLOCK FACE ON THE ORBITAL PLANE.
  *
- *   1. THE FULL RING IS AVAILABLE. Earlier the arc around theta 180 was banned
- *      because the spacecraft parked there. It no longer does — SHIP_STANDOFF
- *      now puts the vehicle half an orbit BEYOND the outermost ring, so every
- *      angle is free and the near arc is the most valuable real estate on the
- *      deck: it is closest to the viewer, so it carries the full-detail
- *      callouts.
+ * ORION holds the hub at dead centre and the other five ring it, stated as
+ * `orbitalStation(theta, ring)` — theta in degrees clockwise from screen-up, so
+ * it reads as a clock: 0 is twelve, 62 is two, 130 is four, 230 is eight, 298 is
+ * ten. Six o'clock is deliberately empty; that is where the spacecraft sits.
  *
- *   2. NO EVEN GAPS, AND NO ORBIT EVENLY POPULATED. Six nodes at 60deg spacing
- *      on one ring is the tell that a layout was generated rather than
- *      composed. These ride four well-separated orbits (0.34 / 0.66 / 0.80 /
- *      1.00) at gaps of 26/28/54/74/42/136deg. Sharing orbits is deliberate:
- *      the rings are drawn, so a node floating between two of them reads as a
- *      mistake rather than as variety. The asymmetry belongs in the angles.
+ * THIS IS THE POLAR VOCABULARY COMING BACK, BUT NOT THE OLD COUPLING. Stations
+ * used to be stored as `theta`/`ring` and re-projected on every consumer, with a
+ * tether drawn from each card down to its point on the ring. That made the orbit
+ * the thing that SIZED the cards: three of them had to fit across a 1.22R span
+ * whatever the viewport, so every collision the solver found was answered by
+ * shrinking the card — 220px to 168 to 156, in that order.
  *
- * ORION rides the innermost orbit almost directly ahead of the vehicle, which
- * puts it inside the CENTRE_BAND and gives it a straight vertical sight line
- * from the nose. It is the deck's focal point; if you re-author these angles,
- * something should stay in that band or the composition loses its centre.
+ * What is stored now is the PROJECTED OFFSET. `orbitalStation` runs the
+ * trigonometry once at module load and the components consume a plain x/y in
+ * --orbit-radius units; nothing at runtime knows an angle, and no card is tied to
+ * a point on a ring. So the ellipse describes the arrangement without governing
+ * how big the things arranged on it may be, which is what went wrong before.
+ *
+ * DATAFLOW RIDES A MUCH LARGER RING THAN ITS NEIGHBOURS (2.05 against 0.98-1.2)
+ * AND THAT IS NOT AN INCONSISTENCY. Twelve o'clock is where the ellipse is
+ * narrowest, so a station there converts almost none of its radius into vertical
+ * distance from the hub — at the flanks' ring it would sit inside ORION's own
+ * card. The ring number is not a measure of apparent distance; the projection is.
+ *
+ * THE RING VALUES ARE SOLVED, NOT CHOSEN. Six cards on a clock face is a tight
+ * packing problem: each pair has to clear either horizontally or vertically, and
+ * the binding pair moves as the numbers change (it was NEXUS/AURORA, then
+ * ORION/DATAFLOW, then ORION against the hull). The current set has a minimum
+ * feasible radius of 274px, which the narrowest `lg` viewport clears at 299.
+ * Re-angle anything and re-run the check before trusting it.
+ *
+ * `npm run check:layout` models this arrangement, including a sweep with each
+ * mission in turn under the pointer. Move anything here and run it.
  */
 const MISSION_SLOTS: readonly MissionSlot[] = [
   {
@@ -37,8 +52,17 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     codename: "ORION",
     title: "Orion SIEM",
     summary: "Security event pipeline: ingestion, correlation, incident triage.",
-    theta: 168,
-    ring: 0.34,
+    // FRONT-CENTRE. Ring 0.35 at twelve o'clock, so x is EXACTLY 0 (sin 0) and
+    // the card is dead centre horizontally while still sitting on an orbit
+    // rather than at a mathematical point.
+    //
+    // Ring 0 put it lower, and the hull ran through its status strip: the hero
+    // is 174px tall at 1.2 and the ship sits only 0.51R below the plane centre,
+    // so dead-centre-and-lowest needed R > 387 to clear. Lifting it one small
+    // orbit drops that to 301.
+    ...orbitalStation(0, 0.135),
+    icon: Shield,
+    tier: "hero",
     status: "IN_DEVELOPMENT",
   },
   {
@@ -47,8 +71,11 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     codename: "ECHO",
     title: "Echo Relay",
     summary: "Real-time messaging layer over WebSockets with presence and backpressure.",
-    theta: 296,
-    ring: 0.8,
+    // BACK-LEFT. Ring solved so its x matches FORGE's to 0.0002R — the pair
+    // shares a lane and must share a centre line.
+    ...orbitalStation(304.6, 1.183),
+    icon: Radio,
+    tier: "back",
     status: "DEPLOYED",
   },
   {
@@ -57,8 +84,16 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     codename: "DATAFLOW",
     title: "Dataflow",
     summary: "Distributed batch and stream orchestration with lineage tracking.",
-    theta: 338,
-    ring: 0.8,
+    // TWELVE O'CLOCK, and on a ring FAR outside the other five (2.05 against
+    // 1.05-1.3). Twelve is where the ellipse is narrowest, so a station there
+    // converts almost none of its radius into vertical distance from the hub —
+    // at the flanks' own ring it would sit inside ORION's card. This also puts
+    // it beyond the field's drawn outer ring at 1.55, which is correct rather
+    // than a mistake: in the reference the top card floats clear above the ring
+    // system rather than sitting on it.
+    ...orbitalStation(0, 2.055),
+    icon: Workflow,
+    tier: "deep",
     status: "PLANNED",
   },
   {
@@ -67,8 +102,10 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     codename: "NEXUS",
     title: "Nexus Gateway",
     summary: "API gateway handling routing, rate limiting and request shaping.",
-    theta: 46,
-    ring: 0.66,
+    // BACK-RIGHT, mirroring ECHO onto AURORA's lane.
+    ...orbitalStation(55.4, 1.183),
+    icon: Network,
+    tier: "back",
     status: "PLANNED",
   },
   {
@@ -77,8 +114,11 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     codename: "AURORA",
     title: "Aurora ML",
     summary: "Model training and evaluation platform with reproducible runs.",
-    theta: 140,
-    ring: 1.0,
+    // FRONT-RIGHT. Near side, so perspective spreads it wider than its back-lane
+    // partner despite the smaller ring.
+    ...orbitalStation(124.7, 0.914),
+    icon: Brain,
+    tier: "mid",
     status: "IN_DEVELOPMENT",
   },
   {
@@ -87,8 +127,10 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     codename: "FORGE",
     title: "Forge",
     summary: "Developer tooling: build caching, CLI ergonomics, release automation.",
-    theta: 222,
-    ring: 1.0,
+    // FRONT-LEFT.
+    ...orbitalStation(235.3, 0.914),
+    icon: Hammer,
+    tier: "mid",
     status: "DEPLOYED",
   },
 ];
@@ -117,7 +159,7 @@ export const MISSION_BRIEFINGS: Readonly<Record<string, string>> = {
  */
 export const MISSIONS: readonly Mission[] = MISSION_SLOTS.map((slot) => ({
   ...slot,
-  placement: derivePlacement(slot.theta, slot.ring),
+  placement: derivePlacement(slot.x, slot.y),
 }));
 
 export function getMissionById(id: string | null): Mission | undefined {
