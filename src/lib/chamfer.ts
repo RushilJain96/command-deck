@@ -14,11 +14,30 @@
 
 export type ChamferSide = "left" | "right";
 
-/** Mission callouts: deep cut on the corner facing away from the spacecraft. */
-export function calloutChamfer(side: ChamferSide): string {
-  return side === "left"
-    ? "polygon(8px 0, 100% 0, 100% 100%, 16px 100%, 0 calc(100% - 16px), 0 8px)"
-    : "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%)";
+/**
+ * Mission callouts: cuts on the TOP-LEFT and BOTTOM-RIGHT, 14px each.
+ *
+ * THE CUTS MOVED. They used to fall on the two corners of whichever side faced
+ * away from the spacecraft — top-right and bottom-right for a card on the right
+ * of the deck, mirrored for one on the left. Two reasons that is gone:
+ *
+ *   The mirroring was withdrawn when the cards became a matched set, so `side`
+ *   had nothing left to vary and both variants collapsed onto one shape anyway.
+ *
+ *   And cutting two corners on the SAME edge reads as a bevelled panel end. The
+ *   diagonal pair reads as a machined plate — the cut runs across the part rather
+ *   than along one side of it, which is the tactical geometry the reference uses.
+ *
+ * Equal 14px cuts rather than the old asymmetric 8/16. The asymmetry existed to
+ * give a single-sided bevel an orientation; on a diagonal pair the geometry
+ * already has one, and unequal cuts just read as a mistake.
+ *
+ * It takes no `side` any more. The parameter survived the mirroring's removal as
+ * an ignored argument, which is worse than either keeping or dropping it: every
+ * call site still had to pick a value that could not matter.
+ */
+export function calloutChamfer(): string {
+  return "polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)";
 }
 
 /**
