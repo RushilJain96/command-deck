@@ -41,7 +41,11 @@ export function TopBar() {
         <Emblem />
         <span className="flex flex-col leading-none">
           <span className="text-t1 text-[14px] font-medium tracking-tight">Rushil Jain</span>
-          <span className="text-t3 tracking-label mt-1 font-mono text-[8.5px] uppercase">
+          {/* Red, not tertiary grey. This line is the deck's own name, and the
+              deck's accent is red — it is the one place identity and system
+              colour are the same statement. Everything else in this register on
+              the deck is a label for something; this is a title. */}
+          <span className="text-signal tracking-label mt-1 font-mono text-[8.5px] uppercase">
             Engineering Command Center
           </span>
         </span>
@@ -127,7 +131,16 @@ function Segment({
           "group relative flex h-full items-center gap-2 px-3 py-2",
           "outline-none transition-colors duration-200",
           "focus-visible:ring-signal/70 -outline-offset-2 focus-visible:ring-2",
-          isActive ? "text-t1" : isLocked ? "text-t4 cursor-not-allowed" : "text-t3 hover:text-t1",
+          // THE WHOLE SEGMENT GOES RED WHEN IT IS THE CURRENT ONE, label and
+          // icon together, not just the underline beneath it. A red rule under
+          // white text says "the rule marks this position"; red text says "this
+          // position is the one running". The deck has exactly one live channel
+          // and it should be readable at a glance from across the room.
+          isActive
+            ? "text-signal"
+            : isLocked
+              ? "text-t4 cursor-not-allowed"
+              : "text-t3 hover:text-t1",
         )}
       >
         {isActive && (
@@ -135,13 +148,19 @@ function Segment({
           // moment a second scene becomes reachable.
           <motion.span
             layoutId="nav-active"
-            className="absolute inset-0 bg-white/[0.06]"
+            className="absolute inset-0 bg-[rgb(255_42_42/0.07)]"
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
           >
             {/* Underline in signal red. Together with the lamp it says "you are
                 here AND this workspace is running", which a highlight box alone
-                never communicates. */}
-            <span className="bg-signal absolute inset-x-0 bottom-0 h-[1.5px]" />
+                never communicates.
+                The bloom is what makes it read as lit rather than printed —
+                it is the same treatment the waypoint markers get on the plane,
+                and for the same reason. */}
+            <span
+              className="bg-signal absolute inset-x-0 bottom-0 h-[1.5px]"
+              style={{ boxShadow: "0 0 8px rgb(255 42 42 / 0.75)" }}
+            />
           </motion.span>
         )}
 

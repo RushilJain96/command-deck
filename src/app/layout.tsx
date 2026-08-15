@@ -23,7 +23,9 @@ export const viewport: Viewport = {
   // taking zoom away from the user.
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  themeColor: "#08090a",
+  // Must match `--void` in globals.css, which is true #000 — a tinted value
+  // here shows as a lighter band behind mobile browser chrome.
+  themeColor: "#000000",
 };
 
 export default function RootLayout({
