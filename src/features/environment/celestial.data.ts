@@ -122,6 +122,22 @@ export interface Body {
   readonly az: number;
   readonly el: number;
   readonly albedo: string;
+  /**
+   * The sub-solar highlight — where the sphere turns toward the key light.
+   *
+   * ONE STEP UP FROM `albedo`, IN THE SAME HUE, and that restraint is the whole
+   * point. The disc gradient needs a brighter stop to have any form at all, but
+   * the warning above is specific: an early pass ran these two stops higher and
+   * the near planetoid became the brightest object on the deck, brighter than the
+   * spacecraft. So these sit around 12% relative luminance against the albedos'
+   * 2-3% — enough that a sphere is unmistakably a sphere, far short of anything
+   * that competes with the hull.
+   *
+   * Per-material rather than one shared slate, or the palette collapses: iron,
+   * ochre, rust and verdigris would all highlight to the same blue-grey and the
+   * bodies would stop being different rocks.
+   */
+  readonly lit: string;
   readonly rim: string;
   readonly rimO: number;
   readonly opacity: number;
@@ -194,14 +210,14 @@ export interface Body {
  * outliers. A rim is the light of wherever the body is, and the deck's light is
  * cyan.
  */
-const IRON = { albedo: "#0a192f", rim: "rgb(0 212 255)" };
-const REGOLITH = { albedo: "#101a26", rim: "rgb(150 200 240)" };
-const OCHRE = { albedo: "#1c1710", rim: "rgb(255 158 100)" };
-const RUST = { albedo: "#1b1220", rim: "rgb(187 154 247)" };
-const STEEL = { albedo: "#0b1826", rim: "rgb(120 190 235)" };
-const VERDIGRIS = { albedo: "#0c1c1a", rim: "rgb(140 220 210)" };
-const VIOLET = { albedo: "#141024", rim: "rgb(187 154 247)" };
-const CARBON = { albedo: "#0a0f18", rim: "rgb(130 170 210)" };
+const IRON = { albedo: "#0a192f", lit: "#1e2f4a", rim: "rgb(0 212 255)" };
+const REGOLITH = { albedo: "#101a26", lit: "#25313f", rim: "rgb(150 200 240)" };
+const OCHRE = { albedo: "#1c1710", lit: "#332a1e", rim: "rgb(255 158 100)" };
+const RUST = { albedo: "#1b1220", lit: "#332039", rim: "rgb(187 154 247)" };
+const STEEL = { albedo: "#0b1826", lit: "#1f3245", rim: "rgb(120 190 235)" };
+const VERDIGRIS = { albedo: "#0c1c1a", lit: "#20342f", rim: "rgb(140 220 210)" };
+const VIOLET = { albedo: "#141024", lit: "#2a2340", rim: "rgb(187 154 247)" };
+const CARBON = { albedo: "#0a0f18", lit: "#1c2534", rim: "rgb(130 170 210)" };
 
 /**
  * PLACEMENT AVOIDS THE CALLOUT BAND.

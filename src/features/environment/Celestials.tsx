@@ -331,7 +331,37 @@ function BodySurface({
       <div
         className="celestial relative h-full w-full rounded-full"
         style={{
-          background: body.albedo,
+          /**
+           * A SPHERE, NOT A FLAT DISC. `body.albedo` alone is one colour across
+           * the whole face, and the shade layers above it only ever SUBTRACT —
+           * terminator, limb darkening, a vignette — so the lit side had nothing
+           * in it and every body read as a cut-out circle however carefully the
+           * albedo was hued.
+           *
+           * A radial gradient offset to the upper left gives the disc its own
+           * form before any shading is applied: brighter where the surface turns
+           * toward the key light, falling to the albedo by 70%. That is the
+           * cheapest possible sphere and it is what the shade layers were
+           * silently assuming was already there.
+           *
+           * THE PEAK IS TIED TO THE BODY'S OWN ALBEDO, not a single hard-coded
+           * slate. `#1e293b` on every body would flatten the palette the file
+           * above spends four paragraphs establishing — iron, ochre, rust and
+           * verdigris would all resolve to the same blue-grey highlight. `lit`
+           * carries each body's hue into its own highlight instead.
+           */
+          background: `radial-gradient(circle at 30% 30%, ${body.lit} 0%, ${body.albedo} 70%)`,
+          /**
+           * Rim light facing the deck. Two inset shadows: a cyan one from the
+           * lower right, which is where the command centre's light is, and a much
+           * weaker neutral from the upper left to keep the terminator edge from
+           * going perfectly hard.
+           *
+           * Inset rather than outer, because an outer glow on a body reads as an
+           * atmosphere and only two of these have one.
+           */
+          boxShadow:
+            "inset -2px -2px 8px rgb(0 212 255 / 0.15), inset 2px 2px 8px rgb(255 255 255 / 0.05)",
           opacity: body.opacity,
           // Atmospheric haze on the smallest bodies. On the disc rather than on
           // the wrapper, so the ring system above keeps its crisp edge.

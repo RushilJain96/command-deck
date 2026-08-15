@@ -175,12 +175,25 @@ interface StarTier {
  * count roughly doubles a lit area that was four hundredths of one percent of
  * the frame. The ground stays at zero. What actually increases is the number of
  * FAINT stars, which is the part of a real sky that makes it read as deep.
+ *
+ * 468 -> 1404. TRIPLED, AND THE ARGUMENT ABOVE IS EXACTLY WHY IT IS SAFE TO DO.
+ * The reasoning that justified 468 is a rule, not a number: lit area scales with
+ * count while the steep magnitude curve holds, and it does — the four tiers are
+ * scaled by the same factor, so the shape of the distribution is identical and
+ * only its density changes. Three times four hundredths of one percent is still
+ * roughly a tenth of one percent of the frame.
+ *
+ * It was also re-judged against the thing the note says to re-judge it against:
+ * the field's extent. The void was darkened hard in the same pass — the central
+ * radial pulled in, the haze halved, the ring atmosphere more than halved — so
+ * there is now considerably MORE empty frame than when 468 was chosen, which is
+ * the precise condition under which that note says the count must go up.
  */
 const STAR_TIERS: readonly StarTier[] = [
-  { seed: 0xc0ffee, count: 244, parallax: 0.025, dMin: 1, dRange: 0.9, oMin: 0.2, oRange: 0.2 },
-  { seed: 0x5eed42, count: 132, parallax: 0.055, dMin: 1, dRange: 1.1, oMin: 0.26, oRange: 0.26 },
-  { seed: 0xbadf00d, count: 62, parallax: 0.1, dMin: 1.1, dRange: 1.4, oMin: 0.34, oRange: 0.32 },
-  { seed: 0x1337a5, count: 30, parallax: 0.17, dMin: 1.2, dRange: 2, oMin: 0.44, oRange: 0.48 },
+  { seed: 0xc0ffee, count: 732, parallax: 0.025, dMin: 1, dRange: 0.9, oMin: 0.2, oRange: 0.2 },
+  { seed: 0x5eed42, count: 396, parallax: 0.055, dMin: 1, dRange: 1.1, oMin: 0.26, oRange: 0.26 },
+  { seed: 0xbadf00d, count: 186, parallax: 0.1, dMin: 1.1, dRange: 1.4, oMin: 0.34, oRange: 0.32 },
+  { seed: 0x1337a5, count: 90, parallax: 0.17, dMin: 1.2, dRange: 2, oMin: 0.44, oRange: 0.48 },
 ];
 
 /**

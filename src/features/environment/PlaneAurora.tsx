@@ -65,14 +65,35 @@ export function PlaneAurora() {
          * whole plane off black, which is the one thing the containment work was
          * protecting. Wider and fainter is a bigger volume of the same gas.
          */
+        /**
+         * PULLED IN AND DARKENED HARD. The previous set ran 30/52/100 percent at
+         * alphas 0.10/0.26/0.20 in fairly saturated blues, and the note above
+         * about "wider and fainter" was solving the wrong problem: spreading the
+         * haze to the full extent of the field stopped it having a visible edge,
+         * but it also lifted the entire middle of the frame off black. What read
+         * as a lit floor at a glance read as a blue wash on any longer look, and
+         * the void is supposed to be the darkest thing in the composition.
+         *
+         * The radii come in to 26/44/76 and the deep stops move to near-black
+         * navy. The cyan stays, at half strength, because something has to be the
+         * source the rings are lit by — remove it entirely and the field goes
+         * from "lit plane" to "wireframe on black".
+         *
+         * EVERY OUTER STOP IS `transparent`, NOT BLACK, AND THAT IS LOAD-BEARING.
+         * A literal `rgba(0,0,0,1)` outer stop is a no-op over the void and very
+         * much not a no-op over the STARFIELD — this element sits inside
+         * <CameraRig> while the stars are a sibling behind it, so an opaque outer
+         * ring would punch a starless ellipse across most of the frame. Fading to
+         * transparent darkens nothing it should not.
+         */
         background: [
           // Cyan spotlight, tightest and brightest — the thing at the middle.
-          `radial-gradient(ellipse 30% 30% at 50% 48%, rgb(0 212 255 / 0.10), transparent 74%)`,
-          // Core bloom.
-          `radial-gradient(ellipse 52% 52% at 50% 50%, rgb(13 75 117 / 0.26), transparent 78%)`,
-          // Outer haze: a region of space rather than a light. Runs to the full
-          // extent of the element, so it has no edge inside the field at all.
-          `radial-gradient(ellipse 100% 100% at 50% 50%, rgb(6 30 50 / 0.20), transparent 88%)`,
+          `radial-gradient(ellipse 26% 26% at 50% 48%, rgb(0 212 255 / 0.055), transparent 72%)`,
+          // Core bloom, now a deep navy rather than a lit blue.
+          `radial-gradient(ellipse 44% 44% at 50% 50%, rgb(12 28 48 / 0.34), transparent 78%)`,
+          // Outer haze: a region of space rather than a light, and close enough
+          // to black that it reads as depth instead of as colour.
+          `radial-gradient(ellipse 76% 76% at 50% 50%, rgb(3 7 12 / 0.5), transparent 88%)`,
         ].join(","),
       }}
     />

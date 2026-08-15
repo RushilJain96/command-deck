@@ -166,9 +166,22 @@ export const FIELD = {
    * that are simply ON, and a gain that only ever approaches full is a gain that
    * makes everything grey.
    */
-  core: 2.6,
+  /**
+   * 2.6 -> 1.5, AND THE ATMOSPHERE WITH IT. The rings are threads of light, and
+   * at a 2.6 bead gain they were reading as thick lit cables — bright enough
+   * that the field's cyan was bleeding across the middle of the frame and doing
+   * as much to lift the void off black as the aurora was. 1.5 still saturates
+   * the brightest beads (anything above 1 does), so the strings still have
+   * lights that are simply ON; what goes is the width of the halo around each.
+   */
+  core: 1.5,
   halo: 0,
-  atmosphere: 0.34,
+  /**
+   * 0.34 -> 0.16. This is the wide, soft glow each arc throws sideways, and it
+   * is the single largest contributor to the blue haze — it covers far more area
+   * than the beads do, so its alpha counts for more than its value suggests.
+   */
+  atmosphere: 0.16,
   /** Atmospheric radius. */
   reach: 0.6,
   /** Inward drift off each arc. */

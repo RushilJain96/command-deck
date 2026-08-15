@@ -53,15 +53,15 @@ import { useCamera } from "@/features/camera/CameraProvider";
  */
 const CLOUDS = [
   // Upper left, behind the instrument rail and the one visible planet.
-  "radial-gradient(40% 32% at 20% 16%, rgb(44 122 116 / 0.22), transparent 68%)",
+  "radial-gradient(40% 32% at 20% 16%, rgb(44 122 116 / 0.099), transparent 68%)",
   // Runs diagonally down past the field's left flank, so the two greens read as
   // one drift rather than two blobs.
-  "radial-gradient(34% 46% at 6% 58%, rgb(38 106 108 / 0.17), transparent 72%)",
+  "radial-gradient(34% 46% at 6% 58%, rgb(38 106 108 / 0.077), transparent 72%)",
   // Opposite corner, cooler and weaker — the counterweight, not a mirror.
-  "radial-gradient(38% 30% at 88% 30%, rgb(46 104 132 / 0.15), transparent 70%)",
+  "radial-gradient(38% 30% at 88% 30%, rgb(46 104 132 / 0.068), transparent 70%)",
   // Under the plane's near arc. This is the one the ring beads are read against,
   // so it is the one that matters most.
-  "radial-gradient(52% 26% at 58% 90%, rgb(40 112 104 / 0.13), transparent 66%)",
+  "radial-gradient(52% 26% at 58% 90%, rgb(40 112 104 / 0.059), transparent 66%)",
 
   /* THREE WISPS, TIGHTER AND WEAKER THAN THE FOUR ABOVE.
    *
@@ -74,9 +74,9 @@ const CLOUDS = [
    * Small radii are also what keeps them cheap: they are stacked backgrounds on
    * an element that already exists, so seven gradients cost the same one layer
    * that four did. */
-  "radial-gradient(20% 15% at 44% 26%, rgb(52 128 122 / 0.10), transparent 70%)",
-  "radial-gradient(17% 13% at 74% 62%, rgb(64 96 140 / 0.085), transparent 72%)",
-  "radial-gradient(15% 12% at 30% 74%, rgb(92 78 132 / 0.075), transparent 74%)",
+  "radial-gradient(20% 15% at 44% 26%, rgb(52 128 122 / 0.045), transparent 70%)",
+  "radial-gradient(17% 13% at 74% 62%, rgb(64 96 140 / 0.038), transparent 72%)",
+  "radial-gradient(15% 12% at 30% 74%, rgb(92 78 132 / 0.034), transparent 74%)",
 ].join(",");
 
 const HAZE_PARALLAX = 0.018;
@@ -111,9 +111,29 @@ const AMBIENT = [
    * 50%. A bloom centred on the viewport would sit in the middle of the ring
    * system and light the wrong thing entirely.
    */
-  "radial-gradient(ellipse 26% 20% at 50% 62%, rgb(120 170 210 / 0.055), transparent 72%)",
-  "radial-gradient(ellipse 78% 58% at 50% 40%, rgb(0 212 255 / 0.10), transparent 76%)",
-  "radial-gradient(circle at 50% 45%, rgb(13 75 117 / 0.30) 0%, rgb(6 30 50 / 0.22) 42%, rgb(2 8 18 / 0.82) 74%, rgb(0 0 0 / 1) 100%)",
+  "radial-gradient(ellipse 26% 20% at 50% 62%, rgb(120 170 210 / 0.025), transparent 72%)",
+  /**
+   * The cyan spread, HALVED AGAIN to 0.022. At 0.10 this single stop was tinting
+   * roughly half the frame — a 78%-by-58% ellipse is enormous, so even a low
+   * alpha reads as an overall colour cast rather than as a glow. It survives at
+   * all because the field needs something cyan behind it to sit in; it does not
+   * survive at a strength where the eye can name the colour of the background.
+   */
+  "radial-gradient(ellipse 78% 58% at 50% 40%, rgb(0 212 255 / 0.022), transparent 76%)",
+  /**
+   * THE CENTRAL RADIAL. Tighter and far darker: the mid stop lands at 35% rather
+   * than 42/74, so the field falls to near-black inside the first third of its
+   * radius instead of holding a lit blue out to three quarters.
+   *
+   * THE OPAQUE OUTER STOP IS SAFE **HERE** AND NOWHERE ELSE, which is the whole
+   * reason this gradient lives in this file. <SpaceHaze> paints BEHIND the
+   * starfield, so black at the rim costs nothing — the stars draw over it. The
+   * same gradient on <PlaneAurora> would punch a starless hole across the middle
+   * of the frame, because that element sits inside <CameraRig> with the stars
+   * behind it. The aurora got these colours with `transparent` outer stops
+   * instead; see the note there.
+   */
+  "radial-gradient(circle at 50% 50%, rgb(12 28 48 / 0.4) 0%, rgb(3 7 12 / 0.9) 35%, rgb(0 0 0 / 1) 100%)",
 ].join(",");
 
 /**

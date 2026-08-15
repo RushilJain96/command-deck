@@ -11,6 +11,7 @@ import { OrbitGuides } from "@/features/environment/OrbitGuides";
 import { OrbitPlane, PlaneSurface } from "@/features/environment/OrbitPlane";
 import { OrbitTrace } from "@/features/environment/OrbitTrace";
 import { PlaneAurora } from "@/features/environment/PlaneAurora";
+import { PlaneBearings } from "@/features/environment/PlaneBearings";
 import { SpaceHaze } from "@/features/environment/SpaceHaze";
 import { Starfield } from "@/features/environment/Starfield";
 import { CommandHud } from "@/features/hud/CommandHud";
@@ -155,6 +156,11 @@ export function CommandDeckScene() {
             >
               <OrbitalBodies />
             </motion.div>
+
+            {/* Cardinal markers, ON the plane. After the field so they are not
+                buried under its light, before the missions so a callout always
+                passes in front of a letter rather than behind it. */}
+            <PlaneBearings />
 
             <MissionOrbit />
           </PlaneSurface>
