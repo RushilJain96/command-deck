@@ -24,7 +24,7 @@ export function TargetReadout() {
   const mission = getMissionById(useActiveTargetId());
 
   return (
-    <HudPanel label="Target" side="right" className="deck-sm:w-full w-52">
+    <HudPanel label="Target" className="deck-sm:w-full w-52">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={mission?.id ?? "none"}
@@ -47,7 +47,12 @@ export function TargetReadout() {
                 <HudRow label="Range" tone="telemetry">
                   {mission.placement.range.toFixed(2)} R
                 </HudRow>
-                <HudRow label="Orbit">{mission.placement.ring.toFixed(2)}</HudRow>
+                {/* The ORBIT row is gone. It reported which ring a mission rode,
+                    and missions do not ride one any more — their cards are
+                    composed above the plane rather than projected onto it.
+                    Bearing and range are measured from the ship to the card, so
+                    they are still true; a ring number would have been a value
+                    with nothing behind it. */}
                 <HudRow label="State">{STATUS_LABEL[mission.status]}</HudRow>
               </div>
             </>

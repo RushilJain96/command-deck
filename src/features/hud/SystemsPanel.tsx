@@ -2,6 +2,7 @@
 
 import { useReducedMotion } from "framer-motion";
 import { useActiveTargetId, useLockedTargetId } from "@/features/app/hooks";
+import { FIELD_RINGS } from "@/features/environment/orbit.data";
 import { MISSIONS } from "@/features/missions/data";
 import { cn } from "@/lib/cn";
 import { HudPanel } from "./HudPanel";
@@ -29,7 +30,11 @@ export function SystemsPanel() {
   const prefersReduced = useReducedMotion();
 
   const reachable = MISSIONS.filter((mission) => mission.status !== "PLANNED").length;
-  const orbits = new Set(MISSIONS.map((mission) => mission.ring)).size;
+  // Counts the rings the FIELD actually draws, not the ones missions ride.
+  // Missions no longer ride any — their cards are a composed arrangement
+  // floating above the plane rather than points projected onto it — so deriving
+  // this from the roster would have reported a property that stopped existing.
+  const orbits = FIELD_RINGS.length;
 
   const rows: SubsystemRow[] = [
     {
@@ -66,7 +71,7 @@ export function SystemsPanel() {
   ];
 
   return (
-    <HudPanel label="Systems" side="right" className="deck-sm:w-full w-52">
+    <HudPanel label="Systems" className="deck-sm:w-full w-52">
       <ul className="flex flex-col gap-2.5">
         {rows.map((row) => (
           <Subsystem key={row.id} {...row} />

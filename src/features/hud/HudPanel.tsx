@@ -1,22 +1,22 @@
-import type { CSSProperties, ReactNode } from "react";
-import { hudChamfer, type ChamferSide } from "@/lib/chamfer";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
  * Shared housing for every HUD panel.
  *
- * Three things make the rail read as part of the deck rather than a separate
- * application floating on top of it:
+ * THERE IS NO HOUSING ANY MORE — no bezel, no face, no chamfer, no connector
+ * stub. This used to be a machined panel built from the same vocabulary as the
+ * mission callouts, and all of it is withdrawn: the rails float directly over the
+ * void and the content is the only thing drawn.
  *
- *   1. the same chamfer vocabulary as the mission callouts, mirrored so the
- *      rail leans toward the centre of the deck;
- *   2. a two-layer bezel, identical construction to the callouts;
- *   3. a short connector stub on the inner edge, echoing the leader lines that
- *      tie callouts to their footprints.
+ * The stub went with the rest. It existed to tie a BOX back to the deck, echoing
+ * the leader lines that once joined callouts to their footprints; with no box and
+ * no leaders, it was a connector between two things that had both stopped
+ * existing.
  *
- * No backdrop-filter. On a near-black background a blur of the backdrop is
- * visually indistinguishable from a flat translucent fill, while costing a
- * backdrop readback and a separable blur every frame the starfield moves.
+ * `side` is gone from the signature too. It picked which way the chamfer and the
+ * stub leaned; with both removed it was a parameter every caller had to supply
+ * and nothing could act on.
  *
  * TYPOGRAPHY: spacing here follows a 4px rhythm, and the steps between levels
  * are large enough to be felt rather than measured — 17px title against 9px
@@ -28,53 +28,38 @@ export function HudPanel({
   label,
   children,
   className,
-  side = "left",
 }: {
   label?: string;
   children: ReactNode;
   className?: string;
-  side?: ChamferSide;
 }) {
-  const clip = { clipPath: hudChamfer(side) } as CSSProperties;
 
   return (
     <section className={cn("relative", className)}>
-      {/* Connector stub, on the edge facing the deck. Down with everything else:
-          a hairline at 0.15 against pure black is one of the brightest marks on
-          the screen, which is a lot of attention for a decorative tie-in. */}
-      <span
-        aria-hidden="true"
-        className={cn(
-          "absolute top-7 h-px w-3 bg-white/10",
-          side === "left" ? "left-full" : "right-full",
-        )}
-      />
+      {/* NO HOUSING. The bezel, the face gradient, the inset lip and the chamfer
+          clip are all withdrawn: the rails now float directly over the void.
 
-      {/* DARKENED ACROSS THE BOARD, and the bezel came down with the face.
-          The rail used to sit at rgb(25 30 38) over a #06070a ground, which was
-          a comfortable step above its background. Against pure black that same
-          panel reads as a lit grey card floating in a void — the contrast ratio
-          against the ground roughly doubled without a single value changing.
-          So the face drops to rgb(13 16 21) and the bezel from 0.11 to 0.07:
-          the panels are still legible as housings, but they are now barely above
-          the black they sit on rather than glowing off it.
+          THE WHOLE OF THE NOTE ABOVE IS OBSOLETE, and it is worth saying why
+          rather than just deleting it. Every value in it was tuned to make a
+          PANEL sit correctly against its background — darken the face, drop the
+          bezel, lower the lip. That is the right work if the answer is a panel.
+          Once the void went genuinely black, the honest observation is that the
+          housing had nothing left to do: a near-black card on a black ground is a
+          rectangle you can only detect by its border, so the border was the only
+          thing still drawing a box, and it was drawing a box around nothing.
 
-          The top lip came down too. An inset highlight is a specular, and a
-          specular implies a light source — with the deck's ambient light stood
-          down there is far less for these edges to be catching. */}
-      <span className="block bg-white/[0.07] p-px" style={clip}>
-        <span
-          className={cn(
-            "relative block px-4 py-3",
-            "bg-[linear-gradient(158deg,rgb(13_16_21/0.96),rgb(4_5_8/0.98))]",
-            "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05),inset_0_-1px_0_0_rgb(0_0_0/0.6)]",
-          )}
-          style={clip}
-        >
-          {label && <HudLabel>{label}</HudLabel>}
-          {children}
-        </span>
-      </span>
+          Removing it costs the panels their edges and buys the composition its
+          depth back — text and lit glyphs reading directly off the void is what
+          the reference does, and it is why its HUD feels like part of the space
+          rather than a layer over it.
+
+          `px-0` rather than the old `px-4 py-3`: with no housing there is no
+          inner face to inset content from. The rail's own left margin positions
+          it now. */}
+      <div className="relative">
+        {label && <HudLabel>{label}</HudLabel>}
+        {children}
+      </div>
     </section>
   );
 }

@@ -41,9 +41,19 @@ export function CommandCenterPanel() {
               className={index === 0 ? "py-1.5" : "border-t border-white/[0.06] py-1.5"}
             >
               <div className="flex items-start gap-2.5">
+                {/* The cell stays neutral and only the GLYPH takes the accent.
+                    Tinting the cell's border and fill as well would turn six
+                    rows into six coloured chips and the rail into a legend; a
+                    lit glyph in a grey housing reads as an indicator, which is
+                    what an instrument row wants.
+
+                    A faint wash of the same hue sits behind it at 0.08 — just
+                    enough that the colour looks like it is COMING FROM the glyph
+                    rather than painted on it. */}
                 <span
                   aria-hidden="true"
-                  className="text-t3 flex h-[22px] w-[22px] shrink-0 items-center justify-center border border-white/[0.09] bg-white/[0.03]"
+                  className="flex h-[22px] w-[22px] shrink-0 items-center justify-center border border-white/[0.07]"
+                  style={{ backgroundColor: `${stat.accent}14`, color: stat.accent }}
                 >
                   <Icon size={11} strokeWidth={1.75} />
                 </span>

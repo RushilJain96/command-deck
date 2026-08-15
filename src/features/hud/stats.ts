@@ -36,29 +36,50 @@ export interface Stat {
   /** Unit or qualifier shown under the figure. */
   readonly unit: string;
   readonly icon: LucideIcon;
+  /**
+   * Icon colour. The ONLY place hue enters the left rail.
+   *
+   * The rail was deliberately monochrome — six identical grey glyphs, so the eye
+   * tracked down one column of shapes and read the FIGURES rather than being
+   * pulled around by colour. That reasoning was sound for a rail of pure data and
+   * it made the panel inert: six rows of grey is a spreadsheet, and this is
+   * supposed to be an instrument someone wants to look at.
+   *
+   * Hue is confined to the 11px glyph. Labels, figures and qualifiers stay on the
+   * text ramp, so the scanning column is untouched and the colour reads as the
+   * icon being a lit indicator rather than as the row being categorised.
+   *
+   * THESE ARE NOT THE DECK'S PALETTE TOKENS, and that is deliberate rather than
+   * sloppy. `--signal` red means "the operator's target" and `--nominal` green
+   * means "deployed"; borrowing either here would put lifecycle vocabulary on a
+   * statistic that has no lifecycle. These are their own set, brighter and more
+   * saturated than anything else in the chrome, and they mean nothing beyond
+   * "this row is about that thing".
+   */
+  readonly accent: string;
   /** True once the figure comes from a real source rather than this file. */
   readonly live: boolean;
 }
 
 export const STATS: readonly Stat[] = [
-  { id: "leetcode", label: "LeetCode Solved", value: 482, unit: "Problems", icon: Code2, live: false },
+  { id: "leetcode", label: "LeetCode Solved", value: 482, unit: "Problems", icon: Code2, accent: "#00d4ff", live: false },
   {
     id: "github",
     label: "GitHub Contributions",
     value: 1538,
     unit: "Total contributions",
     icon: GitCommitHorizontal,
-    live: false,
+    accent: "#00e676", live: false,
   },
-  { id: "streak", label: "Current Streak", value: 87, unit: "Days", icon: Flame, live: false },
-  { id: "projects", label: "Projects Built", value: 12, unit: "Live systems", icon: Boxes, live: false },
-  { id: "coffee", label: "Coffee Consumed", value: 1248, unit: "Cups", icon: Coffee, live: false },
+  { id: "streak", label: "Current Streak", value: 87, unit: "Days", icon: Flame, accent: "#ff6d00", live: false },
+  { id: "projects", label: "Projects Built", value: 12, unit: "Live systems", icon: Boxes, accent: "#e2e8f0", live: false },
+  { id: "coffee", label: "Coffee Consumed", value: 1248, unit: "Cups", icon: Coffee, accent: "#ffb74d", live: false },
   {
     id: "focus",
     label: "Current Focus",
     value: "Distributed Systems",
     unit: "Next: event-driven pipelines",
     icon: Target,
-    live: false,
+    accent: "#ff4d4d", live: false,
   },
 ];
