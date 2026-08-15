@@ -5,8 +5,14 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useAppDispatch } from "@/features/app/hooks";
 import { ARRIVAL } from "@/features/scenes/arrival";
 import { cn } from "@/lib/cn";
-import { ACTIVATION, MissionPanel } from "./MissionPanel";
-import { STATUS_TONE, type Mission } from "./types";
+import { MissionPanel } from "./MissionPanel";
+import { CALLOUT_TIER, type Mission } from "./types";
+
+/**
+ * Sits between the hero band (50) and SHIP_Z_INDEX (60), so a targeted module
+ * covers every other card and the hull still covers it.
+ */
+const ACTIVE_Z = 55;
 
 /**
  * Positions a mission on the elliptical orbital plane using pure CSS — no
@@ -54,10 +60,6 @@ export function MissionNode({
 }) {
   const dispatch = useAppDispatch();
   const { placement } = mission;
-  const { side } = placement;
-  const isLeft = side === "left";
-  const isCentred = side === "center";
-  const tone = STATUS_TONE[mission.status];
 
   // Touch fires pointerenter with no matching pointerleave, which would latch
   // the target permanently. Touch targeting is a tap concern, not a hover one.
@@ -71,16 +73,9 @@ export function MissionNode({
     dispatch({ type: "target/pointer", id: null });
   };
 
-  // Closer missions stand notably larger. Combined with the opacity ramp this
-  // is atmospheric perspective: distance costs both size and contrast. The
-  // spread is wider than it looks — depth only spans about 0.15 to 0.55 now
-  // that the ship occupies the near station, so a shallow coefficient would
-  // flatten the ring into a sticker sheet.
-  const depthScale = 0.78 + placement.depth * 0.5;
-
-  // A centred callout has no side to hang from, so its leader is vertical only.
-  const run = isCentred ? "0px" : "var(--callout-run)";
-  const anchorEdge = isLeft ? "right" : "left";
+  // A targeted module lifts ABOVE the hero band rather than into it, so it clears
+  // whatever might be in front of it if a resize ever brings two cards together.
+  const zIndex = isActive ? ACTIVE_Z : CALLOUT_TIER[mission.tier].z;
 
   return (
     <li
@@ -90,18 +85,42 @@ export function MissionNode({
       )}
       style={
         {
-          "--node-sx": placement.sx,
-          "--node-sy": placement.sy,
-          "--node-ring": placement.ring,
-          zIndex: isActive ? 46 : placement.zIndex,
-          // Continuous recession on top of the discrete level-of-detail steps.
-          // Without it, depth reads as abrupt tiers instead of a field falling
-          // away.
-          opacity: isActive ? 1 : 0.52 + placement.depth * 0.48,
+          "--node-x": placement.x,
+          "--node-y": placement.y,
+          // Authored. `placement.zIndex` is still computed and still correct as a
+          // depth ordering — it is simply not what sorts these any more, because
+          // overlap is now the ONLY depth cue the cards carry and it has to be
+          // deliberate rather than derived.
+          zIndex,
+          // Atmospheric recession, AND IT IS NOW ALMOST FLAT ON PURPOSE.
+          //
+          // This was `0.52 + depth * 0.48`, a range of 0.52 to 1.0. Against the
+          // old scale ramp it was defensible; as the last remaining depth cue it
+          // was not, because the two compounded on exactly the wrong module.
+          // DATAFLOW sits furthest out at depth 0.106, so it was drawn at 0.57
+          // opacity AND 0.65 scale — a small faint card that had effectively
+          // left the composition.
+          //
+          // Every module has to be legible, because the operator is choosing
+          // between them and cannot choose what they cannot read. 0.88 to 1.0 is
+          // enough to feel as air between the near rank and the far one, and not
+          // enough to cost anybody a word.
+          opacity: isActive ? 1 : 0.88 + placement.depth * 0.12,
+          // Straight from the authored position, and NO LONGER MULTIPLIED BY THE
+          // TILT. The vertical term used to carry `--orbit-tilt` so the card
+          // arrangement squashed along with the plane. That was defensible while
+          // the cards were projected ONTO the plane; it is wrong now that they
+          // float above it, and it bit immediately — flattening the plane from
+          // 0.64 to 0.46 to make it read as a floor would have compressed the
+          // card layout by 28% as a side effect, for no reason anyone could name.
+          //
+          // The cards keep their own vertical rhythm in plain --orbit-radius
+          // units. The floor can be re-pitched underneath them without touching
+          // the composition standing on top of it.
           transform:
             "translate(" +
-            "calc(var(--orbit-radius) * var(--node-ring) * var(--node-sx)), " +
-            "calc(var(--orbit-radius) * var(--orbit-tilt) * var(--node-ring) * var(--node-sy))" +
+            "calc(var(--orbit-radius) * var(--node-x)), " +
+            "calc(var(--orbit-radius) * var(--node-y))" +
             ")",
         } as CSSProperties
       }
@@ -121,89 +140,37 @@ export function MissionNode({
         aria-describedby={`${mission.id}-summary`}
         className="group absolute top-0 left-0 cursor-pointer outline-none"
       >
-        {/* Footprint on the plane. Squashed by the same tilt as the ring, so it
-            reads as a shadow cast onto the surface rather than a dot floating
-            in front of it. */}
-        <span
-          aria-hidden="true"
-          className="absolute top-0 left-0 h-2 w-6 -translate-x-1/2 -translate-y-1/2 rounded-[50%] transition-all duration-300"
-          style={{
-            background: isActive
-              ? "radial-gradient(closest-side, rgb(255 59 48 / 0.45), transparent)"
-              : "radial-gradient(closest-side, rgb(0 0 0 / 0.85), transparent)",
-          }}
-        />
+        {/* NOTHING IS DRAWN ON THE PLANE ANY MORE.
 
-        {/* WAYPOINT MARKER — where this mission meets its orbit.
-            Structure stage, so it answers on the first frame.
+            A footprint shadow, a lit cyan waypoint diamond, a lock reticle and a
+            1px tether all used to live here — the apparatus for saying "this card
+            belongs to that point on the orbit". All four are gone together,
+            because the premise they served is gone: the cards are a composed
+            arrangement floating above the plane, and no mission occupies a
+            particular point on the ring.
 
-            The 10% hover scale is gone: on a 6px diamond it bought half a pixel
-            of growth and cost the module its only claim to not being a hover
-            card. Brightness alone says "acknowledged"; selection still owns the
-            scale step, which is now the only size change anywhere in the node.
+            They had to go as a set. Keeping the dot without the tether leaves an
+            orphan that lights up red when you hover a card somewhere else
+            entirely, which reads as a bug rather than as restraint.
 
-            LIT CYAN AT REST, NOT GREY. It used to be `bg-t3` — an instrument
-            label colour on a plate that is not a label. The marker is the one
-            place a mission touches the orbital plane, and the plane is lit; a
-            waypoint that does not carry the field's own light reads as printed
-            on the glass rather than sitting on the track.
+            What still points at a mission is the spacecraft: the hull swings to
+            the card's own bearing and the bearing vector runs out toward it. That
+            is one relationship, drawn once, by the object whose job it is. */}
 
-            THE BLOOM IS THE PART THAT MATTERS AND IT IS DELIBERATELY MODEST.
-            A 6px square with an 8px shadow at full strength is a 22px ball of
-            light, and six of those turn a field that was just tuned for restraint
-            back into a Christmas tree. At 0.55 and 6px it reads as a lit marker
-            from a normal viewing distance and never as a lamp.
+        {/* Housing, CENTRED ON THE AUTHORED POSITION.
+            `--callout-rise` is gone with the tether: there is no anchor beneath
+            the card to stand clear of, so `x`/`y` name the card's own centre and
+            the box is simply centred on it. That also makes the roster read the
+            way it looks — `x: -1.02` is where the card IS, not where something
+            underneath it is.
 
-            Selection still takes it to `--signal` red, which is the one thing on
-            the deck that means "you are pointing at this". Cyan is the resting
-            state of everything the plane lights; red is a statement about the
-            operator, and the two must not be the same colour. */}
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute top-0 left-0 h-[6px] w-[6px] -translate-x-1/2 -translate-y-1/2 rotate-45 transition-all duration-200",
-            isActive ? "bg-signal scale-125" : "bg-[rgb(120_226_255)] group-hover:bg-white",
-          )}
-          style={{
-            transitionDelay: `${ACTIVATION.structure}ms`,
-            boxShadow: isActive
-              ? "0 0 9px rgb(255 59 48 / 0.7)"
-              : "0 0 6px rgb(0 212 255 / 0.55)",
-          }}
-        />
-        {/* Lock reticle. */}
-        <span
-          aria-hidden="true"
-          className={cn(
-            "border-signal absolute top-0 left-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border transition-all duration-300",
-            isActive ? "scale-100 opacity-70" : "scale-50 opacity-0",
-          )}
-        />
-
-        {/* Housing.
-            THE DOCKING LEADER IS GONE. The collar, twin struts, cross-tie and
-            bracket that hung each callout off its point on the orbit have been
-            removed: with the field rebuilt as light rather than as drawn rings,
-            a hairline armature tying a card down to it was the last thing on the
-            deck that read as a diagram. The callouts now simply float above the
-            plane.
-
-            THE OFFSET STAYS. `--callout-run` / `--callout-rise` still hold each
-            housing clear of its own anchor, which is what the layout solver in
-            `scripts/deck-layout-check.mjs` models to prove six callouts, the HUD
-            rail and the hull can coexist. Removing the connector is a visual
-            change; removing the offset would be a layout change. */}
-        <span
-          className="absolute"
-          style={{
-            bottom: "var(--callout-rise)",
-            [anchorEdge]: run,
-            transform: `scale(${depthScale})`,
-            transformOrigin: isCentred ? "center bottom" : isLeft ? "right bottom" : "left bottom",
-            // A centred housing straddles its leader instead of hanging off it.
-            ...(isCentred ? { translate: "-50% 0" } : {}),
-          }}
-        >
+            Growth is about the CENTRE now rather than the bottom edge, so a
+            module promoted to the active size expands evenly instead of rising.
+            The layout solver models the same box; change the size there too. */}
+        {/* NO `transform: scale()`. Every card is drawn at its authored size, at
+            rest and under the pointer alike — see CALLOUT_TIER. The translate is
+            a centring offset, not a size change. */}
+        <span className="absolute top-0 left-0" style={{ translate: "-50% -50%" }}>
           {/* Arrival fade lives on its own element, animating ONLY opacity.
               The <li> already uses opacity for the depth ramp and the parent
               span uses transform for the depth scale — sharing either property
@@ -228,21 +195,10 @@ export function MissionNode({
           {`${mission.title}. ${mission.summary}. Status ${mission.status.replace("_", " ")}.`}
         </span>
       </button>
-
-      {/* Status pip on the plane, outside the housing, so a mission's stage is
-          readable even at marker level. */}
-      <span
-        aria-hidden="true"
-        className={cn(
-          "absolute top-0 left-0 h-1 w-1 -translate-y-1/2 transition-opacity duration-300",
-          tone.dot,
-          isCentred
-            ? "translate-x-2 -translate-y-[calc(100%+6px)]"
-            : isLeft
-              ? "-translate-x-[calc(100%+8px)]"
-              : "translate-x-2",
-        )}
-      />
+      {/* The status pip that used to sit out here on the plane is gone with the
+          rest of the plane-side apparatus. It existed so a mission's lifecycle
+          was readable when the card shrank to a bare marker; there is no marker
+          tier any more, and every card carries its own status strip. */}
     </li>
   );
 }

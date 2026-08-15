@@ -73,11 +73,6 @@ interface MissionPanelProps {
 }
 
 export function MissionPanel({ mission, lod, isActive }: MissionPanelProps) {
-  // "center" mirrors the right-hand treatment: content reads left-to-right and
-  // the deep chamfer falls on the outer bottom corner either way.
-  const isLeft = mission.placement.side === "left";
-  const isMarkerAtRest = lod === "marker";
-
   // ON A PHONE THERE ARE NO CALLOUTS AT ALL.
   //
   // Six labelled nodes cannot share a ring whose radius is capped at 120px —
@@ -91,75 +86,68 @@ export function MissionPanel({ mission, lod, isActive }: MissionPanelProps) {
   // Nothing is lost from the accessibility tree — the per-node description in
   // <MissionNode> is always present — and nothing is lost from the interaction
   // either, because the readout is driven by the same targeting state.
-  const markerVisibility = isActive ? "hidden" : isMarkerAtRest ? "block deck-sm:hidden" : "hidden";
-  const panelVisibility = isActive
-    ? "block deck-sm:hidden"
-    : isMarkerAtRest
-      ? "hidden"
-      : "block deck-sm:hidden";
-
-  return (
-    <>
-      <MarkerBody mission={mission} isActive={isActive} isLeft={isLeft} className={markerVisibility} />
-      <PanelBody
-        mission={mission}
-        lod={lod}
-        isActive={isActive}
-        isLeft={isLeft}
-        className={panelVisibility}
-      />
-    </>
-  );
-}
-
-/**
- * Reduced prominence, full identity. A node the operator cannot name is not
- * navigable, so the designator and codename survive at the smallest size.
- */
-function MarkerBody({
-  mission,
-  isActive,
-  isLeft,
-  className,
-}: {
-  mission: Mission;
-  isActive: boolean;
-  isLeft: boolean;
-  className: string;
-}) {
-  return (
-    <span
-      // No opacity here: recession is applied once, on the <li>, as a
-      // continuous function of depth. Dimming again would compound it.
-      className={cn("leading-none whitespace-nowrap", isLeft && "text-right", className)}
-    >
-      <span className="text-t3 tracking-micro block font-mono text-[9px]">{mission.label}</span>
-      <span
-        className={cn(
-          "mt-[3px] block font-mono text-[12.5px] tracking-[0.06em] transition-colors duration-300",
-          isActive ? "text-t1" : "text-t2 group-hover:text-t1",
-        )}
-      >
-        {mission.codename}
-      </span>
-    </span>
-  );
+  //
+  // A SECOND, SMALLER REPRESENTATION USED TO LIVE HERE. `MarkerBody` drew the
+  // designator and codename as bare type for modules whose depth resolved to the
+  // `marker` tier, and this function picked between the two. With LOD_THRESHOLDS
+  // collapsed to a single level it became unreachable, and it is gone rather
+  // than left standing: every module is the same housing now, which is the whole
+  // point — see CALLOUT_SCALE.
+  return <PanelBody mission={mission} lod={lod} isActive={isActive} className="block deck-sm:hidden" />;
 }
 
 function PanelBody({
   mission,
   lod,
   isActive,
-  isLeft,
   className,
-}: MissionPanelProps & { isLeft: boolean; className: string }) {
-  const { label, codename, title, summary, status } = mission;
+}: MissionPanelProps & { className: string }) {
+  const { title, summary, status, icon: Icon } = mission;
+
+  // "MISSION-01" -> "MISSION 001". The roster's id is the canonical index, so the
+  // label is derived rather than stored twice.
+  const designator = `MISSION ${mission.id.split("-")[1].padStart(3, "0")}`;
   const tone = STATUS_TONE[status];
-  const clip = { clipPath: calloutChamfer(isLeft ? "left" : "right") } as CSSProperties;
+
+  // ONE CHAMFER, NOT A MIRRORED PAIR, AND NO MIRRORED CONTENT EITHER.
+  //
+  // Every housing on the left half of the deck used to be flipped: chamfer on
+  // the other corner, status rail on the other edge, `flex-row-reverse` through
+  // the whole card, text right-aligned. The argument was that the deep cut
+  // should always fall on the corner facing away from the spacecraft, so the
+  // set leaned inward toward the vehicle.
+  //
+  // It is the single largest reason the modules did not read as a matched set.
+  // Six cards in two mirror-image variants are six cards of two DIFFERENT
+  // SHAPES, and the eye reads shape before it reads content — so a board that
+  // was meant to be a comparison of six missions presented as two groups of
+  // three. Right-aligned prose in half of them made it worse, because ragged-left
+  // text is measurably slower to read and there was no reason for it beyond
+  // symmetry.
+  //
+  // Uniform wins. The chamfer, the rail, the alignment and the reading order are
+  // identical on all six, and the deck gets its symmetry from where the modules
+  // are PLACED instead of from how they are built.
+  const clip = { clipPath: calloutChamfer() } as CSSProperties;
 
   // The summary is the first thing to go when space is tight: it is the only
   // part that is prose rather than identity.
-  const showSummary = lod === "full" || isActive;
+  //
+  // `|| isActive` USED TO BE HERE AND WAS REMOVED, on evidence. Targeting a
+  // module promotes it to `hero` scale, and a distant mission that ALSO gained
+  // the summary grew from a 30px marker to a 152px card — DATAFLOW and NEXUS sit
+  // nearest the top of the ring, so that expansion drove them straight through
+  // the top bar at most desktop sizes. The layout solver's hover sweep reports
+  // it at eleven viewports.
+  //
+  // Dropping it is not merely the cheap fix, it is the more consistent rule.
+  // Level of detail encodes DISTANCE and prominence encodes ATTENTION; they are
+  // separate axes, and letting a hover add prose was the one place attention
+  // reached over and rewrote distance. A far module under the pointer now gets
+  // larger, brighter and lit — it does not become the most detailed thing on a
+  // deck it is furthest from. Identity, title and lifecycle are all still there,
+  // and the full text remains in the accessibility tree either way.
+  const showSummary = lod === "full";
 
   return (
     <span className={cn("relative", className)}>
@@ -173,6 +161,47 @@ function PanelBody({
           replaces it is not motion at all: the same part catching more light.
           The plate stays exactly where it is, at rest and engaged. */}
       <span aria-hidden="true" className="absolute inset-0 translate-y-2 bg-black/30" style={clip} />
+
+      {/* OUTER BLOOM for the selected module. FIRST, so everything else paints
+          over it — a glow that lands on top of the brackets and the bezel
+          desaturates both, which turns a lock-on into a smudge.
+
+          On its own element for the reason recorded on the edge light below:
+          clip-path removes an outward box-shadow before it is ever painted, so
+          light outside a clipped shape has to come from a larger sibling behind
+          it. The blur is applied to the element rather than to a shadow, which
+          is what lets it keep the housing's silhouette instead of being a
+          rectangle. */}
+      {isActive && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            ...at(ACTIVATION.accent),
+            // AN OUTER BOX-SHADOW, AND NO CLIP-PATH ON THIS ONE.
+            //
+            // A blurred filled element was the obvious way to do this and it is
+            // wrong now that the face is glass: a filled shape sits BEHIND the
+            // card as well as around it, and `backdrop-filter` faithfully pulls
+            // it through, which turned the whole pane maroon. An outer
+            // box-shadow is never painted beneath its own border box, so it can
+            // only ever be outside — which is the definition of an outer glow.
+            //
+            // The cost is that a box-shadow cannot follow the chamfer, so this
+            // is a rounded rectangle where the housing is mitred. At 20px of
+            // blur that difference is a few pixels of soft light at four
+            // corners, and nobody has ever seen it.
+            //
+            // TWO SHADOWS, AND THE OUTER ONE IS THE POINT NOW. A beam terminates
+            // on this card's bottom edge, so the module has to look LIT — not
+            // outlined. A single tight 20px halo reads as a border effect; a tight
+            // core plus a wide 70px falloff reads as a light source arriving,
+            // because that is how illumination actually distributes.
+            boxShadow:
+              "0 0 26px rgb(255 51 51 / 0.4), 0 0 70px rgb(255 42 42 / 0.22)",
+          }}
+        />
+      )}
 
       {/* Edge light: the deck's ambient catching the outer 3px of the housing.
           Half strength on hover of what selection gets, so it reads as the part
@@ -194,16 +223,80 @@ function PanelBody({
       <span
         aria-hidden="true"
         className={cn(
-          "absolute -inset-[3px] transition-opacity duration-300",
+          // A RING, NOT A FILLED RECTANGLE. It was filled, and that was
+          // invisible while the face was opaque and covered its middle. The face
+          // is glass now, so a filled shape behind it gets refracted straight
+          // through by `backdrop-filter` and tints the entire pane. `border`
+          // with no background leaves the centre genuinely empty, which is what
+          // this layer always meant: the deck's ambient caught on the outer 3px
+          // of the housing.
+          "absolute -inset-[3px] border-[3px] transition-opacity duration-300",
           isActive ? "opacity-100" : "opacity-45 group-hover:opacity-80",
         )}
         style={{
           ...clip,
           ...at(ACTIVATION.surface),
-          background: isActive ? "rgb(0 212 255 / 0.24)" : "rgb(0 212 255 / 0.16)",
+          // SELECTION TURNS THE GLOW RED, and this is the moment the deck's two
+          // colours change places. Cyan is the ambient — the colour of the light
+          // the plane emits and everything on it catches. Red is not ambient and
+          // is not a property of the module: it is a statement about the
+          // OPERATOR, meaning "this is the one you are pointing at". A module
+          // that goes from catching cyan to emitting red has stopped reflecting
+          // its environment and started answering the pointer.
+          borderColor: isActive ? "rgb(255 42 42 / 0.34)" : "rgb(0 212 255 / 0.07)",
         }}
       />
 
+      {/* TARGET BRACKETS. Four corner marks that appear only on the selected
+          module, outside the bezel.
+
+          THEY ARE NOT DECORATION — they are the one cue on the card that is
+          about the ACT of targeting rather than about the card. Everything else
+          selection does (red frame, red title, red status) is the module
+          changing state; brackets are a reticle laid over it, and a reticle
+          belongs to the instrument doing the looking. That is why they sit
+          outside the housing and do not follow the chamfer: a sight is not part
+          of the thing it is sighting.
+
+          ONE BORDERED BOX PER CORNER, NOT TWO CRUSSING RULES. The first version
+          drew each bracket as a 1px vertical span plus a 1px horizontal span,
+          both anchored to the same corner. They meet at a single pixel with no
+          mitre, and at 1px the join is ambiguous enough that the pair reads as
+          two disconnected lines that happen to be near each other rather than as
+          one angle. A box with two adjacent borders gets the corner joined by
+          the renderer, which is the entire difference.
+
+          The bracket container is NOT clipped, unlike every other layer in this
+          housing. That is deliberate and it is why bordered boxes are safe here:
+          `clip-path` would slice the corners off the very marks whose corners
+          are the point. A bracket is a sight laid over the module, so it is not
+          subject to the module's silhouette. */}
+      {isActive && (
+        <span aria-hidden="true" className="absolute -inset-[2px]" style={at(ACTIVATION.accent)}>
+          {(
+            [
+              ["top-0 left-0", "border-t-2 border-l-2"],
+              ["top-0 right-0", "border-t-2 border-r-2"],
+              ["bottom-0 left-0", "border-b-2 border-l-2"],
+              ["bottom-0 right-0", "border-b-2 border-r-2"],
+            ] as const
+          ).map(([corner, edges]) => (
+            <span
+              key={corner}
+              // Same literal as the bezel and the subheader. The three lock cues
+              // are one statement and must not be three nearby reds — `--signal`
+              // is #ff2a2a, and mixing it in here would put a 9-value hue step
+              // between the bracket and the border it sits 2px outside of.
+              className={cn("absolute h-[11px] w-[11px] border-[#ff3333]", corner, edges)}
+            />
+          ))}
+        </span>
+      )}
+
+      {/* Outer bloom for the selected module, on its own element for the reason
+          recorded on the edge light: clip-path removes an outward box-shadow
+          before it paints, so light outside a clipped shape has to come from a
+          larger sibling behind it. */}
       {/* BEZEL: the 1px mitred edge.
           NEUTRAL WHEN SELECTED, NOT RED. Running the whole perimeter in signal
           red was the module's loudest statement and the weakest one — a colour
@@ -225,10 +318,25 @@ function PanelBody({
           // Cyan-tinted rather than neutral white, for the same reason as the
           // edge light above: this hairline is reflecting the deck's ambient,
           // and the deck's ambient is cyan.
-          "relative block p-px transition-colors duration-200",
+          //
+          // `border`, NOT `p-px` WITH A BACKGROUND. Those are identical in
+          // layout — both inset the face by one pixel — and they are not
+          // identical behind glass. A padded box with a background is a FILLED
+          // rectangle whose middle happens to be covered; `backdrop-filter` on
+          // the face samples that fill across the entire pane and tints it. This
+          // was the actual cause of the selected card rendering maroon, and it
+          // survived two attempts to fix it by adjusting the things that were
+          // not causing it.
+          // NO `!important` ANYWHERE IN HERE, DELIBERATELY. The targeting border
+          // was specified with one, and it would be inert: this is the only rule
+          // that sets `border-color` on this element, so there is nothing for it
+          // to win against. An `!important` that beats no competitor is a note
+          // saying "something else was fighting me" left behind after the fight
+          // ended — the next person to read it goes looking for the other rule.
+          "relative block border transition-colors duration-200",
           isActive
-            ? "bg-[rgb(120_220_255/0.42)]"
-            : "bg-[rgb(0_212_255/0.25)] group-hover:bg-[rgb(0_212_255/0.36)]",
+            ? "border-[rgb(255_51_51/0.8)]"
+            : "border-[rgb(0_212_255/0.1)] group-hover:border-[rgb(0_212_255/0.22)]",
         )}
         style={{ ...clip, ...at(ACTIVATION.structure) }}
       >
@@ -243,12 +351,52 @@ function PanelBody({
             web-card gradient — it implies a light source nothing else on the
             deck shares. Everything here is lit from above, so the face is
             simply brighter at the top and falls off. */}
+        {/**
+         * OPAQUE. THE CARD IS A PANEL, NOT A WINDOW.
+         *
+         * THIS REVERSES THE FROSTED-GLASS DECISION THIS FILE USED TO ARGUE FOR,
+         * and the old argument is worth keeping because it was not wrong, it was
+         * answering a different question. It said: a mission callout sits over
+         * the bead rings and the cyan aurora, that is structure with detail in
+         * it, and blurring it is the difference between a card ON the scene and a
+         * panel IN it. True — a translucent card does integrate better.
+         *
+         * What it cost is legibility, and legibility is not negotiable here. A
+         * 12px blur does not remove the rings, it smears them, so every line of
+         * body copy sat on a moving, unpredictable ground: the same grey text
+         * read cleanly where the card covered empty plane and muddily where it
+         * covered a lit ring. Six cards over a field of concentric bright arcs is
+         * the worst possible case for backdrop blur, and this deck is exactly
+         * that. A mission board's job is to be read.
+         *
+         * It also buys back real work per frame. `backdrop-filter` costs a
+         * backdrop readback and a separable blur PER CARD PER FRAME, inside a
+         * transformed rig, and CLAUDE.md notes the radius scales with camera
+         * zoom — so the effect was both expensive and quietly unstable.
+         *
+         * The integration the blur was buying now comes from the bezel, the
+         * cyan edge light and the contact shadow, none of which cost a readback
+         * and none of which touch the text.
+         */}
         <span
           className={cn(
             "relative flex items-stretch text-left",
+            // THE SELECTED CARD'S FILL IS NOT RED. Only its edge is.
+            //
+            // A first cut tinted the fill warm to match the frame and the result
+            // was a maroon pane: the tinted base, the red inset rim and the red
+            // bloom behind it composite, and three faint reds stack into one
+            // solid one. It also took the body copy — grey on a dark navy — down
+            // to grey on brown, which is a contrast loss for no gain.
+            //
+            // Selection is carried by the border, the brackets, the title, the
+            // status and the bloom. That is five cues; the sixth would have cost
+            // legibility. The fill only goes slightly LIGHTER, so the focused
+            // module's text sits on a marginally steadier ground than its
+            // neighbours' — which is what elevation should buy.
             isActive
-              ? "bg-[linear-gradient(180deg,rgb(38_45_56/0.985),rgb(16_20_27/0.985))]"
-              : "bg-[linear-gradient(180deg,rgb(29_35_44/0.97),rgb(13_16_22/0.98))]",
+              ? "bg-[linear-gradient(180deg,#141c28,#0b111b)]"
+              : "bg-[linear-gradient(180deg,#0f1620,#080d15)]",
             // Top lip catches the light, bottom edge falls into shadow. This
             // directional pair is what sells "machined part" on a dark surface.
             //
@@ -258,11 +406,16 @@ function PanelBody({
             // much of that fixed light the top edge returns — 0.10 to 0.16 is a
             // specular the eye reads as the part turning very slightly into the
             // light, and it is the only thing the face itself does.
+            // The third inset on each of these is the RIM LIGHT — the deck's
+            // ambient caught on the inside of the glass, cyan at rest and red
+            // once the module is the one being pointed at. On an opaque card it
+            // would be invisible; on a translucent one it is what gives the pane
+            // a thickness, because a sheet of glass is lit at its edges and not
+            // across its face.
             "transition-shadow duration-300",
             isActive
-              ? "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.18),inset_0_-1px_0_0_rgb(0_0_0/0.6)]"
-              : "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.10),inset_0_-1px_0_0_rgb(0_0_0/0.6)] group-hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.16),inset_0_-1px_0_0_rgb(0_0_0/0.6)]",
-            isLeft && "flex-row-reverse text-right",
+              ? "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.18),inset_0_-1px_0_0_rgb(0_0_0/0.6),inset_0_0_14px_0_rgb(255_42_42/0.09)]"
+              : "shadow-[inset_0_1px_0_0_rgb(255_255_255/0.10),inset_0_-1px_0_0_rgb(0_0_0/0.6),inset_0_0_10px_0_rgb(0_212_255/0.06)] group-hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.16),inset_0_-1px_0_0_rgb(0_0_0/0.6),inset_0_0_10px_0_rgb(0_212_255/0.1)]",
           )}
           style={{ ...clip, ...at(ACTIVATION.surface) }}
         >
@@ -278,8 +431,22 @@ function PanelBody({
             )}
             style={{
               ...at(ACTIVATION.surface),
-              background:
-                "linear-gradient(180deg, rgb(214 230 255 / 0.055), transparent 58%)",
+              background: isActive
+                ? // LIT FROM BELOW, BECAUSE THAT IS WHERE THE LIGHT COMES FROM.
+                  //
+                  // Every other surface on this deck is lit from above, and this
+                  // gradient used to be too — a cool wash falling from the top
+                  // lip. On the TARGETED module that is now wrong: a beam arrives
+                  // at the bottom edge, and the one thing a light source must do
+                  // is light the surface it lands on, from the side it lands on.
+                  //
+                  // So the selected card inverts. Warm red rising from the bottom
+                  // where the beam terminates, falling off by 70% of the height,
+                  // with the cool top lip kept underneath it so the module still
+                  // reads as a physical part rather than as a red rectangle.
+                  "linear-gradient(0deg, rgb(255 60 60 / 0.17), rgb(255 60 60 / 0.05) 42%, transparent 70%)," +
+                  "linear-gradient(180deg, rgb(214 230 255 / 0.05), transparent 58%)"
+                : "linear-gradient(180deg, rgb(214 230 255 / 0.055), transparent 58%)",
             }}
           />
 
@@ -306,10 +473,49 @@ function PanelBody({
               9.25rem in the cascade. (It is moot in practice — no callout is
               drawn at that tier — but a silently wrong value here would be
               waiting for whoever changes that.) */}
+          {/* 13.75rem -> 10.5rem WHEN THE CALLOUTS WERE CENTRED, AND THE WHOLE
+              REDUCTION IS GEOMETRY RATHER THAN TASTE.
+
+              A side-hung card occupies its full width on ONE side of its anchor;
+              a centred one occupies half its width on BOTH, so the same box
+              sweeps a wider band of the ring and neighbouring anchors start
+              fighting. The binding pair is ORION against AURORA: their anchors
+              are 0.64R apart horizontally, and two centred cards need
+              `1.05 * box + 8` of that (1.15 for a targeted ORION, 0.95 for
+              AURORA, plus the solver's 8px margin). At the old 220px column that
+              demanded R > 382, which almost nothing solves to — 1600x900 gives
+              374 — so the deck overlapped nearly everywhere.
+
+              168px puts the requirement at R > 298, which clears every lg
+              viewport down to 1366x768 (height-bound at R=300, with 2px to
+              spare). That last 6px of margin is why this is 10.5rem and not the
+              11rem it would otherwise round to.
+
+              The focal card barely moves: 168 * 1.15 = 193 against the 230 ORION
+              was drawn at. What shrinks is everything else, which is the
+              hierarchy that was asked for.
+
+              `deck-sm` is no longer larger than `deck-md`. It used to be 11rem
+              against md's 11.5rem, which was harmless only because no callout is
+              drawn at that tier; leaving an inverted pair in the cascade is a
+              trap for whoever changes that. */}
           <span
             className={cn(
               "relative flex flex-col",
-              "w-[11rem] deck-md:w-[9.25rem] deck-sm:w-[11rem]",
+              // 9.75rem -> 13.5rem. THE PREVIOUS THREE VALUES WERE ALL WRONG AND
+              // WRONG THE SAME WAY: 13.75 -> 10.5 -> 9.75, each step taken to
+              // make the collision solver pass. That is the tail wagging the dog.
+              // The cards were tethered to orbital positions, the ring is not
+              // wide enough to hold six of them, and so the only lever the solver
+              // ever offered was "make them smaller".
+              //
+              // Detaching the cards from the ring removed that constraint
+              // entirely — the arrangement is authored now, so spacing is a thing
+              // you choose rather than a thing you inherit. 216px is sized against
+              // the reference, where the cards run roughly 11-16% of the frame
+              // width; at 1600px that is 172-261px, and the active card lands at
+              // 248 inside it.
+              "w-[16rem] deck-md:w-[13rem] deck-sm:w-[13rem]",
             )}
           >
             {/* SECTION 1 — NAMEPLATE. Recessed, seamed off from the body, and
@@ -318,17 +524,24 @@ function PanelBody({
                 real hardware is identified. */}
             <span
               className={cn(
-                "relative flex items-center gap-1.5 px-5 py-[5px]",
+                "relative flex items-center gap-2 px-5 py-2",
                 "border-b border-black/45",
-                "font-mono text-[9px] leading-none",
+                "font-mono text-[10.5px] leading-none",
                 "tracking-micro transition-colors duration-300",
                 // HOVER BRINGS UP THE ENGRAVING, NOT THE PLATE. The ground stays
                 // recessed — changing it is what selection does, and the two
                 // states must not be the same gesture at different strengths.
                 // All hover does is make the designator legible enough to act
                 // on, which is what "available" means.
-                isActive ? "bg-white/[0.065] text-t2" : "text-t3 group-hover:text-t2 bg-black/[0.18]",
-                isLeft && "flex-row-reverse",
+                // THE WHOLE SUBHEADER GOES RED, NOT JUST THE DESIGNATOR. Only
+                // `M-01` used to redden, which left "M-01 / ORION" reading as
+                // half-lit — the designator answering the pointer and the
+                // codename beside it still at rest. They are one identifier
+                // rendered as two spans, and an identifier does not change colour
+                // halfway through.
+                isActive
+                  ? "bg-white/[0.065] text-[#ff3333]"
+                  : "text-t3 group-hover:text-t2 bg-black/[0.18]",
               )}
               style={at(ACTIVATION.surface)}
             >
@@ -340,25 +553,34 @@ function PanelBody({
               <span
                 aria-hidden="true"
                 className={cn(
-                  "bg-signal absolute inset-y-0 w-[2px] transition-opacity duration-300",
-                  isLeft ? "right-0" : "left-0",
+                  "bg-signal absolute inset-y-0 left-0 w-[2px] transition-opacity duration-300",
                   isActive ? "opacity-100" : "opacity-0",
                 )}
               />
-              <span className={cn("transition-colors duration-300", isActive && "text-signal")}>
-                {label}
-              </span>
-              <span aria-hidden="true" className="text-t4">
-                /
-              </span>
-              <span>{codename}</span>
+              {/* ICON THEN DESIGNATOR, STACKED ABOVE THE TITLE.
+                  This line used to read "M-01 / ORION" — designator, separator,
+                  codename — which put two names on one row and left the actual
+                  project title competing with them below. The reference splits
+                  the job: this row is a QUIET INDEX ("which mission is this"),
+                  and the row under it is the LOUD NAME. Two registers, one each.
+
+                  The codename is no longer drawn. It is a third name for the same
+                  thing, and with `title` promoted to the headline it had nothing
+                  left to say that the index and the title do not. It stays on the
+                  record and in the accessibility description below. */}
+              <Icon size={12} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
+              <span>{designator}</span>
             </span>
 
             {/* SECTION 2 — BODY. The lit face of the module; carries the name
                 and, at full detail, the one line of prose. */}
             <span
               className={cn(
-                "flex flex-col px-5 py-2.5 transition-shadow duration-300",
+                // px-4/py-2, down from px-5/py-2.5. Six full-size cards have to
+                // share a vertical budget that three full and three reduced ones
+                // never tested, and padding is the cheapest 9px of card height
+                // available — it costs no words.
+                "flex flex-col px-5 py-4 transition-shadow duration-300",
                 // The seam is a physical join, and a join catches light. Taking
                 // it 0.05 -> 0.09 makes the module read as more assembled rather
                 // than more decorated — the panel divisions become legible
@@ -371,8 +593,19 @@ function PanelBody({
             >
               <span
                 className={cn(
-                  "truncate text-[14.5px] leading-[1.15] font-medium tracking-[-0.01em] transition-colors duration-300",
-                  isActive ? "text-t1" : "text-t1/90 group-hover:text-t1",
+                  "truncate text-[19.5px] leading-[1.2] font-semibold tracking-[-0.01em] transition-colors duration-300",
+                  // The title goes red on selection along with the frame. It is
+                  // the one word on the module a reader is looking for, so
+                  // leaving it white while everything around it turned red would
+                  // read as the frame being selected and the content not.
+                  // FULL STRENGTH AT REST, NOT 90%. The title was held slightly
+                  // back so hover had somewhere to go, which was a fair trade
+                  // while the card was glass and its ground moved — the dimmer
+                  // title hid the inconsistency. On an opaque ground there is
+                  // nothing to hide and no reason to under-light the one line
+                  // every reader is scanning for. Hover now answers on the frame
+                  // and the rail instead, where it belongs.
+                  isActive ? "text-signal" : "text-t1",
                 )}
                 style={at(ACTIVATION.surface)}
               >
@@ -382,8 +615,20 @@ function PanelBody({
               {showSummary && (
                 <span
                   className={cn(
-                    "text-t2 mt-1.5 line-clamp-2 text-[11.5px] leading-[1.45]",
-                    !isActive && "deck-md:hidden",
+                    // `text-t2` is #98a2ad — about 6.4:1 against the opaque
+                    // #0f1620 face. It measured far worse before, because the
+                    // real background was whatever ring happened to be behind the
+                    // card. Fixing the ground is what made this colour honest.
+                    "text-t2 mt-2 line-clamp-2 text-[13px] leading-[1.5]",
+                    // `deck-md:hidden` UNCONDITIONALLY. The `!isActive &&` guard
+                    // that used to be here let a targeted card keep its prose
+                    // below the breakpoint, which made it 113px tall where every
+                    // other module was 74 — the one exception to uniform sizing,
+                    // in the tier with the least room for it, and invisible to
+                    // the solver because the solver models the compact box.
+                    // Same rule as everywhere else on this deck now: the pointer
+                    // changes size and light, never how much is written.
+                    "deck-md:hidden",
                   )}
                 >
                   {summary}
@@ -396,9 +641,9 @@ function PanelBody({
                 and becomes a readout with its own field. */}
             <span
               className={cn(
-                "flex items-center gap-1.5 px-5 py-[5px]",
+                "flex items-center gap-1.5 px-5 py-2",
                 "border-t border-black/45",
-                "tracking-micro font-mono text-[9px] leading-none",
+                "tracking-micro font-mono text-[10.5px] leading-none",
                 "transition-[background-color,box-shadow] duration-300",
                 // LAST TO ANSWER. Lifecycle is the one thing on the module that
                 // is a report rather than a property, so it settles after the
@@ -409,13 +654,39 @@ function PanelBody({
                 isActive
                   ? "bg-black/[0.07] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.09)]"
                   : "bg-black/[0.12] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.05)] group-hover:bg-black/[0.07] group-hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.09)]",
-                tone.text,
-                isLeft && "flex-row-reverse",
+                // SELECTION OVERRIDES THE LIFECYCLE COLOUR, AND THAT IS A REVERSAL
+                // OF WHAT THIS COMMENT USED TO SAY.
+                //
+                // The old rule — "the status COLOUR never changes, because it
+                // means something" — was defending against HOVER changing it,
+                // and it is still right about that: hover is not new information.
+                // Selection is different. A selected module is answering a
+                // question the operator asked, and on this deck the answer is
+                // always red. Leaving one green word inside an otherwise red
+                // frame reads as a rendering miss, not as preserved meaning —
+                // and the meaning is not lost, because the lifecycle is still
+                // spelled out in words right next to the colour.
+                isActive ? "text-signal" : tone.text,
               )}
               style={at(ACTIVATION.status)}
             >
-              <span className={cn("h-1 w-1", tone.dot, status !== "PLANNED" && "signal-blink")} />
-              {STATUS_LABEL[status]}
+              {/* LABELLED READOUT: field name left, value right.
+                  The strip used to be a dot and a word, which is a badge — the
+                  same device a notification uses. Naming the field and pushing
+                  the value to the opposite edge is what makes it an instrument
+                  row, and it gives the eye a fixed column to scan lifecycle down
+                  when six modules are on screen at once. */}
+              <span className="text-t3">STATUS</span>
+              <span className="ml-auto flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "h-1 w-1",
+                    isActive ? "bg-signal" : tone.dot,
+                    status !== "PLANNED" && "signal-blink",
+                  )}
+                />
+                {STATUS_LABEL[status]}
+              </span>
             </span>
           </span>
         </span>
