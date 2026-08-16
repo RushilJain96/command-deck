@@ -205,12 +205,14 @@ export interface Body {
  * That is why the warning above still stands unchanged: the thing that lifted
  * the frame last time was VALUE, and none of these moved. Saturation is free.
  *
- * The rims are now the deck's own accents rather than generic sunlight — cyan
- * for the ice giants, amber for the one warm body, violet for the two cool
- * outliers. A rim is the light of wherever the body is, and the deck's light is
- * cyan.
+ * The rims read as the light of wherever the body is — cool white for the ice
+ * bodies, amber for the one warm body, violet for the two cool outliers. They
+ * used to be pulled toward a cyan key light on the theory that a rim should match
+ * the deck's own light; that key light is gone and so is the cyan, but the warm
+ * and violet outliers stay, because bodies differing FROM each other is what
+ * makes the backdrop read as a system of distinct objects.
  */
-const IRON = { albedo: "#0a192f", lit: "#1e2f4a", rim: "rgb(0 212 255)" };
+const IRON = { albedo: "#0a192f", lit: "#1e2f4a", rim: "rgb(170 200 225)" };
 const REGOLITH = { albedo: "#101a26", lit: "#25313f", rim: "rgb(150 200 240)" };
 const OCHRE = { albedo: "#1c1710", lit: "#332a1e", rim: "rgb(255 158 100)" };
 const RUST = { albedo: "#1b1220", lit: "#332039", rim: "rgb(187 154 247)" };
@@ -321,7 +323,7 @@ export const BODIES: readonly Body[] = [
     size: "42px",
     // The ringed one. Small enough that the rings read as an ornament rather
     // than as a second orbital system competing with the deck's own.
-    rings: { tilt: -22, spread: 2.4, color: "rgb(0 212 255 / 0.25)" },
+    rings: { tilt: -22, spread: 2.4, color: "rgb(180 200 220 / 0.25)" },
     az: 48,
     el: 30,
     rimO: 0.66,

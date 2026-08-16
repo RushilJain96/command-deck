@@ -75,9 +75,11 @@ export function PlaneAurora() {
          * the void is supposed to be the darkest thing in the composition.
          *
          * The radii come in to 26/44/76 and the deep stops move to near-black
-         * navy. The cyan stays, at half strength, because something has to be the
-         * source the rings are lit by — remove it entirely and the field goes
-         * from "lit plane" to "wireframe on black".
+         * navy. The central source stays, at half strength, because something has
+         * to be the thing the rings are lit BY — remove it entirely and the field
+         * goes from "lit plane" to "wireframe on black". It is no longer cyan: a
+         * hued key light tints every ring it reaches, which is how the whole deck
+         * ended up reading blue-green.
          *
          * EVERY OUTER STOP IS `transparent`, NOT BLACK, AND THAT IS LOAD-BEARING.
          * A literal `rgba(0,0,0,1)` outer stop is a no-op over the void and very
@@ -87,10 +89,17 @@ export function PlaneAurora() {
          * transparent darkens nothing it should not.
          */
         background: [
-          // Cyan spotlight, tightest and brightest — the thing at the middle.
-          `radial-gradient(ellipse 26% 26% at 50% 48%, rgb(0 212 255 / 0.055), transparent 72%)`,
-          // Core bloom, now a deep navy rather than a lit blue.
-          `radial-gradient(ellipse 44% 44% at 50% 50%, rgb(12 28 48 / 0.34), transparent 78%)`,
+          // The source at the middle: tightest and brightest. A cool WHITE now
+          // rather than cyan — the rings still have something to be lit by, but
+          // the light has no hue of its own to push onto them.
+          `radial-gradient(ellipse 26% 26% at 50% 48%, rgb(190 205 220 / 0.035), transparent 72%)`,
+          // Core bloom. 0.34 -> 0.15, AND THAT IS A CONSEQUENCE OF THE CYAN PURGE
+          // RATHER THAN A SECOND OPINION ABOUT IT. `rgb(12 28 48)` is a deep navy,
+          // which reads as shadow while the field around it is blue and as a grey
+          // DISC the moment the field goes neutral — a lighter ellipse sitting in
+          // the middle of the plane with a visible edge, which is the one thing
+          // the void is not allowed to have.
+          `radial-gradient(ellipse 44% 44% at 50% 50%, rgb(12 28 48 / 0.15), transparent 78%)`,
           // Outer haze: a region of space rather than a light, and close enough
           // to black that it reads as depth instead of as colour.
           `radial-gradient(ellipse 76% 76% at 50% 50%, rgb(3 7 12 / 0.5), transparent 88%)`,

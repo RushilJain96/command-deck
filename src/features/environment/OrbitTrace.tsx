@@ -82,7 +82,11 @@ export function OrbitTrace() {
        */}
       <path
         d={TRACE}
-        stroke="rgb(0 212 255 / 0.5)"
+        // Neutral, not accented. This segment says "this orbit is being tracked",
+        // which the flow animation already carries; painting it in the system red
+        // would make it a second target indicator competing with the bearing beam
+        // for the same job.
+        stroke="rgb(205 220 235 / 0.45)"
         strokeWidth={1.5}
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"

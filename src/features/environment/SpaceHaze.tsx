@@ -113,13 +113,17 @@ const AMBIENT = [
    */
   "radial-gradient(ellipse 26% 20% at 50% 62%, rgb(120 170 210 / 0.025), transparent 72%)",
   /**
-   * The cyan spread, HALVED AGAIN to 0.022. At 0.10 this single stop was tinting
+   * The broad spread, HALVED AGAIN to 0.022. At 0.10 this single stop was tinting
    * roughly half the frame — a 78%-by-58% ellipse is enormous, so even a low
    * alpha reads as an overall colour cast rather than as a glow. It survives at
-   * all because the field needs something cyan behind it to sit in; it does not
+   * all because the field needs SOMETHING behind it to sit in; it does not
    * survive at a strength where the eye can name the colour of the background.
+   *
+   * That naming test is exactly why it is no longer cyan. A colour you can name
+   * across half the frame is the background having an opinion, and the deck has
+   * one accent already.
    */
-  "radial-gradient(ellipse 78% 58% at 50% 40%, rgb(0 212 255 / 0.022), transparent 76%)",
+  "radial-gradient(ellipse 78% 58% at 50% 40%, rgb(150 178 205 / 0.022), transparent 76%)",
   /**
    * THE CENTRAL RADIAL. Tighter and far darker: the mid stop lands at 35% rather
    * than 42/74, so the field falls to near-black inside the first third of its

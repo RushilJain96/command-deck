@@ -167,21 +167,31 @@ export const FIELD = {
    * makes everything grey.
    */
   /**
-   * 2.6 -> 1.5, AND THE ATMOSPHERE WITH IT. The rings are threads of light, and
-   * at a 2.6 bead gain they were reading as thick lit cables — bright enough
-   * that the field's cyan was bleeding across the middle of the frame and doing
-   * as much to lift the void off black as the aurora was. 1.5 still saturates
-   * the brightest beads (anything above 1 does), so the strings still have
-   * lights that are simply ON; what goes is the width of the halo around each.
+   * 2.6 -> 1.5 -> 0.95. The rings are threads of light, and at a 2.6 bead gain
+   * they were reading as thick lit cables — bright enough that the field was
+   * bleeding across the middle of the frame and doing as much to lift the void
+   * off black as the aurora was.
+   *
+   * The step to 0.95 came with the desaturation. A blue bead and a white bead at
+   * the same alpha are not the same brightness: dropping the hue toward neutral
+   * raised every bead's luminance without touching a single gain, and the field
+   * came back as white rope where it had been a blue thread. Under 1 the
+   * brightest beads no longer saturate, which the note above argues against — and
+   * it is right in general and wrong here, because what a saturating bead buys is
+   * a string of lights that are ON, and against a true-black void the rings do not
+   * need to be on. They need to be STRUCTURE the missions sit in front of, which
+   * is the job they were competing with the callouts to avoid doing.
    */
-  core: 1.5,
+  core: 0.55,
   halo: 0,
   /**
-   * 0.34 -> 0.16. This is the wide, soft glow each arc throws sideways, and it
-   * is the single largest contributor to the blue haze — it covers far more area
-   * than the beads do, so its alpha counts for more than its value suggests.
+   * 0.34 -> 0.16 -> 0.10. This is the wide, soft glow each arc throws sideways,
+   * and it is the single largest contributor to the haze around the plane — it
+   * covers far more area than the beads do, so its alpha counts for more than its
+   * value suggests. Came down again with the core, for the same reason: neutral
+   * beads are brighter than blue ones at identical alpha.
    */
-  atmosphere: 0.16,
+  atmosphere: 0.1,
   /** Atmospheric radius. */
   reach: 0.6,
   /** Inward drift off each arc. */
@@ -190,14 +200,18 @@ export const FIELD = {
   /**
    * 0 is a true blue, 1 a blue-white.
    *
-   * 0.55, up from 0.33. The saturated end of the ramp reads as a coloured line
-   * — an LED strip laid in a circle — and colour is the wrong thing for this
-   * layer to be carrying: the rings are structure, and structure should sit
-   * behind the missions rather than compete with them for the eye. Moving up
+   * 0.66, up from 0.55, up from 0.33. The saturated end of the ramp reads as a
+   * coloured line — an LED strip laid in a circle — and colour is the wrong thing
+   * for this layer to be carrying: the rings are structure, and structure should
+   * sit behind the missions rather than compete with them for the eye. Moving up
    * the ramp desaturates without dimming, because the stops travel blue -> white
    * rather than around the wheel.
+   *
+   * The last step up came with the cyan purge. With the central source no longer
+   * tinted, a field still sitting at 0.55 was the only blue thing left on the deck
+   * and read as a leftover rather than as a choice.
    */
-  hue: 0.55,
+  hue: 0.66,
 } as const;
 
 export interface FieldRing {
@@ -418,7 +432,11 @@ function palette(h: number) {
   return {
     core: mix(base, [255, 255, 255], 0.34).join(","),
     halo: mix(base, [255, 255, 255], 0.04).join(","),
-    atmos: mix(base, [58, 104, 196], 0.42).join(","),
+    // Toward a desaturated slate, not a saturated blue. The atmosphere is the
+    // widest and dimmest pass, so it covers the most area — pulling it toward
+    // [58,104,196] was what put a blue cast over the whole plane even after the
+    // core had been desaturated.
+    atmos: mix(base, [92, 110, 130], 0.42).join(","),
   };
 }
 

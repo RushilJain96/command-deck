@@ -354,7 +354,7 @@ export const DUST: readonly DustMote[] = (() => {
       y: random() * 100,
       d: +(3 + size * 3).toFixed(2),
       o: +(0.05 + size * 0.07).toFixed(3),
-      tint: random() < 0.62 ? "0 212 255" : "150 190 225",
+      tint: random() < 0.62 ? "170 195 220" : "150 190 225",
       // 40-95s. Long enough that nothing is ever caught moving.
       dur: +(40 + random() * 55).toFixed(1),
       delay: +(random() * -60).toFixed(1),

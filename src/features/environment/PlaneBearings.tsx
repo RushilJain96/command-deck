@@ -73,13 +73,22 @@ export function PlaneBearings() {
             transform:
               `translate(calc(var(--orbit-radius) * ${x}), 0)` +
               ` translate(-50%, -50%) skewX(${skew}deg)`,
-            fontSize: "calc(var(--orbit-radius) * 0.068)",
+            // 0.068 -> 0.046. At the largest radius the deck reaches, 0.068 draws
+            // a 32px glyph — larger than the mission titles it sits between, for
+            // a marker that is meant to be a graduation on the floor. The
+            // reference sets these at about 20px in a 1536 frame, which is what
+            // 0.046 lands on.
+            fontSize: "calc(var(--orbit-radius) * 0.046)",
             letterSpacing: "0.2em",
-            color: "rgb(0 212 255 / 0.4)",
+            // Grey, not accented. These are graduations on a surface, not
+            // annunciators — the moment they carry a colour they start competing
+            // with the target lock for the same meaning.
+            color: "rgb(150 168 184 / 0.42)",
             // A glyph painted on a lit floor catches that light. Without the
             // bloom it reads as a label ON THE GLASS in front of the scene,
-            // which is precisely the thing these exist to counteract.
-            textShadow: "0 0 18px rgb(0 212 255 / 0.45)",
+            // which is precisely the thing these exist to counteract. Neutral,
+            // and one step softer than the cyan it replaced.
+            textShadow: "0 0 18px rgb(190 205 220 / 0.3)",
           }}
         >
           {label}

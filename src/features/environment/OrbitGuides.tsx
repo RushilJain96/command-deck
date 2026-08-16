@@ -4,13 +4,19 @@ import { useEffect, useRef } from "react";
 import { planeDivisor } from "@/features/missions/placement";
 
 /**
- * The deck's cyan accent, as a bare rgb triple for the brush factories.
+ * The focal tint for the innermost ring, as a bare rgb triple for the brush
+ * factories.
  *
- * Not in FIELD_PALETTE because it is not derived from `FIELD.hue` — it is the
- * colour of the source at the middle of the plane (<PlaneAurora>), and the point
- * of it is to be the same cyan there and here.
+ * THIS USED TO BE CYAN (`0,212,255`) and matched an equally cyan source at the
+ * middle of the plane. Both are gone. The deck runs one accent — red — and a cyan
+ * ring competed with it for the eye while reading as the neon-arcade register the
+ * project explicitly rules out.
+ *
+ * Not in FIELD_PALETTE because it is not derived from `FIELD.hue`: it is a
+ * near-white the ring is lifted TOWARD, so the innermost orbit stays the most lit
+ * one without being a different colour from the field it belongs to.
  */
-const ACCENT = "0,212,255";
+const ACCENT = "214,230,244";
 import {
   FIELD,
   FIELD_MARGIN,
@@ -383,10 +389,10 @@ function paint(canvas: HTMLCanvasElement) {
   const BLOOM_GAIN = 0.3;
 
   /**
-   * The innermost ring runs in a brighter cyan than the rest. It is the tightest
-   * orbit, closest to the source at the middle of the plane, so it is the one
-   * that should look most lit — and it gives the field a focal ring instead of
-   * five equal ones.
+   * The innermost ring runs brighter than the rest — a near-white lift, not a
+   * different hue. It is the tightest orbit, closest to the middle of the plane,
+   * so it is the one that should look most lit, and it gives the field a focal
+   * ring instead of five equal ones.
    */
   const accentCore = makeCore(ACCENT, corePx * 2);
 

@@ -352,7 +352,7 @@ function BodySurface({
            */
           background: `radial-gradient(circle at 30% 30%, ${body.lit} 0%, ${body.albedo} 70%)`,
           /**
-           * Rim light facing the deck. Two inset shadows: a cyan one from the
+           * Rim light facing the deck. Two inset shadows: a cool one from the
            * lower right, which is where the command centre's light is, and a much
            * weaker neutral from the upper left to keep the terminator edge from
            * going perfectly hard.
@@ -361,7 +361,7 @@ function BodySurface({
            * atmosphere and only two of these have one.
            */
           boxShadow:
-            "inset -2px -2px 8px rgb(0 212 255 / 0.15), inset 2px 2px 8px rgb(255 255 255 / 0.05)",
+            "inset -2px -2px 8px rgb(175 200 225 / 0.15), inset 2px 2px 8px rgb(255 255 255 / 0.05)",
           opacity: body.opacity,
           // Atmospheric haze on the smallest bodies. On the disc rather than on
           // the wrapper, so the ring system above keeps its crisp edge.
@@ -465,7 +465,7 @@ function BodySurface({
           style={{
             background:
               `radial-gradient(ellipse 62% 62% at calc(50% + ${cx} * 44%) calc(50% + ${cy} * 44%),` +
-              `rgb(0 212 255 / 0.85) 0%, transparent 66%)`,
+              `rgb(175 200 225 / 0.85) 0%, transparent 66%)`,
             // The band the crescent occupies. 58% rather than 70% makes it a
             // limb you can see rather than a hairline you have to look for —
             // at the sizes these bodies are now, a 4%-wide rim on a 40px disc

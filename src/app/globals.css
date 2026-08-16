@@ -68,6 +68,13 @@
   initial-value: 0;
 }
 
+/* The card-arrangement gains briefly lived here as three tier-scoped custom
+   properties. They are gone: applying them in CSS meant the DRAWN position and
+   the position `derivePlacement` reasons about were computed from different
+   numbers, which pointed the bearing beam at empty space. They are folded into
+   the stored offset by `gainedStation` in placement.ts instead, so --node-x and
+   --node-y above are the drawn position at every tier. */
+
 /**
  * PALETTE — every colour has exactly one job.
  *
@@ -131,6 +138,25 @@
   --text-tertiary: #5b646e; /* instrument labels */
   --text-quaternary: #363d45; /* inactive / locked */
 
+  /**
+   * INSTRUMENT HOUSING.
+   *
+   * These four exist because panel chrome was previously authored inline in every
+   * component that drew a box, which meant the deck had no single answer to "what
+   * does an instrument edge look like" and drifted a shade per file.
+   *
+   * The fill is lifted just off the void rather than sitting on it. A card at #000
+   * on a #000 ground is detectable only by its border, which is what motivated
+   * withdrawing the housing entirely at one point; the fix is not to delete the
+   * box but to give it something to be. 0.72 alpha over black lands around #090b0f
+   * — dark enough to stay part of the space, distinct enough that the panel reads
+   * as a solid object with edges rather than as free-floating text.
+   */
+  --panel-fill: rgb(9 11 15 / 0.72);
+  --panel-border: rgb(255 255 255 / 0.09);
+  --panel-rule: rgb(255 255 255 / 0.07); /* header + row hairlines, one step quieter */
+  --panel-shadow: 0 18px 44px -22px rgb(0 0 0 / 0.9);
+
   --background: var(--void);
   --foreground: var(--text-primary);
 
@@ -176,11 +202,30 @@
    * Small-viewport units so the ring never jitters as mobile browser chrome
    * hides and shows.
    */
+  /**
+   * THE THIRD TERM IS NOW THE SHIP AGAINST THE BOTTOM CHROME, and it replaced a
+   * shallower bound that no longer describes the deck.
+   *
+   * It reads `116.9svh - 672px`, and every number in it is derived rather than
+   * tuned. The hull's painted lower edge sits at `h/2 + R*TILT*DECK_BIAS +
+   * 0.25*SHIP_PIXELS`, and it must clear 137px of bottom chrome — <Footer> at 66
+   * plus <LaunchPrompt>'s stack above it. Solving for R with TILT 0.46,
+   * DECK_BIAS 0.93 and SHIP_PIXELS 577 gives `(0.5h - 287) / 0.4278`.
+   *
+   * It got much steeper because the ship grew 30% AND the bottom of the frame
+   * acquired two occupants it did not have. Both changes push the same way, and
+   * neither is visible in a formula that still says 87.6/321.
+   */
   --orbit-radius: clamp(
     96px,
-    min((50svw - 367px) / 0.88, 92.1svh - 258px, 87.6svh - 321px),
+    min((50svw - 367px) / 0.818, 90.7svh - 347px, 116.9svh - 672px),
     470px
   );
+
+  /* `lg` values. Overridden to identity in the md/sm blocks below. */
+  --card-x-gain: 0.93;
+  --card-y-gain: 0.82;
+  --card-y-lift: -0.026;
 
   /**
    * How far short of a targeted card's CENTRE the bearing beam stops.
@@ -226,6 +271,9 @@
   --color-t2: var(--text-secondary);
   --color-t3: var(--text-tertiary);
   --color-t4: var(--text-quaternary);
+  --color-panel: var(--panel-fill);
+  --color-panel-edge: var(--panel-border);
+  --color-panel-rule: var(--panel-rule);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
@@ -293,12 +341,29 @@
   @media (max-width: 1340px) {
     @slot;
   }
-  /* 640 -> 830, IN LOCKSTEP WITH THE RADIUS MEDIA QUERY BELOW. These two must
-     name the same viewport set: this variant is what hides the summary and the
-     HUD rails, and the query below is what sizes the orbit on the assumption
+  /* 640 -> 830 -> 895, IN LOCKSTEP WITH THE RADIUS MEDIA QUERY BELOW. These two
+     must name the same viewport set: this variant is what hides the summary and
+     the HUD rails, and the query below is what sizes the orbit on the assumption
      that they ARE hidden. Let them drift and the deck computes a radius for a
-     compact card while rendering a full one. */
-  @media (max-height: 830px) {
+     compact card while rendering a full one.
+
+     THEY DID DRIFT, between 830 here and 895 there, and the band between them
+     rendered full-size callouts against a radius solved for compact ones. Both
+     are 895 now.
+
+     WHAT 895 COSTS, stated plainly because it is the largest single trade in the
+     composition: a viewport shorter than 896px gets the compact deck — no
+     instrument rails, no legend, no launch prompt, no top-bar nav. A 1440x900
+     laptop has roughly 770px of viewport after browser chrome, so it lands here.
+     That is not a threshold anyone chose; it is where the solver reports the
+     feasible set going empty, driven by a 577px hull and a fixed 137px of bottom
+     chrome that do not shrink with the viewport while the orbit does.
+
+     The way to buy it back is to make SHIP_PIXELS proportional to
+     --orbit-radius rather than a constant, which takes the threshold to about
+     815. That is a real change to <ShipSprite> and <ExhaustPlume>, both of which
+     compute in fixed hull units, and it has not been made. */
+  @media (max-height: 895px) {
     @slot;
   }
 }
@@ -323,23 +388,41 @@
    expression is the panel box AT THAT TIER plus whatever chrome that tier still
    shows, so changing one without the others silently reintroduces overlap.
    No rail below deck-md, hence the much smaller reserve. */
-/* THE HEIGHT THRESHOLD IS 830px, UP FROM 640px, and it is a product decision
-   rather than a tuning one. With every module drawn at full size, two bounds
-   converge as the viewport shortens: three 161px cards on the back rank need
-   `R >= 290`, and keeping the highest of them out of the top bar needs
-   `R <= 0.775h - 355`. Those cross at about h=830, and below it the feasible set
-   is EMPTY — no radius satisfies both.
+/* THE HEIGHT THRESHOLD IS 895px, UP FROM 830px, UP FROM 640px, and each step has
+   been a product decision rather than a tuning one. Two bounds converge as the
+   viewport shortens: the cards need a minimum radius to sit apart at their fixed
+   pixel sizes, and the ship needs a maximum radius to keep its hull off the
+   bottom chrome. Below the crossing point the feasible set is EMPTY — no radius
+   satisfies both, which is not something that can be tuned away.
 
-   Dropping to this tier hides the summary, which takes the card from 126px to
-   84px and separates the bounds again. A 1366x768 laptop gets six readable
-   modules without prose instead of six modules that overlap. */
-@media (max-width: 1340px), (max-height: 830px) {
+   830 -> 895 came with the reference match, and two changes pushed it together:
+   `SHIP_PIXELS` grew 30%, and the bottom of the frame gained <Footer> and
+   <LaunchPrompt> where there had been nothing. Both steepen the ship bound. The
+   solver puts the new crossing just under 890, so 900-tall viewports — the common
+   1440x900 and 1600x900 — stay on the full deck, and 880 and below drop here.
+
+   Dropping to this tier hides every summary and takes the card to 112px, which
+   separates the bounds again. A 1366x768 laptop gets six readable modules without
+   prose instead of six modules that overlap. */
+@media (max-width: 1340px), (max-height: 895px) {
   :root {
     /* No rail at this tier, so the reserve is half the widest panel plus slack:
        the 141px box at the active 1.15 is 162, half 81, plus 14 = 95. */
+    /* `73svh - 219px` is the TOP BAR against DATAFLOW's card top, re-derived for
+       the 56px bar this tier draws (<TopBar> is 92 only at `lg`, where it carries
+       the nav). The bound it replaced was written for a flush 56px bar with no
+       inset and passed viewports where the highest card now sits behind the
+       chrome — 1366x768 and 1024x768 among them.
+
+       There is no bottom bound here: the cards carry no summary at this tier, so
+       the hull clears the dock at every radius this clamp can reach.
+
+       `38svh -> 40svh` for the proportion cap. At 38 it became the tightest of
+       the three below h=763 — vetoing radii nothing was colliding at, and failing
+       1101x700 on its own. */
     --orbit-radius: clamp(
       80px,
-      min((50svw - 121px) / 0.88, 38svh, 92.1svh - 214px, 87.6svh - 321px),
+      min((50svw - 121px) / 0.818, 42svh, 73svh - 219px),
       305px
     );
     /* Compact card (no summary), so a shorter box. */
@@ -349,7 +432,10 @@
 
 @media (max-width: 620px), (max-height: 560px) {
   :root {
-    --orbit-radius: clamp(60px, min((50svw - 20px) / 0.88, 30svh), 120px);
+    /* 30svh -> 29svh. The hull grew with SHIP_PIXELS, and at 844x390 the painted
+       lower edge landed exactly on the dock — the solver reported it at 0px of
+       overshoot, which is a pass that is one rounding away from a fail. */
+    --orbit-radius: clamp(60px, min((50svw - 20px) / 0.818, 29svh), 120px);
     /* No cards are drawn at this tier, so nothing to stand off from. */
     --card-beam-standoff: 0px;
   }
