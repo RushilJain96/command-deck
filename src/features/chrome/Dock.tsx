@@ -9,11 +9,16 @@ import { DESTINATIONS } from "./destinations";
  * Persistent bottom dock. Sibling of <SceneHost>, for the same reasons as
  * <TopBar>.
  *
- * On desktop this is a compact secondary affordance — the top bar carries
- * primary navigation, so repeating it at full weight would be noise. Below the
- * `deck-md` breakpoint the top bar drops its nav and the dock becomes the sole
- * navigation surface, which is why it uses short codes that stay legible when
- * space is tight.
+ * IT ONLY EXISTS BELOW `deck-md` NOW. On the wide deck the top bar carries
+ * primary navigation, so this was the same control a second time — and it was
+ * occupying the one strip of the frame where the site has something of its own
+ * to say. <Footer> has that strip on wide viewports.
+ *
+ * The moment the top bar drops its nav, the trade reverses: navigation outranks a
+ * colophon, so the footer hides and this becomes the sole navigation surface. The
+ * short codes exist for exactly that case — they stay legible when space is tight.
+ * The two are mutually exclusive by construction; both use `deck-md` and opposite
+ * senses of it, so there is no viewport where the bottom strip is empty or doubled.
  */
 export function Dock() {
   const scene = useScene();
@@ -24,7 +29,7 @@ export function Dock() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.08, ease: "easeOut" }}
-      className="absolute inset-x-0 bottom-0 z-40 flex h-14 items-center justify-center px-5"
+      className="deck-md:flex absolute inset-x-0 bottom-0 z-40 hidden h-14 items-center justify-center px-5"
     >
       <ul
         className={cn(
