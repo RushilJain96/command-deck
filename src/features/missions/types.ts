@@ -74,31 +74,91 @@ export interface MissionSlot {
 }
 
 /**
- * Depth bands. THESE CARRY STACKING ORDER ONLY — size is no longer among them.
+ * Depth bands: stacking order, box width, and the two type sizes that go with it.
  *
- * SCALE IS GONE FROM THIS TABLE FOR THE SECOND AND LAST TIME. It was withdrawn
- * once when a 1.15/0.95/0.80/0.65 ramp shrank the furthest card to the point of
- * vanishing, then restored when the cards were briefly stacked in columns where
- * a local size comparison read cleanly as depth. The columns are gone; the cards
- * sit in six separate quadrants with air around them, and in that arrangement a
- * size difference between two cards that share no axis reads as IMPORTANCE
- * rather than as distance. Which is the failure mode from the first attempt.
+ * SIZE IS BACK IN THIS TABLE, having been withdrawn twice. Both withdrawals were
+ * right about what went wrong and wrong about the cause, so it is worth being
+ * precise about what is different this time.
  *
- * Every card is now drawn at exactly one size. Depth is carried by vertical
- * position on the receding plane and by opacity, both of which cost no
- * legibility, and by this z-order if a resize ever brings two cards together.
+ * The failed ramp was `transform: scale()` at 1.15 / 0.95 / 0.80 / 0.65 — a 1.77:1
+ * spread applied to the WHOLE CARD. `scale()` cannot distinguish the box from its
+ * contents, so the furthest module was drawn with 8px body copy and stopped being
+ * readable; the second withdrawal correctly observed that a card nobody can read
+ * has left the composition, and that a size difference between two cards sharing
+ * no axis reads as importance rather than distance.
+ *
+ * WIDTH IS NOT SCALE. This ramp sets the box and sets the type INDEPENDENTLY, so
+ * the two things the old note conflated come apart:
+ *
+ *   - The box runs 250 -> 157, a 1.59:1 spread, which is what carries distance.
+ *   - The designator and the status strip DO NOT CHANGE at all. Every card, near
+ *     or far, labels itself in the same 10.5px mono.
+ *   - The title steps exactly once, 24 on the hero and 19 everywhere else, and
+ *     the summary once, 14.5 and 12.5. Two steps, not four.
+ *
+ * So there is no tier at which anything is smaller than the smallest type the
+ * deck already uses elsewhere, which is the failure the withdrawals were guarding
+ * against. What is left is a receding arrangement, which is what the reference
+ * has and what the flat version could not produce: six identically-sized cards on
+ * a plane that recedes read as pinned to the glass, because the one cue that says
+ * "further away" in every photograph ever taken is missing.
+ *
+ * The importance objection stands and is answered by the mapping rather than by
+ * the ramp: `tier` is authored per mission and tracks the quadrant, so the two
+ * FRONT cards are the large ones and the BACK-CENTRE card is the small one. Size
+ * agrees with position instead of arguing with it.
  */
 export type CalloutTier = "hero" | "mid" | "back" | "deep";
 
-export const CALLOUT_TIER: Record<CalloutTier, { z: number }> = {
+export interface CalloutTierSpec {
+  /** Stacking order within the plane. */
+  readonly z: number;
+  /** Card width in px at the `lg` tier. The layout solver mirrors these. */
+  readonly w: number;
+  /** Title size. Two values across the whole ramp, not four. */
+  readonly title: string;
+  /** Summary size. Likewise two. */
+  readonly summary: string;
+  /** Horizontal padding. Narrow cards cannot afford the hero's 20px gutter. */
+  readonly padX: string;
+  /**
+   * Whether the card carries its one line of prose.
+   *
+   * DISTANCE REDUCES DETAIL, and this is the last surviving piece of an idea the
+   * deck had and lost. `LOD_THRESHOLDS` used to derive it from depth and was
+   * collapsed to a single level, so every card carried a summary regardless of
+   * how far back it sat. Two independent things say that was wrong:
+   *
+   * TYPOGRAPHIC. The back cards are 157-178px wide. A 65-character sentence in a
+   * 12.5px face inside a 126px measure is four lines clamped to two, so what the
+   * far cards actually rendered was a fragment cut mid-word — strictly less
+   * useful than no sentence, because the reader spends the glance discovering it
+   * has been truncated. The reference's own far cards carry short summaries, not
+   * clamped long ones; we have long ones.
+   *
+   * GEOMETRIC. The prose is 45px of card height, and the layout solver reports
+   * that carrying it on all six makes the `lg` tier INFEASIBLE below about
+   * R=420 — ORION through DATAFLOW, NEXUS through AURORA, at every 1440x900-class
+   * viewport. Dropping it on the two back tiers takes the feasible radius to 373
+   * and the whole class passes.
+   *
+   * Nothing is lost. The full summary stays in the accessibility tree on every
+   * card (see the `sr-only` block in <MissionNode>), and pointing at a far card
+   * does not add it back: prominence and distance stay separate axes, which is
+   * the rule that got broken the last time this was conditional.
+   */
+  readonly showSummary: boolean;
+}
+
+export const CALLOUT_TIER: Record<CalloutTier, CalloutTierSpec> = {
   /** Centre. Sorts above everything else on the plane. */
-  hero: { z: 50 },
-  /** Front quadrants — eight and four o'clock. */
-  mid: { z: 30 },
+  hero: { z: 50, w: 250, title: "text-[24px]", summary: "text-[14.5px]", padX: "px-5", showSummary: true },
+  /** Front quadrants — eight and four o'clock. Nearest, so widest after the hero. */
+  mid: { z: 30, w: 215, title: "text-[19px]", summary: "text-[12.5px]", padX: "px-4", showSummary: true },
   /** Back quadrants — ten and two o'clock. */
-  back: { z: 10 },
-  /** Back centre, twelve o'clock. Shares the back plane; nothing overlaps. */
-  deep: { z: 10 },
+  back: { z: 10, w: 178, title: "text-[19px]", summary: "text-[12.5px]", padX: "px-3.5", showSummary: false },
+  /** Back centre, twelve o'clock. Furthest. Shares the back plane; nothing overlaps. */
+  deep: { z: 10, w: 157, title: "text-[19px]", summary: "text-[12.5px]", padX: "px-3.5", showSummary: false },
 };
 
 /**

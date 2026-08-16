@@ -1,5 +1,5 @@
 import { Brain, Hammer, Network, Radio, Shield, Workflow } from "lucide-react";
-import { derivePlacement, orbitalStation } from "./placement";
+import { derivePlacement, gainedStation } from "./placement";
 import type { Mission, MissionSlot } from "./types";
 
 /**
@@ -60,7 +60,7 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     // is 174px tall at 1.2 and the ship sits only 0.51R below the plane centre,
     // so dead-centre-and-lowest needed R > 387 to clear. Lifting it one small
     // orbit drops that to 301.
-    ...orbitalStation(0, 0.135),
+    ...gainedStation(0, 0.135),
     icon: Shield,
     tier: "hero",
     status: "IN_DEVELOPMENT",
@@ -73,7 +73,7 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     summary: "Real-time messaging layer over WebSockets with presence and backpressure.",
     // BACK-LEFT. Ring solved so its x matches FORGE's to 0.0002R — the pair
     // shares a lane and must share a centre line.
-    ...orbitalStation(304.6, 1.183),
+    ...gainedStation(304.6, 1.183),
     icon: Radio,
     tier: "back",
     status: "DEPLOYED",
@@ -91,7 +91,7 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     // it beyond the field's drawn outer ring at 1.55, which is correct rather
     // than a mistake: in the reference the top card floats clear above the ring
     // system rather than sitting on it.
-    ...orbitalStation(0, 2.055),
+    ...gainedStation(0, 2.055),
     icon: Workflow,
     tier: "deep",
     status: "PLANNED",
@@ -103,7 +103,7 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     title: "Nexus Gateway",
     summary: "API gateway handling routing, rate limiting and request shaping.",
     // BACK-RIGHT, mirroring ECHO onto AURORA's lane.
-    ...orbitalStation(55.4, 1.183),
+    ...gainedStation(55.4, 1.183),
     icon: Network,
     tier: "back",
     status: "PLANNED",
@@ -116,7 +116,7 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     summary: "Model training and evaluation platform with reproducible runs.",
     // FRONT-RIGHT. Near side, so perspective spreads it wider than its back-lane
     // partner despite the smaller ring.
-    ...orbitalStation(124.7, 0.914),
+    ...gainedStation(124.7, 0.914),
     icon: Brain,
     tier: "mid",
     status: "IN_DEVELOPMENT",
@@ -128,7 +128,7 @@ const MISSION_SLOTS: readonly MissionSlot[] = [
     title: "Forge",
     summary: "Developer tooling: build caching, CLI ergonomics, release automation.",
     // FRONT-LEFT.
-    ...orbitalStation(235.3, 0.914),
+    ...gainedStation(235.3, 0.914),
     icon: Hammer,
     tier: "mid",
     status: "DEPLOYED",
@@ -161,6 +161,22 @@ export const MISSIONS: readonly Mission[] = MISSION_SLOTS.map((slot) => ({
   ...slot,
   placement: derivePlacement(slot.x, slot.y),
 }));
+
+/**
+ * The module the deck rests on when nothing has been pointed at yet.
+ *
+ * Derived from `tier` rather than written down, so promoting a different mission
+ * to hero moves the resting lock with it and cannot leave the two disagreeing.
+ *
+ * THE DECK OPENS WITH SOMETHING TARGETED, deliberately. An untargeted deck draws
+ * no bearing beam, no reticle and no lit callout — the three things that say this
+ * is a machine aimed at something rather than six cards on a starfield — so the
+ * whole targeting mechanism was invisible until the visitor happened to move the
+ * mouse over a card. Resting on the hero shows the mechanism in its engaged state
+ * on arrival, and the first pointer move demonstrates it by CHANGING rather than
+ * by appearing from nothing.
+ */
+export const HERO_MISSION_ID = MISSION_SLOTS.find((slot) => slot.tier === "hero")!.id;
 
 export function getMissionById(id: string | null): Mission | undefined {
   if (id === null) return undefined;

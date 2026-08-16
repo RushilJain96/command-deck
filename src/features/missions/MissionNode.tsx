@@ -15,6 +15,17 @@ import { CALLOUT_TIER, type Mission } from "./types";
 const ACTIVE_Z = 55;
 
 /**
+ * How far the flanking cards rotate inward, in degrees.
+ *
+ * 12 is the brief's figure and it survives contact with the text: at 261px wide
+ * the far edge foreshortens to about 96% of the near edge, which reads clearly
+ * as a turn without the type going soft. Past roughly 18deg the sub-pixel
+ * sampling on the receding half starts to show on the 13px summary line, and the
+ * card stops looking angled and starts looking blurry.
+ */
+const TILT_DEG = 12;
+
+/**
  * Positions a mission on the elliptical orbital plane using pure CSS — no
  * trigonometry at runtime, no viewport measurement, correct on first paint and
  * immune to resize.
@@ -77,6 +88,11 @@ export function MissionNode({
   // whatever might be in front of it if a resize ever brings two cards together.
   const zIndex = isActive ? ACTIVE_Z : CALLOUT_TIER[mission.tier].z;
 
+  // Inward tilt, driven by which flank the card sits on. `side` already carries
+  // that — it is derived from the sign of `x` against CENTRE_BAND — so the tilt
+  // needs no new field on the roster and cannot disagree with the position.
+  const tiltDeg = placement.side === "left" ? TILT_DEG : placement.side === "right" ? -TILT_DEG : 0;
+
   return (
     <li
       className={cn(
@@ -117,6 +133,12 @@ export function MissionNode({
           // The cards keep their own vertical rhythm in plain --orbit-radius
           // units. The floor can be re-pitched underneath them without touching
           // the composition standing on top of it.
+          // A PLAIN TRANSLATE. The card-arrangement gains are NOT applied here;
+          // they are folded into the stored offset by `gainedStation` in
+          // placement.ts, so --node-x and --node-y already name the drawn
+          // position. Applying them at paint time instead left `derivePlacement`
+          // — and therefore the bearing beam — reasoning about a different
+          // position from the one on screen. See that function's note.
           transform:
             "translate(" +
             "calc(var(--orbit-radius) * var(--node-x)), " +
@@ -167,10 +189,35 @@ export function MissionNode({
             Growth is about the CENTRE now rather than the bottom edge, so a
             module promoted to the active size expands evenly instead of rising.
             The layout solver models the same box; change the size there too. */}
-        {/* NO `transform: scale()`. Every card is drawn at its authored size, at
-            rest and under the pointer alike — see CALLOUT_TIER. The translate is
-            a centring offset, not a size change. */}
-        <span className="absolute top-0 left-0" style={{ translate: "-50% -50%" }}>
+        {/* WRAPAROUND TILT. The flanks rotate inward so the six cards read as a
+            curved console facing the operator rather than as flat sheets pinned
+            to the glass.
+
+            `translate` AND `transform` ARE SEPARATE PROPERTIES HERE, ON PURPOSE.
+            CSS applies the individual `translate`/`rotate`/`scale` properties
+            BEFORE `transform`, so the -50%/-50% centring lands first and the
+            rotation then happens about the card's own middle. Folding the
+            centring into the transform string would rotate the card about the
+            node's anchor point instead and swing it out of its own quadrant.
+
+            THE PERSPECTIVE IS PER-ELEMENT, not on an ancestor. A shared
+            `perspective` on the plane would give every card a different vanishing
+            point depending on where it sits, so the two flanks would tilt by
+            visibly different amounts. `perspective()` inside each card's own
+            transform gives all of them the same 1200px eye distance.
+
+            NO `transform: scale()` STILL — see CALLOUT_TIER. This is rotation and
+            elevation only; every card remains exactly 261x160 in its own plane.
+
+            Sign convention: a card on the LEFT turns its right edge away from the
+            viewer, which is a POSITIVE rotateY. The right flank mirrors it. */}
+        <span
+          className="absolute top-0 left-0"
+          style={{
+            translate: "-50% -50%",
+            transform: `perspective(1200px) rotateY(${tiltDeg}deg) translateY(-20px)`,
+          }}
+        >
           {/* Arrival fade lives on its own element, animating ONLY opacity.
               The <li> already uses opacity for the depth ramp and the parent
               span uses transform for the depth scale — sharing either property

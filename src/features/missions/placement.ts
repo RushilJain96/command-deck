@@ -213,7 +213,98 @@ export const SHIP_STANDOFF_SCREEN = SHIP_STANDOFF / planeDivisor(SHIP_STANDOFF, 
  * layout solver clears is a function of mission positions, and those did not
  * change. Only the ship-vs-callout pairs had to be re-checked.
  */
-export const DECK_BIAS = 1.24;
+/**
+ * 1.24 -> 0.93. Measured: at 1.24 the hull's painted centre sat 65px below where
+ * the reference puts it, which put the plume through the launch prompt and into
+ * the footer. The bias is the correct lever because it moves the SHIP, the plane
+ * and the field together — the whole composition was riding low, not just the
+ * vehicle — and `CARD_Y_LIFT` takes the callouts back out of the move.
+ */
+export const DECK_BIAS = 0.93;
+
+/**
+ * THE CARD ARRANGEMENT HAS ITS OWN VERTICAL SCALE AND ITS OWN LIFT.
+ *
+ * Two constants that apply to the six callouts and to nothing else — not the
+ * plane, not the field, not the ship. That separation is the point, and it is the
+ * same one `MissionNode` already records when it refuses to multiply the card
+ * offsets by `--orbit-tilt`: the cards float ABOVE the floor, so re-pitching the
+ * floor must not reflow the composition standing on it, and vice versa.
+ *
+ * WHY A GAIN AT ALL. Measured against the reference at 1536x1024, the horizontal
+ * spread was already correct to within about 4% — the flanks sit where they
+ * should. The VERTICAL spread was 45% too large: the reference holds its six
+ * cards inside a 274px band and the deck was drawing them across 398px. What that
+ * costs is not aesthetic. The arrangement was running down into the space the
+ * spacecraft needs, which is why the ship had been squeezed to roughly 70% of the
+ * size the reference draws it — the cards were sizing the vehicle.
+ *
+ * 0.82, NOT the 0.69 the raw measurement asks for. The reference's own callouts
+ * are 128-141px tall where these are 171-184, because its summaries are two short
+ * lines and these are two long ones. Compressing to the measured band with cards
+ * this tall drives DATAFLOW's status strip into ORION's nameplate. 0.82 is the
+ * tightest gain that still clears that pair with ~30px between them, and the
+ * remainder of the gap closes when the copy in `data.ts` gets shorter — this
+ * constant is the right place to finish the job then.
+ *
+ * The lift is in --orbit-radius units, positive = up the frame. It puts the top
+ * of DATAFLOW's card at the same clearance below the top bar the reference has.
+ */
+export const CARD_Y_GAIN = 0.82;
+
+/**
+ * Signed vertical trim, in --orbit-radius units. POSITIVE IS UP the frame.
+ *
+ * It is negative, which looks wrong and is not. It started at +0.117 doing the
+ * whole lift on its own; then `DECK_BIAS` came down 0.31 to raise the ship, which
+ * raises everything in the rig including these cards, and it over-raised them by
+ * about 65px — DATAFLOW's card went behind the top bar. So this is now a small
+ * downward trim putting the callouts back where the measurement wants them while
+ * the bias keeps the lift it was brought in for.
+ */
+export const CARD_Y_LIFT = -0.026;
+
+/**
+ * Horizontal counterpart to CARD_Y_GAIN, and the reason it exists is a clearance
+ * rather than a proportion.
+ *
+ * FORGE and AURORA sit at 0.880R, which at the widest `lg` radius puts their
+ * outer edges 7px from the instrument rail — measured, not estimated. The rail
+ * grew 208 -> 226 to match the reference and spent that clearance.
+ *
+ * The obvious fix is to shrink `--orbit-radius`, and it is the wrong one: the
+ * radius sizes the field, the ship's standoff and the plane as well, so paying
+ * for a rail with it shrinks the entire deck to solve a problem at one edge. That
+ * is the exact failure the card widths were walked down three times for before
+ * the cards were detached from the ring.
+ *
+ * 0.93 pulls the flanks in 28px each, which restores ~43px of rail clearance and
+ * independently lands on the reference's own flank spread — measured at about 372
+ * from the centre line against the 401 this was drawing.
+ */
+export const CARD_X_GAIN = 0.93;
+
+/**
+ * A raw clock station with all three card gains applied — the offset the callout
+ * is actually DRAWN at, and the only position `data.ts` should ever store.
+ *
+ * FOLDED IN AT AUTHORING TIME, NOT AT PAINT TIME, and that is the whole reason
+ * this function exists. The gains were briefly applied inside <MissionNode>'s CSS
+ * transform instead. That drew the cards correctly and left everything which
+ * REASONS about a card's position reading the ungained value — chiefly
+ * `derivePlacement`, which hands the bearing beam its heading and its length. The
+ * beam was therefore aimed at where the card would have been without the gains:
+ * a few degrees off and about 15% short, terminating in empty space below the
+ * module rather than on its bottom edge.
+ *
+ * That class of bug does not get fixed by applying the gains in the beam as well.
+ * A position two consumers derive separately is a position that will drift again
+ * the moment a third consumer appears. One transform, applied once, stored.
+ */
+export function gainedStation(theta: number, ring: number): { x: number; y: number } {
+  const s = orbitalStation(theta, ring);
+  return { x: s.x * CARD_X_GAIN, y: s.y * CARD_Y_GAIN - CARD_Y_LIFT };
+}
 
 /**
  * Depth cutoffs for level of detail. Distance reduces prominence, never
