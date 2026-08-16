@@ -47,7 +47,25 @@ const SHIP_STANDOFF = 0.85;
 const PERSPECTIVE = 0.28;
 const divisor = (ring, cosTheta) => 1 + PERSPECTIVE * ring * cosTheta;
 const SHIP_STANDOFF_SCREEN = SHIP_STANDOFF / divisor(SHIP_STANDOFF, -1);
-const DECK_BIAS = 1.24;
+const DECK_BIAS = 0.93;
+/**
+ * The card arrangement's own gains. Mirrors CARD_X_GAIN / CARD_Y_GAIN /
+ * CARD_Y_LIFT in placement.ts, applied in <MissionNode>'s transform.
+ *
+ * THESE APPLY TO THE CALLOUTS AND NOTHING ELSE. The ship and the plane are still
+ * positioned in raw --orbit-radius units off DECK_BIAS, so they must NOT be run
+ * through these — doing so would model a deck where the vehicle moved with the
+ * cards, which is exactly the coupling the two constants exist to break.
+ *
+ * FOLDED INTO THE AUTHORED STATION, at every tier. They were briefly tier-scoped
+ * CSS variables that reset to identity below `deck-md`; that split the drawn
+ * position from the one `derivePlacement` reasons about and mis-aimed the bearing
+ * beam. `gainedStation` in placement.ts applies them once, and `station()` below
+ * mirrors it exactly.
+ */
+const CARD_X_GAIN = 0.93;
+const CARD_Y_GAIN = 0.82;
+const CARD_Y_LIFT = -0.026;
 const CENTRE_BAND = 0.12;
 // Collapsed to a single level: every module is drawn at `full`. The tier caps in
 // TIER below still clamp it (md shows no summary), but depth no longer does.
@@ -61,10 +79,14 @@ const LOD = { marker: 0, compact: 0 };
 // higher and pulled inward.
 // Stated as clock stations and projected here exactly as `orbitalStation` does
 // in placement.ts, so the mirror stays a mirror rather than a copied result.
+// Mirrors `gainedStation`: the raw clock projection with the three card gains
+// folded in, which is what data.ts stores and therefore what everything draws.
 const station = (theta, ring) => {
   const rad = (theta * Math.PI) / 180;
   const d = divisor(ring, Math.cos(rad));
-  return { x: (ring * Math.sin(rad)) / d, y: (TILT * (ring * -Math.cos(rad))) / d };
+  const x = (ring * Math.sin(rad)) / d;
+  const y = (TILT * (ring * -Math.cos(rad))) / d;
+  return { x: x * CARD_X_GAIN, y: y * CARD_Y_GAIN - CARD_Y_LIFT };
 };
 const MISSIONS = [
   { id: "ORION", ...station(0, 0.135), tier: "hero" },
@@ -76,61 +98,64 @@ const MISSIONS = [
 ];
 
 // -------------------------------------------------------------------- types.ts
-// SIZE IS UNIFORM. The tiers used to carry a scale each (1.15/0.95/0.80/0.65);
-// they now carry stacking order only, and every module is drawn at 1.0 except
-// the one under the pointer. Mirror of CALLOUT_SCALE / CALLOUT_SCALE_ACTIVE.
-// UNIFORM. Every card is drawn at one size, at rest and under the pointer — the
-// per-tier scale ramp and the active multiplier are both withdrawn, so there is
-// no longer any geometry difference between the resting and hovered deck.
-const CALLOUT_SCALE = 1;
+/** Every card is lifted by the same `translateY(-20px)`. */
+const CARD_LIFT = 20;
 
 // ------------------------------------------------------- measured panel boxes
-// Unscaled. At `lg` compact is the same WIDTH as full — the text column is a
-// fixed 12.5rem either way — and differs only in height, having dropped the
-// summary. At `sm` no callout is drawn at all: the ring shows bare markers and
-// identity moves to the target readout strip.
-// The `lg` width has moved twice and the reasons are worth keeping, because
-// they pull in opposite directions:
-//
-//   205 -> 181  when the text column went 200 -> 176, to buy the deck-md
-//               threshold. Heights held: the summary is `line-clamp-2` either
-//               way, so a narrower measure rewraps inside two lines.
-//   181 -> 225  when the cards were enlarged ~25% for legibility. Heights DID
-//               grow this time (118 -> 132, 78 -> 86), because the type inside
-//               scaled with the box rather than just rewrapping.
-//
-// `md.full` is dead weight and always has been — TIER.md.cap clamps every
-// mission to `compact` at that tier, so the entry is never read. Kept accurate
-// rather than deleted so the table stays a faithful mirror.
-//
-// An earlier cut of the bands used 7px fields and came out at 126/86, which put
-// NEXUS under the top bar at 1101x700 — found by this script, not by eye. The
-// fields are 5px instead. Nothing structural changed to fix it: the seams do the
-// sectioning, and the padding around them was more than the composition had.
-//   225 -> 173  when the callouts were centred over their waypoints. See the
-//               column note in <MissionPanel>: a centred card spans half its
-//               width either side of its anchor, so 225 at the `hero` 1.15 put
-//               ORION through AURORA everywhere below R=382. 168px column plus
-//               the 3px status rail and the 2px bezel.
-//   173 -> 161  and the padding with it, when every module went full size. Six
-//               full cards share a vertical and horizontal budget that three
-//               full plus three reduced ones never tested.
-//   161 -> 221  when the cards were DETACHED from the orbital plane. Every
-//               reduction above was made to satisfy this script while the cards
-//               were tethered to ring positions the viewport could not spread far
-//               enough apart — the orbit was sizing the content. With the
-//               arrangement authored instead, spacing is chosen and the cards can
-//               be the size the design wants. 216px column + 3px rail + 2 bezel.
-//   221 -> 229  and the HEIGHT 113 -> 145, which was the part that actually
-//               mattered. Measured against the reference: its front-rank cards
-//               run about 220x175 in a 1536-wide frame, so the old box was close
-//               on width and far too short, and the type inside was a couple of
-//               steps too small. Title 14.5 -> 17px, summary 11.5 -> 12.5,
-//               labels 9 -> 10, with padding to match.
+/**
+ * AXIS-ALIGNED BOUNDING BOXES, READ OFF THE LIVE DOM. Not the authored card size.
+ *
+ * TWO THINGS USED TO BE COMPUTED HERE AND ARE NOW MEASURED INSTEAD. The old table
+ * held one `full`/`compact` size per tier and the script derived the flanks'
+ * footprint from it by scaling through a `TILT_BOX` ratio — <MissionNode> applies
+ * `perspective(1200px) rotateY(±12deg)`, and a rotated rectangle is narrower
+ * across and taller down than the card it is drawn from. That derivation was
+ * correct for ONE card width, because the perspective divide is a function of the
+ * card's own half-width, and it silently stops being correct the moment different
+ * cards are different widths. They are now: CALLOUT_TIER runs 250 / 215 / 178 /
+ * 157 to give the arrangement its depth ramp.
+ *
+ * So the ratio is gone and these are the numbers `getBoundingClientRect` reports
+ * at 1536x1024, which folds in the rotation, the status rail, the bezel and the
+ * hero's target brackets without any of it having to be re-derived. That also
+ * makes the hero's box conservative by ~12px in each axis, since its outer bloom
+ * is included; erring wide on a collision box is the safe direction.
+ *
+ * The `lod` axis is gone with it. LOD_THRESHOLDS collapsed to a single level some
+ * time ago, so every entry but `full` was unreachable at `lg`; what varies is
+ * TIER, which is authored per mission in data.ts.
+ *
+ * To re-measure: run the dev server, then in the console —
+ *   [...document.querySelectorAll('ul[aria-label="Mission slots"] > li')]
+ *     .map(li => { let b = null; li.querySelectorAll('*').forEach(e => {
+ *       const r = e.getBoundingClientRect();
+ *       if (r.width > 80 && r.height > 50 && (!b || r.width * r.height > b.w * b.h))
+ *         b = { w: Math.round(r.width), h: Math.round(r.height) }; }); return b; })
+ */
 const BOX = {
-  lg: { full: { w: 261, h: 160 }, compact: { w: 261, h: 112 }, marker: { w: 70, h: 30 } },
-  md: { full: { w: 213, h: 160 }, compact: { w: 213, h: 112 }, marker: { w: 70, h: 30 } },
-  sm: { full: { w: 0, h: 0 }, compact: { w: 0, h: 0 }, marker: { w: 0, h: 0 } },
+  lg: {
+    hero: { w: 265, h: 183 },
+    mid: { w: 224, h: 172 },
+    // `back` and `deep` carry no summary — see CALLOUT_TIER.showSummary. That is
+    // the whole 48px difference, and it is what makes the `lg` tier feasible at
+    // 1440x900-class viewports.
+    back: { w: 188, h: 125 },
+    deep: { w: 170, h: 123 },
+  },
+  // Below `deck-md` the width ramp collapses to one 13rem column and the summary
+  // is hidden, so all four tiers are the same box.
+  md: {
+    hero: { w: 213, h: 112 },
+    mid: { w: 208, h: 112 },
+    back: { w: 208, h: 112 },
+    deep: { w: 213, h: 112 },
+  },
+  sm: {
+    hero: { w: 0, h: 0 },
+    mid: { w: 0, h: 0 },
+    back: { w: 0, h: 0 },
+    deep: { w: 0, h: 0 },
+  },
 };
 
 // ------------------------------------------------------------------ globals.css
@@ -139,14 +164,32 @@ const BOX = {
 // `run` and `rise` are both gone: there is no standoff left to model in either
 // axis, because the cards are detached from the plane and `x`/`y` name the
 // card's own centre. See the note in <MissionNode>.
+/**
+ * `bar` is the top bar's BOTTOM EDGE, not its height: the header is inset 14px
+ * and 92px tall at every tier, so the first usable pixel is 106 everywhere.
+ *
+ * `dock` is the bottom chrome the rails must clear. At `lg` that is <Footer> at
+ * 66px; below `deck-md` the footer hides and <Dock> takes the strip back.
+ *
+ * `shipFloor` is a SEPARATE and larger bottom reserve, for the HULL only. The
+ * footer is not the lowest thing in the middle of the frame — <LaunchPrompt> sits
+ * centred above it, exactly where the ship is — so checking the hull against the
+ * footer alone would pass a deck whose nose cone is behind "PRESS ENTER". 66px of
+ * footer plus the prompt's own ~90px stack. It does not apply below `deck-md`,
+ * where the prompt is hidden.
+ *
+ * `clusterW` is separate from `rail` now: the right-hand mass is one 320px legend
+ * card, not a 208px column of readouts, so the two sides are no longer the same
+ * width and cannot share a constant.
+ */
 const TIER = {
-  lg: { name: "lg", rail: 208, railGap: 20, cluster: 420, bar: 56, dock: 72, shipScale: 1, cap: "full" },
-  md: { name: "md", rail: 0, railGap: 0, cluster: 0, bar: 56, dock: 72, shipScale: 0.75, cap: "compact" },
-  sm: { name: "sm", rail: 0, railGap: 0, cluster: 0, bar: 56, dock: 96, shipScale: 0.5, cap: "marker" },
+  lg: { name: "lg", rail: 226, railGap: 14, cluster: 124, clusterW: 320, clusterBottom: 96, bar: 106, dock: 66, shipFloor: 137, shipScale: 1, cap: "full" },
+  md: { name: "md", rail: 0, railGap: 0, cluster: 0, clusterW: 0, clusterBottom: 0, bar: 70, dock: 72, shipFloor: 72, shipScale: 0.58, cap: "compact" },
+  sm: { name: "sm", rail: 0, railGap: 0, cluster: 0, clusterW: 0, clusterBottom: 0, bar: 70, dock: 96, shipFloor: 96, shipScale: 0.34, cap: "marker" },
 };
 
 // ------------------------------------------------------------- shipFrames.ts
-const SHIP_PIXELS = 444;
+const SHIP_PIXELS = 577;
 
 /**
  * THE SHIP IS NOT A SQUARE, AND MODELLING IT AS ONE IS NOT MERELY CONSERVATIVE.
@@ -202,9 +245,16 @@ const SHIP_ENV = { halfW: 0.34, up: 0.21, down: 0.25 };
 // card top, and the DOCK against the hull's lower edge. They have different
 // slopes, so neither can absorb the other.
 const FORM = {
-  lg: { reserve: 367, vh: 0.9213, vhOff: 258, vh2: 0.8766, vhOff2: 321, min: 96, max: 470 },
-  md: { reserve: 121, vh: 0.9213, vhOff: 214, vh2: 0.8766, vhOff2: 321, min: 80, max: 305 },
-  sm: { reserve: 20, vh: 0.3, vhOff: 0, vh2: 99, vhOff2: 0, min: 60, max: 120 },
+  // vh/vhOff is the TOP BAR against the highest card's top edge; vh2/vhOff2 is
+  // the BOTTOM CHROME against the hull's lower edge. Both were re-derived when
+  // the bar went 56 -> 106, the ship grew 30% and the footer and launch prompt
+  // arrived; every one of those changes moves one of these lines and none of them
+  // is visible in the old constants.
+  lg: { reserve: 367, vh: 0.9069, vhOff: 347, vh2: 1.1687, vhOff2: 672, min: 96, max: 470 },
+  // At `md` no summary is drawn, so the cards are shorter and the bottom bound
+  // stops binding; what governs is the taller top bar against DATAFLOW.
+  md: { reserve: 121, vh: 0.7296, vhOff: 219, vh2: 99, vhOff2: 0, min: 80, max: 305 },
+  sm: { reserve: 20, vh: 0.29, vhOff: 0, vh2: 99, vhOff2: 0, min: 60, max: 120 },
 };
 
 // THE `md` HEIGHT THRESHOLD WENT 640 -> 830, and it is the one change here that
@@ -222,12 +272,13 @@ const FORM = {
 // the honest trade: it can show six readable modules or it can show six modules
 // with prose, and it cannot show both.
 const tierOf = (w, h) =>
-  w <= 620 || h <= 560 ? "sm" : w <= 1340 || h <= 830 ? "md" : "lg";
+  w <= 620 || h <= 560 ? "sm" : w <= 1340 || h <= 895 ? "md" : "lg";
 
 // ---------------------------------------------------------------------- model
-const RANK = { marker: 0, compact: 1, full: 2 };
+// `lodOf` survives for the roster printout only. `clampLod` and its RANK table
+// are gone: BOX is keyed by the mission's authored TIER now rather than by a
+// depth-derived level of detail, so there is no cap left to clamp against.
 const lodOf = (d) => (d < LOD.marker ? "marker" : d < LOD.compact ? "compact" : "full");
-const clampLod = (l, cap) => (RANK[l] <= RANK[cap] ? l : cap);
 
 const placed = MISSIONS.map((m) => ({
   ...m,
@@ -247,7 +298,16 @@ function radiusOf(w, h, name) {
       (w / 2 - f.reserve) / REACH,
       f.vh * h - f.vhOff,
       f.vh2 * h - f.vhOff2,
-      f.name === "md" ? 0.38 * h : Infinity,
+      // `name`, NOT `f.name`. FORM's entries carry no `name` key, so this read
+      // was always `undefined`, the comparison was always false, and the `38svh`
+      // term that globals.css applies at `md` was silently absent from the
+      // mirror. The script has been reporting `md` radii up to 13px larger than
+      // the deck actually draws for as long as the term has existed.
+      // 0.38 -> 0.40. This term caps the ring's share of a short viewport, and at
+      // 0.38 it became the binding constraint below h=763 — tighter than the two
+      // real collision bounds, so it was vetoing radii that nothing was actually
+      // colliding at. 1101x700 failed on it alone.
+      name === "md" ? 0.42 * h : Infinity,
       f.max,
     ),
   );
@@ -271,17 +331,18 @@ function boxes(w, h, R, t) {
   const shipY = h / 2 + R * TILT * DECK_BIAS;
   const planeY = shipY - R * TILT * SHIP_STANDOFF_SCREEN;
   return placed.map((p) => {
-    const scale = CALLOUT_SCALE;
-    // Every module resolves to `full` now (LOD thresholds are zero), so the only
-    // thing still shrinking a box is the tier cap — md drops the summary.
-    // Targeting changes scale, never the box.
-    const box = BOX[t.name][clampLod(lodOf(p.depth), t.cap)];
-    const bw = box.w * scale;
-    const bh = box.h * scale;
+    // Boxes are per-TIER and measured, rotation included — see BOX. Nothing here
+    // scales them: there is no LOD ramp left and no active multiplier, so a card's
+    // footprint is the same resting and hovered.
+    const box = BOX[t.name][p.tier];
+    const bw = box.w;
+    const bh = box.h;
     // The authored position IS the card's centre now — there is no anchor below
-    // it and no tether rise, because the cards are detached from the plane.
+    // it and no tether rise, because the cards are detached from the plane. The
+    // two gains are the card arrangement's own, applied in <MissionNode>.
+    // `p.x`/`p.y` already carry the card gains — see `station`.
     const nx = cx + R * p.x;
-    const ny = planeY + R * p.y;
+    const ny = planeY + R * p.y - CARD_LIFT;
     const x0 = nx - bw / 2;
     const y0 = ny - bh / 2;
     return { id: p.id, x0, x1: x0 + bw, y0, y1: y0 + bh, nx, ny, shipY, empty: bw === 0 };
@@ -308,20 +369,28 @@ function violations(w, h) {
   };
 
   if (ship.y1 > h - 6) out.push("ship below frame");
-  // THE HULL MUST CLEAR THE DOCK, not merely the frame. This check did not
-  // exist, and its absence was actively misleading: raising DECK_BIAS to buy
+  // THE HULL MUST CLEAR THE BOTTOM CHROME, not merely the frame. This check did
+  // not exist, and its absence was actively misleading: raising DECK_BIAS to buy
   // headroom for the top of the ring reported as a clean pass while quietly
-  // sinking the engines behind the dock. The frame bound (h-6) is 66px lower
-  // than the dock and never caught it. The exhaust plume is still expected to
-  // run behind the dock — it is a light source, not an obstacle — but painted
-  // hull disappearing under a navigation bar is a composition error.
-  if (ship.y1 > h - t.dock) out.push(`ship into dock by ${Math.round(ship.y1 - (h - t.dock))}px`);
+  // sinking the engines behind the dock. The frame bound (h-6) is far lower and
+  // never caught it. The exhaust plume is still expected to run behind whatever
+  // is down there — it is a light source, not an obstacle — but painted hull
+  // disappearing under chrome is a composition error.
+  //
+  // `shipFloor`, NOT `dock`: at `lg` the lowest thing in the middle of the frame
+  // is <LaunchPrompt>, which sits above the footer and dead centre, which is
+  // where the ship is. See TIER.
+  if (ship.y1 > h - t.shipFloor)
+    out.push(`ship into bottom chrome by ${Math.round(ship.y1 - (h - t.shipFloor))}px`);
   if (ship.y0 < t.bar + 4) out.push("ship under top bar");
-  // y0 mirrors the rail's own `top-[72px]` (bar 56 + 16), not the old top-20.
-  const railL = t.rail && { x0: -1e4, x1: t.railGap + t.rail, y0: t.bar + 16, y1: h - t.dock };
-  const clusterR = t.rail && {
-    x0: w - t.railGap - t.rail, x1: 1e4,
-    y0: h - t.dock - t.cluster, y1: h - t.dock,
+  // y0 mirrors the rail's own RAIL_TOP in CommandHud (bar bottom 106 + 10 gap).
+  const railL = t.rail && { x0: -1e4, x1: t.railGap + t.rail, y0: t.bar + 10, y1: h - t.dock };
+  // The legend card, bottom-right. `clusterBottom` is CommandHud's RAIL_BOTTOM —
+  // it clears the footer rather than resting on it, so this box does not start at
+  // `h - dock`.
+  const clusterR = t.clusterW && {
+    x0: w - t.railGap - t.clusterW, x1: 1e4,
+    y0: h - t.clusterBottom - t.cluster, y1: h - t.clusterBottom,
   };
 
   for (let i = 0; i < bs.length; i++) {

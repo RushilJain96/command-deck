@@ -1,3 +1,4 @@
+import { HERO_MISSION_ID } from "@/features/missions/data";
 import type { MissionId } from "@/features/missions/types";
 
 /**
@@ -38,7 +39,12 @@ export const initialAppState: AppState = {
   scene: { id: "boot" },
   pointerTargetId: null,
   focusTargetId: null,
-  lockedTargetId: null,
+  // The deck rests on its hero rather than on nothing — see HERO_MISSION_ID.
+  // Set HERE rather than in an effect on the deck scene, so the first paint is
+  // already correct: an effect would render one untargeted frame and then light
+  // the card, which reads as a glitch on arrival and is a hydration mismatch
+  // waiting to happen.
+  lockedTargetId: HERO_MISSION_ID,
 };
 
 export function appReducer(state: AppState, action: AppAction): AppState {
