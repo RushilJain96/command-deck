@@ -19,28 +19,66 @@ import { STATS } from "./stats";
  * shape a list takes when nobody decided how it should be read.
  *
  * TYPOGRAPHY carries the hierarchy, because six near-identical rows are exactly
- * where a rail turns to mush. 17px tabular figure, 9px tracked uppercase label,
- * 10px sentence-case qualifier — three clearly different registers, so any one
- * of the three columns can be scanned without reading the other two.
+ * where a rail turns to mush. 26px tabular figure, 9.5px tracked uppercase label,
+ * 11px sentence-case qualifier — three clearly different registers, so any one
+ * of the three columns can be scanned without reading the other two. The figure
+ * has now been up twice: once when the rail went full-height, and again to the
+ * reference's measured size, which is what makes the column read from across the
+ * room rather than only when leaned into.
  *
  * THE ROW METRICS ARE A HEIGHT BUDGET, NOT A TASTE CALL. This is the tallest
- * panel on the deck and the rail cannot scroll, so the stack has to fit inside
- * `100svh - 72 - 64`. Before growing any of it, check the rail still clears the
- * dock at 1280x720.
+ * panel on the deck and the rail cannot scroll, so the stack has to fit between
+ * RAIL_TOP and RAIL_BOTTOM minus whatever <LatestCommitPanel> takes at the
+ * bottom. Before growing any of it, MEASURE the rail at the shortest `lg`
+ * viewport — the breakpoint is 830px tall, so that is roughly 1400x831.
  */
+
+/**
+ * Row padding, solved against the two ends of the `lg` range rather than picked.
+ *
+ * A row's CONTENT is a fixed 55px (10px label + 4 + 26px figure + 4 + 11px
+ * qualifier), so the only free variable is the air around it, and that air is
+ * exactly what has to absorb a 200px swing in viewport height. Fixed padding
+ * cannot: at the reference's 1024 the stack wants ~17px a side to land on the
+ * measured 89px pitch, and at the shortest `lg` viewport 17 overflows the rail
+ * by about 50px — the panel does not scroll, so overflow means the last figure
+ * is simply not on screen.
+ *
+ * The line runs 9px at 831 to 17px at 1024. `clamp` pins both ends so nothing
+ * pathological happens outside the range.
+ */
+const ROW_PAD = "clamp(9px, calc(4.1svh - 25px), 17px)";
+
 export function CommandCenterPanel() {
   return (
-    <HudPanel label="Command Center" className="w-52">
-      <ul className="-my-1 flex flex-col">
+    <HudPanel label="Command Center" bodyClassName="">
+      {/* HAIRLINE SEPARATORS, BACK AGAIN. They were removed on the argument that
+          a border between tightly packed rows reads as a table while six rows
+          with air around them read as six instruments. True of the packed rows
+          that prompted it, and the wrong conclusion: what makes a table is the
+          TIGHTNESS, not the rule. With ~34px of air in the pitch the rule stops
+          being a cell wall and becomes what it is on a real instrument panel —
+          the engraved line between two gauges.
+
+          They also do a job nothing else was doing. Six figures in one column
+          with no rules is a list whose groups the eye has to infer from spacing
+          alone, and spacing is the one thing here that varies with viewport
+          height. The rules do not.
+
+          Full-bleed, hence `bodyClassName=""` on the panel and the padding moved
+          onto the rows: a separator inset from the panel edge reads as a
+          decoration inside the card rather than as part of its structure. */}
+      <ul className="flex flex-col">
         {STATS.map((stat, index) => {
           const Icon = stat.icon;
           const isText = typeof stat.value === "string";
           return (
             <li
               key={stat.id}
-              className={index === 0 ? "py-1.5" : "border-t border-white/[0.06] py-1.5"}
+              className={index > 0 ? "border-panel-rule border-t px-4" : "px-4"}
+              style={{ paddingBlock: ROW_PAD }}
             >
-              <div className="flex items-start gap-2.5">
+              <div className="flex items-start gap-3">
                 {/* The cell stays neutral and only the GLYPH takes the accent.
                     Tinting the cell's border and fill as well would turn six
                     rows into six coloured chips and the rail into a legend; a
@@ -52,22 +90,21 @@ export function CommandCenterPanel() {
                     rather than painted on it. */}
                 <span
                   aria-hidden="true"
-                  className="flex h-[22px] w-[22px] shrink-0 items-center justify-center border border-white/[0.07]"
+                  className="border-panel-rule flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[2px] border"
                   style={{ backgroundColor: `${stat.accent}14`, color: stat.accent }}
                 >
-                  <Icon size={11} strokeWidth={1.75} />
+                  <Icon size={11.5} strokeWidth={1.75} />
                 </span>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    {/* 8.5px, not the 9px used elsewhere on the deck. The icon
-                        cell and the provenance lamp take 40px out of a 176px
-                        measure, and "GITHUB CONTRIBUTIONS" — the longest label
-                        in the set — needs 137px at 9px with `tracking-micro`.
-                        It truncated. Half a pixel of type is a cheaper fix than
-                        abbreviating the label or dropping the tracking that
-                        makes every other instrument label on the deck match. */}
-                    <span className="text-t3 tracking-micro truncate font-mono text-[8.5px] uppercase">
+                    {/* 9.5px. This was 8.5 to keep "GITHUB CONTRIBUTIONS" — the
+                        longest label in the set — from truncating inside a 176px
+                        measure once the icon cell and the provenance lamp had
+                        taken their 40px. It still truncates gracefully via
+                        `truncate`; verify that label specifically after any
+                        further change to the type or the rail width. */}
+                    <span className="text-t3 tracking-micro truncate font-mono text-[9.5px] uppercase">
                       {stat.label}
                     </span>
                     {/* Provenance lamp. Unlit until the figure is fetched rather
@@ -87,8 +124,8 @@ export function CommandCenterPanel() {
                   <p
                     className={
                       isText
-                        ? "text-t1 mt-1 truncate text-[13px] leading-none font-medium tracking-[-0.01em]"
-                        : "text-t1 mt-0.5 text-[17px] leading-none font-medium tracking-[-0.02em] tabular-nums"
+                        ? "text-t1 mt-1 truncate text-[17px] leading-none font-medium tracking-[-0.01em]"
+                        : "text-t1 mt-1 text-[26px] leading-none font-medium tracking-[-0.02em] tabular-nums"
                     }
                   >
                     {stat.value === null
@@ -98,7 +135,7 @@ export function CommandCenterPanel() {
                         : stat.value}
                   </p>
 
-                  <p className="text-t3 mt-1 truncate text-[10px] leading-none">{stat.unit}</p>
+                  <p className="text-t3 mt-1 truncate text-[11px] leading-none">{stat.unit}</p>
                 </div>
               </div>
             </li>

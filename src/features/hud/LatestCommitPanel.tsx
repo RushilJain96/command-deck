@@ -12,12 +12,18 @@ import { HudPanel } from "./HudPanel";
  * The subject is set in mono because it is a commit subject — the reader should
  * recognise the register before reading the words. Two lines, clamped: a commit
  * subject longer than that is a commit subject with a problem, and letting it
- * run would push the panel past the dock.
+ * run would push the panel past the footer.
+ *
+ * THE PROVENANCE PIP IS STILL UNLIT, and that is not an oversight. `commit.ts`
+ * is a constant, so `live` is false, so the lamp is grey. The reference shows it
+ * green — which is the correct appearance for this panel the moment the subject
+ * comes from a real source and not one moment before. Wiring that source is the
+ * only change that should ever turn this lamp on.
  */
 export function LatestCommitPanel() {
   return (
-    <HudPanel label="Latest Commit" className="w-52">
-      <p className="text-t2 line-clamp-2 font-mono text-[10.5px] leading-[1.45]">
+    <HudPanel label="Latest Commit">
+      <p className="text-t2 line-clamp-2 font-mono text-[11px] leading-[1.45]">
         {LATEST_COMMIT.subject}
       </p>
 

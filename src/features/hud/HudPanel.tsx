@@ -4,62 +4,57 @@ import { cn } from "@/lib/cn";
 /**
  * Shared housing for every HUD panel.
  *
- * THERE IS NO HOUSING ANY MORE — no bezel, no face, no chamfer, no connector
- * stub. This used to be a machined panel built from the same vocabulary as the
- * mission callouts, and all of it is withdrawn: the rails float directly over the
- * void and the content is the only thing drawn.
+ * THERE IS NO BOX. No background, no backdrop-filter, no border, no shadow — the
+ * rails and the legend float directly over the void and only their content is
+ * drawn.
  *
- * The stub went with the rest. It existed to tie a BOX back to the deck, echoing
- * the leader lines that once joined callouts to their footprints; with no box and
- * no leaders, it was a connector between two things that had both stopped
- * existing.
+ * This has now been argued both ways and the deciding evidence is the rendered
+ * frame rather than the reasoning. The case FOR a box was that a panel is an
+ * EDGE, and an edge is what tells the eye where one instrument stops and the next
+ * begins; without it the left rail reads as a single column of loose readouts and
+ * "Latest Commit" looks like a seventh statistic. That is a real problem and it
+ * has a cheaper solution: the internal rules. A ruled header and hairlines
+ * between rows group the content just as well, and they do it without putting a
+ * lit rectangle between the deck and the space it is supposed to be sitting in.
  *
- * `side` is gone from the signature too. It picked which way the chamfer and the
- * stub leaned; with both removed it was a parameter every caller had to supply
- * and nothing could act on.
+ * What the box cost is the thing this deck is actually for. Six panels of
+ * `rgb(9 11 15 / 0.72)` over a true-black void are six grey slabs, and they read
+ * as a web page's cards laid on top of a render rather than as instrumentation
+ * inside the scene. The starfield stops passing behind the rail. The reference is
+ * unambiguous about this and so is the result.
  *
- * TYPOGRAPHY: spacing here follows a 4px rhythm, and the steps between levels
- * are large enough to be felt rather than measured — 17px title against 9px
- * tracked labels. Even gaps between equally-weighted lines are what make an
- * interface look mechanical, so the vertical space is deliberately uneven:
- * tight inside a group, generous between groups.
+ * SO: THE INTERNAL RULES STAY, THE CONTAINER GOES. If a future pass wants the
+ * grouping back, add rules — not a fill.
+ *
+ * `side` stays gone. It picked which way a chamfer and a connector stub leaned,
+ * and both of those are withdrawn too.
+ *
+ * TYPOGRAPHY: spacing follows a 4px rhythm, and the steps between levels are large
+ * enough to be felt rather than measured — 17px title against 9px tracked labels.
+ * Even gaps between equally-weighted lines are what make an interface look
+ * mechanical, so the vertical space is deliberately uneven: tight inside a group,
+ * generous between groups.
  */
 export function HudPanel({
   label,
   children,
   className,
+  bodyClassName,
 }: {
   label?: string;
   children: ReactNode;
   className?: string;
+  /** Escape hatch for panels that manage their own body padding (row lists). */
+  bodyClassName?: string;
 }) {
-
   return (
     <section className={cn("relative", className)}>
-      {/* NO HOUSING. The bezel, the face gradient, the inset lip and the chamfer
-          clip are all withdrawn: the rails now float directly over the void.
-
-          THE WHOLE OF THE NOTE ABOVE IS OBSOLETE, and it is worth saying why
-          rather than just deleting it. Every value in it was tuned to make a
-          PANEL sit correctly against its background — darken the face, drop the
-          bezel, lower the lip. That is the right work if the answer is a panel.
-          Once the void went genuinely black, the honest observation is that the
-          housing had nothing left to do: a near-black card on a black ground is a
-          rectangle you can only detect by its border, so the border was the only
-          thing still drawing a box, and it was drawing a box around nothing.
-
-          Removing it costs the panels their edges and buys the composition its
-          depth back — text and lit glyphs reading directly off the void is what
-          the reference does, and it is why its HUD feels like part of the space
-          rather than a layer over it.
-
-          `px-0` rather than the old `px-4 py-3`: with no housing there is no
-          inner face to inset content from. The rail's own left margin positions
-          it now. */}
-      <div className="relative">
-        {label && <HudLabel>{label}</HudLabel>}
-        {children}
-      </div>
+      {label && (
+        <div className="border-panel-rule border-b px-4 pb-3">
+          <HudLabel>{label}</HudLabel>
+        </div>
+      )}
+      <div className={cn("relative", bodyClassName ?? "px-4 py-3")}>{children}</div>
     </section>
   );
 }
@@ -67,7 +62,7 @@ export function HudPanel({
 /** Eyebrow. Small, wide-tracked and quiet — it names the panel, nothing more. */
 export function HudLabel({ children }: { children: ReactNode }) {
   return (
-    <h2 className="text-t3 tracking-label mb-2.5 font-mono text-[9px] leading-none uppercase">
+    <h2 className="text-t3 tracking-label font-mono text-[9px] leading-none uppercase">
       {children}
     </h2>
   );
@@ -92,7 +87,7 @@ export function HudCaption({ children }: { children: ReactNode }) {
 
 /** Divides identity from data. */
 export function HudDivider() {
-  return <div className="mt-2.5 mb-2 h-px bg-white/[0.08]" />;
+  return <div className="bg-panel-rule mt-2.5 mb-2 h-px" />;
 }
 
 /** A label/value row. `tabular-nums` keeps readouts from reflowing as they tick. */

@@ -9,9 +9,9 @@ import { cn } from "@/lib/cn";
 import { SPRING } from "@/lib/motion/springs";
 import { CommandCenterPanel } from "./CommandCenterPanel";
 import { LatestCommitPanel } from "./LatestCommitPanel";
-import { SystemsPanel } from "./SystemsPanel";
+import { LaunchPrompt } from "./LaunchPrompt";
+import { MissionControlCard } from "./MissionControlCard";
 import { TargetReadout } from "./TargetReadout";
-import { Telemetry } from "./Telemetry";
 
 /**
  * Scene-scoped HUD.
@@ -38,22 +38,34 @@ import { Telemetry } from "./Telemetry";
  * right, and the selected mission's own callout carries its state. Both
  * components are kept rather than deleted — see their files.
  *
- * COMPOSITION: A FULL-HEIGHT LEFT RAIL AND A BOTTOM-RIGHT CLUSTER.
+ * COMPOSITION: A FULL-HEIGHT LEFT RAIL AND ONE BOTTOM-RIGHT CARD.
  *
  * The deck used to run four panels left and one right, which pulled the whole
  * frame off balance — the eye kept returning to the left edge instead of to the
  * vehicle. The obvious fix, a matching right rail, is not available: two
- * full-height 224px rails plus an orbit wide enough to keep six callouts apart
- * has NO solution below about 1600px, which a headless collision solver says
- * outright and which showed up live as missions sitting under both sidebars.
+ * full-height rails plus an orbit wide enough to keep six callouts apart has NO
+ * solution below about 1600px, which a headless collision solver says outright
+ * and which showed up live as missions sitting under both sidebars.
  *
- * So the right-hand mass sits low instead, beside the dock, under the plane's
- * widest band where there is nothing to collide with. That balances the frame
- * without stealing the flanks. Each side still has a subject: the left is the
- * OPERATOR (who they are, what is selected, what has been built), the right is
- * the MACHINE (what is being pointed at, what the subsystems report). Adding a
- * panel means deciding which it belongs to — and if it goes right, checking it
- * still clears the orbit.
+ * So the right-hand mass sits low instead, under the plane's widest band where
+ * there is nothing to collide with. That balances the frame without stealing the
+ * flanks.
+ *
+ * THE RIGHT SIDE IS NOW A LEGEND, NOT A STACK OF READOUTS. <SystemsPanel> and
+ * <Telemetry> are stood down (their files are kept). The three of them together
+ * were the deck describing its own internals to a visitor who had not yet been
+ * told what the deck was — targeting state, nav slots, frame time and zoom are
+ * meaningful once you are using the thing and noise before then. What belongs in
+ * the resting frame is the instruction, so <MissionControlCard> takes the space.
+ *
+ * <TargetReadout> survives, but only below `deck-md` where the rails are gone and
+ * nothing else reports hover or focus. On the wide deck the selected callout says
+ * everything the readout did, in the place the operator is already looking.
+ *
+ * Each side still has a subject: the left is the OPERATOR (who they are, what
+ * they have built, what they last shipped), the right is the DECK ITSELF (what
+ * this is and how to work it). Adding a panel means deciding which it belongs to
+ * — and if it goes right, checking it still clears the orbit.
  *
  * Both reveal AFTER the camera has begun settling, so the instruments read as
  * coming online around an arriving vehicle rather than as a page loading.
@@ -69,7 +81,21 @@ import { Telemetry } from "./Telemetry";
  */
 const LEFT_RAIL_TOP = [CommandCenterPanel];
 const LEFT_RAIL_BOTTOM = [LatestCommitPanel];
-const RIGHT_CLUSTER = [SystemsPanel, TargetReadout, Telemetry];
+
+/**
+ * DECK GEOMETRY, in one place, because five call sites below have to agree and
+ * `scripts/deck-layout-check.mjs` mirrors all of them by hand.
+ *
+ * The frame runs on a 14px inset rather than 20 — the reference frames the whole
+ * composition tighter, and 6px on each edge is 12px of orbit the callouts get
+ * back. RAIL_TOP is the top bar's own inset plus its height plus a gap; RAIL_BOTTOM
+ * clears the footer with a real margin rather than sitting on it.
+ */
+const FRAME_INSET = 14;
+const RAIL_WIDTH = 226;
+const RAIL_TOP = 116; // 14 inset + 92 bar + 10 gap
+const RAIL_BOTTOM = 96; // 66 footer + 30 clearance
+const LEGEND_WIDTH = 320;
 
 export function CommandHud() {
   const [railOpen, setRailOpen] = useState(true);
@@ -77,11 +103,14 @@ export function CommandHud() {
   return (
     <div className="pointer-events-none absolute inset-0">
       {/* Left rail: identity, then commitment, then record.
-          208px, NOT 240. The rail is the single largest term in the
+          226px, UP FROM 208. The rail is the single largest term in the
           --orbit-radius reserve, so its width is what decides how far down the
           viewport range this whole composition survives — 240 stopped it at
-          1500px, where most laptops never saw it. See the `deck-md` note in
-          globals.css, and change the solver's TIER.lg.rail with it.
+          1500px, where most laptops never saw it. 226 is the reference's measured
+          width and it is affordable because the frame inset came in by 6px on
+          each side at the same time, so the net cost to the orbit is 6px rather
+          than 18. See the `deck-md` note in globals.css, and change the solver's
+          TIER.lg.rail with it.
 
           THE RAIL SLIDES, IT DOES NOT UNMOUNT. Unmounting would remount the
           <Reveal> wrappers below, which carry the arrival choreography — so
@@ -101,27 +130,42 @@ export function CommandHud() {
           space between them belongs to the deck instead of trailing off the end
           of a list.
 
-          `bottom-5` puts the record on the floor of the frame with the same 20px
-          margin the rail already keeps on its left. Flush to the very edge was
-          the brief; a panel that touches the bottom while holding a 20px inset on
-          the left reads as misaligned rather than as anchored, and the dock is
-          centred so nothing down there is competing for the space.
+          RAIL_BOTTOM CLEARS THE FOOTER RATHER THAN THE FRAME. The record used to
+          sit 20px off the floor, which was correct when the floor was empty; the
+          footer now owns the bottom 66px, and a panel resting on a footer reads as
+          part of it. 96 is the footer plus 30, which is enough that the two are
+          obviously separate objects.
 
-          THE TOP STAYS AT 72px, NOT 0. A literal `top: 0` would run the rail up
-          behind the top bar, which is a sibling drawn over it — the stats would
-          be clipped by chrome rather than hanging from it. 72 is the bar's 56px
-          plus its margin, which is where "the top of the usable frame" actually
-          is. The gap between
-          the two groups is not fixed — it absorbs whatever height the viewport
-          has, which is also why this cannot be a plain `gap-2` stack. */}
+          THE TOP IS NOT 0. A literal `top: 0` would run the rail up behind the
+          top bar, which is a sibling drawn over it — the stats would be clipped by
+          chrome rather than hanging from it. RAIL_TOP is the bar's inset plus its
+          height plus a gap, which is where "the top of the usable frame" actually
+          is. The gap between the two groups is not fixed — it absorbs whatever
+          height the viewport has, which is also why this cannot be a plain `gap-2`
+          stack. */}
       <motion.div
         id="instrument-rail"
         inert={!railOpen}
-        animate={{ x: railOpen ? 0 : -248, opacity: railOpen ? 1 : 0 }}
+        animate={{ x: railOpen ? 0 : -(RAIL_WIDTH + FRAME_INSET + 20), opacity: railOpen ? 1 : 0 }}
         transition={SPRING.ui}
+        style={{
+          top: RAIL_TOP,
+          bottom: RAIL_BOTTOM,
+          left: FRAME_INSET,
+          width: RAIL_WIDTH,
+        }}
         className={cn(
-          "deck-md:hidden pointer-events-auto absolute top-[72px] bottom-5 left-5",
-          "flex w-52 flex-col justify-between gap-2",
+          "deck-md:hidden pointer-events-auto absolute",
+          // STACKED FROM THE TOP, NOT `justify-between`. Pinning the record to
+          // the floor was meant to make it structural — stats hanging from the
+          // top bar, the record sitting on the deck. What it produced was a 100px
+          // hole in the middle of the column, because the two groups do not
+          // together fill the rail's height and space-between puts every spare
+          // pixel between exactly the two things that should read as one
+          // instrument. `bottom` stays set: it is the height BUDGET the row
+          // padding in <CommandCenterPanel> solves against, whether or not the
+          // content reaches it.
+          "flex flex-col gap-2",
         )}
       >
         {/* Top group: the standing record. */}
@@ -145,15 +189,17 @@ export function CommandHud() {
 
       <RailToggle open={railOpen} onToggle={() => setRailOpen((v) => !v)} />
 
-      {/* Right cluster: what the machine is doing. Pinned to the BOTTOM so it
-          sits below the orbit's widest band — anchoring it to the top would put
-          it straight through the two outermost missions. */}
-      <div className="deck-md:hidden pointer-events-auto absolute right-5 bottom-20 flex w-52 flex-col gap-2.5">
-        {RIGHT_CLUSTER.map((Panel, index) => (
-          <Reveal key={Panel.name} from={14} index={index}>
-            <Panel />
-          </Reveal>
-        ))}
+      {/* The legend. Pinned to the BOTTOM so it sits below the orbit's widest
+          band — anchoring it to the top would put it straight through the two
+          outermost missions. Bottom-aligned with the rail's record, so the two
+          low masses sit on one line. */}
+      <div
+        style={{ right: FRAME_INSET, bottom: RAIL_BOTTOM, width: LEGEND_WIDTH }}
+        className="deck-md:hidden pointer-events-auto absolute"
+      >
+        <Reveal from={14} index={0}>
+          <MissionControlCard />
+        </Reveal>
       </div>
 
       {/* Below deck-md both rails are gone, so the target readout is promoted
@@ -165,6 +211,8 @@ export function CommandHud() {
         </Reveal>
       </div>
 
+      <LaunchPrompt />
+
       <TargetAnnouncer />
     </div>
   );
@@ -173,10 +221,10 @@ export function CommandHud() {
 /**
  * Dismiss control for the instrument rail.
  *
- * Rides the rail's outboard edge: 216px out when the rail is open (208 wide plus
- * an 8px gap), back to the deck margin when it is closed. So the button is
- * always the thing immediately to the right of wherever the rail currently is,
- * and it never has to be hunted for.
+ * Rides the rail's outboard edge: RAIL_WIDTH + 8 out when the rail is open, back
+ * to the deck margin when it is closed. So the button is always the thing
+ * immediately to the right of wherever the rail currently is, and it never has to
+ * be hunted for.
  *
  * A SEPARATE ELEMENT FROM THE RAIL, deliberately. If it lived inside the rail it
  * would slide off-screen with it and there would be no way back — and it cannot
@@ -191,9 +239,10 @@ export function CommandHud() {
 function RailToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   return (
     <motion.div
-      animate={{ x: open ? 216 : 0 }}
+      animate={{ x: open ? RAIL_WIDTH + 8 : 0 }}
       transition={SPRING.ui}
-      className="deck-md:hidden pointer-events-auto absolute top-[72px] left-5"
+      style={{ top: RAIL_TOP, left: FRAME_INSET }}
+      className="deck-md:hidden pointer-events-auto absolute"
     >
       <motion.button
         type="button"
@@ -206,8 +255,8 @@ function RailToggle({ open, onToggle }: { open: boolean; onToggle: () => void })
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: ARRIVAL.hud + 0.2 }}
         className={cn(
-          "text-t3 hover:text-t1 flex h-[22px] w-[22px] items-center justify-center",
-          "border border-white/[0.09] bg-[linear-gradient(158deg,rgb(13_16_21/0.96),rgb(4_5_8/0.98))]",
+          "text-t3 hover:text-t1 flex h-[26px] w-[26px] items-center justify-center",
+          "border-panel-edge bg-panel rounded-[3px] border",
           "outline-none transition-colors duration-200",
           "focus-visible:ring-signal/70 focus-visible:ring-2",
         )}

@@ -52,9 +52,15 @@ export interface Stat {
    * THESE ARE NOT THE DECK'S PALETTE TOKENS, and that is deliberate rather than
    * sloppy. `--signal` red means "the operator's target" and `--nominal` green
    * means "deployed"; borrowing either here would put lifecycle vocabulary on a
-   * statistic that has no lifecycle. These are their own set, brighter and more
-   * saturated than anything else in the chrome, and they mean nothing beyond
-   * "this row is about that thing".
+   * statistic that has no lifecycle. These are their own set, and they mean
+   * nothing beyond "this row is about that thing".
+   *
+   * DESATURATED ONE NOTCH FROM WHERE THEY STARTED. The set used to be the
+   * brightest thing in the chrome — #00d4ff, #00e676, #ff6d00 are LED colours,
+   * and six of them stacked in a column turned an instrument rail into a row of
+   * status lights. The distinction each hue carries survives at two-thirds the
+   * chroma; the arcade quality does not. The cyan went furthest, because it was
+   * also the last survivor of a second accent the deck no longer runs.
    */
   readonly accent: string;
   /** True once the figure comes from a real source rather than this file. */
@@ -62,24 +68,24 @@ export interface Stat {
 }
 
 export const STATS: readonly Stat[] = [
-  { id: "leetcode", label: "LeetCode Solved", value: 482, unit: "Problems", icon: Code2, accent: "#00d4ff", live: false },
+  { id: "leetcode", label: "LeetCode Solved", value: 482, unit: "Problems", icon: Code2, accent: "#7ba7cc", live: false },
   {
     id: "github",
     label: "GitHub Contributions",
     value: 1538,
-    unit: "Total contributions",
+    unit: "Total Contributions",
     icon: GitCommitHorizontal,
-    accent: "#00e676", live: false,
+    accent: "#5fb98a", live: false,
   },
-  { id: "streak", label: "Current Streak", value: 87, unit: "Days", icon: Flame, accent: "#ff6d00", live: false },
-  { id: "projects", label: "Projects Built", value: 12, unit: "Live systems", icon: Boxes, accent: "#e2e8f0", live: false },
-  { id: "coffee", label: "Coffee Consumed", value: 1248, unit: "Cups", icon: Coffee, accent: "#ffb74d", live: false },
+  { id: "streak", label: "Current Streak", value: 87, unit: "Days", icon: Flame, accent: "#d98b45", live: false },
+  { id: "projects", label: "Projects Built", value: 12, unit: "Live Systems", icon: Boxes, accent: "#c3ccd6", live: false },
+  { id: "coffee", label: "Coffee Consumed", value: 1248, unit: "Cups", icon: Coffee, accent: "#d9a463", live: false },
   {
     id: "focus",
     label: "Current Focus",
     value: "Distributed Systems",
     unit: "Next: event-driven pipelines",
     icon: Target,
-    accent: "#ff4d4d", live: false,
+    accent: "#d96a5c", live: false,
   },
 ];
