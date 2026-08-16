@@ -114,8 +114,19 @@ export function BearingVector({
         style={{
           height: length,
           opacity: engaged ? 1 : 0,
+          // THE FADE STARTS MUCH LOWER AND ENDS MUCH HIGHER. It used to run
+          // `transparent -> 0.42 at 22% -> 0.85 at 70%`, which meant the bottom
+          // fifth of the line was effectively gone — and since the ship-to-ORION
+          // range is the shortest on the deck, that fifth was most of the visible
+          // beam. What reached the eye was a stub floating under the card with no
+          // apparent connection to the hull, which is the opposite of the job.
+          //
+          // 0.55 at 6% keeps a deliberate softening right at the nose (a beam
+          // that starts at full strength on the hull reads as a weapon firing
+          // rather than as a sight line being taken) while letting the line
+          // actually reach it.
           maskImage:
-            "linear-gradient(to top, transparent, rgb(0 0 0 / 0.42) 22%, rgb(0 0 0 / 0.85) 70%, #000)",
+            "linear-gradient(to top, rgb(0 0 0 / 0.55) 0%, rgb(0 0 0 / 0.8) 6%, #000 40%)",
         }}
       >
         <div
@@ -125,9 +136,13 @@ export function BearingVector({
               "repeating-linear-gradient(to top, rgb(255 60 60) 0 7px, transparent 7px 12px)," +
               "linear-gradient(to right, transparent, rgb(255 190 190 / 0.9) 30% 70%, transparent)",
             backgroundBlendMode: "lighten",
+            // Four shadows now, and the widest is 34px. `drop-shadow` traces the
+            // alpha channel, so each dash keeps its own halo and the gaps stay
+            // dark however far the glow is pushed — which is why this can be
+            // brightened without the dashes smearing into a solid bar.
             filter:
-              "drop-shadow(0 0 10px rgb(255 42 42 / 0.95)) drop-shadow(0 0 22px rgb(255 42 42 / 0.6))" +
-              " drop-shadow(0 0 3px rgb(255 190 190 / 0.95))",
+              "drop-shadow(0 0 4px rgb(255 190 190 / 0.95)) drop-shadow(0 0 12px rgb(255 42 42 / 1))" +
+              " drop-shadow(0 0 22px rgb(255 42 42 / 0.75)) drop-shadow(0 0 34px rgb(255 42 42 / 0.45))",
           }}
         />
       </div>

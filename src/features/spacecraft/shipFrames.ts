@@ -131,14 +131,31 @@ export const MAX_YAW = (FRAME_COUNT - 1) * FRAME_STEP;
  * dock — and the layout solver models the hull as a square of half this value,
  * which is conservative by design since the visible silhouette is much smaller.
  *
- * RETINA HEADROOM IS NOW 1.80x, NOT 2x. The frames are 800px (FRAME_PIXELS), so
- * 404 gave 1.98x and 444 gives 1.80x: on a 2x display the hull is upscaled about
- * 11%. That is the one real cost of this size and it was taken deliberately —
- * re-rendering at 888px is a `scripts/render-ship-frames.py` run, not a code
- * change, and 1.8x is far enough above 1x that the panel-line detail survives.
- * If the ship ever grows again, re-render rather than stretching further.
+ * RETINA HEADROOM IS NOW 1.39x, AND THAT IS A DEBT. The frames are 800px
+ * (FRAME_PIXELS): 404 gave 1.98x, 444 gave 1.80x, and 577 gives 1.39x — on a 2x
+ * display the hull is upscaled about 44%. The previous note said "if the ship
+ * ever grows again, re-render rather than stretching further", and it was right;
+ * the ship has grown again and the re-render has NOT been done.
+ *
+ * **Re-render the frames at 1200px (`scripts/render-ship-frames.py`) before this
+ * ships.** It is a script run rather than a code change, and it takes the
+ * headroom back to 2.08x.
+ *
+ * 444 -> 577, measured against the reference. The painted hull was about 250x164
+ * where the reference draws roughly 355x275 — the vehicle the whole deck is built
+ * around was being rendered at 70% of the size it is supposed to be, parked under
+ * its own orbit. The room for it came from CARD_Y_GAIN: the callout arrangement
+ * was spread 45% wider vertically than the reference's and had grown down into
+ * the space the hull needed, so the cards were sizing the ship. That coupling is
+ * the thing that was actually wrong; the number here is the consequence.
+ *
+ * TWO THINGS ARE COUPLED TO IT. `DECK_BIAS` in placement.ts governs where the
+ * hull's CENTRE sits — the ship grows about that centre, so a larger value here
+ * spends its extra height equally up into the field and down toward the footer —
+ * and the layout solver models the hull as a square of half this value, which is
+ * conservative by design since the visible silhouette is much smaller.
  */
-export const SHIP_PIXELS = 444;
+export const SHIP_PIXELS = 577;
 
 /**
  * Rendered pixel size of each frame. Roughly twice the largest on-screen size

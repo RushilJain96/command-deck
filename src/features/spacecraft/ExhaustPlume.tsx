@@ -149,7 +149,26 @@ export function ExhaustPlume({
   // engine throws a narrow, nearly parallel jet; width is what turns exhaust
   // into a spotlight beam. The bell bank spans 39 units, so the flame at 22 sits
   // comfortably INSIDE it and the bloom at 52 only just past it.
-  const len = (engaged ? 112 : 84) * u;
+  // 84/112 -> 28/40, AND THIS IS A CONSEQUENCE OF `SHIP_PIXELS` RATHER THAN A
+  // CHANGE OF MIND ABOUT THRUST. The length is in hull units, so it scales with
+  // the sprite: when the ship went 444 -> 577 to match the reference, an already
+  // long plume grew with it to roughly 330px and ran straight down through the
+  // launch prompt and into the footer. The reference draws a SHORT, bright flame
+  // contained near the bells — an engine holding station, not one accelerating —
+  // and a plume that reaches the bottom of the frame is claiming the second.
+  //
+  // The throttle ratio is unchanged at about 1.43:1, so hovering still reads as
+  // the same small step up it did before.
+  // 28/40 -> 56/80. Doubled, on the brief. The short plume was correct against
+  // the reference still and wrong against the deck in motion: at 28 units the
+  // three jets were stubs under a 335px hull and the ship read as parked rather
+  // than as holding station under thrust. The reference is one frame; this thing
+  // is looked at for minutes.
+  //
+  // It reaches past <LaunchPrompt> at most viewports, which is fine and is why
+  // the layout solver has never modelled the plume — it is a light source, not
+  // an obstacle, and it runs BEHIND the prompt's own fill.
+  const len = (engaged ? 80 : 56) * u;
   // PER-COLUMN widths, not bank-wide. The old 52/22 spanned the whole cluster;
   // these are sized so three of them sit inside the 39-unit bell bank with dark
   // air between, which is the entire difference between three jets and one wash.
@@ -194,10 +213,14 @@ export function ExhaustPlume({
                 top: EXIT_Y * u,
                 width: bloomW,
                 height: len * 1.18 * col.reach,
+                // 0.3/0.12 -> 0.55/0.26, and the falloff pushed 70% -> 84%. The
+                // bloom is what the eye reads as "burning" — the flame layer
+                // gives the jet its shape, this gives it its heat — and at 0.3
+                // over a true-black void it was contributing almost nothing.
                 background:
                   "radial-gradient(ellipse 50% 100% at 50% 0%," +
-                  `rgb(255 70 10 / ${0.3 * col.heat}) 0%,` +
-                  `rgb(210 30 10 / ${0.12 * col.heat}) 42%, transparent 70%)`,
+                  `rgb(255 110 25 / ${0.55 * col.heat}) 0%,` +
+                  `rgb(230 45 10 / ${0.26 * col.heat}) 42%, transparent 84%)`,
                 filter: `blur(${2.2 * u}px)`,
               }}
             />
@@ -212,11 +235,16 @@ export function ExhaustPlume({
                 top: EXIT_Y * u,
                 width: flameW,
                 height: len * col.reach,
+                // The amber and orange stops lifted with the bloom (0.72 -> 0.85,
+                // 0.36 -> 0.58) and the tail pushed 82% -> 92%, so a jet twice as
+                // long does not simply fade out halfway down its own length. The
+                // white throat is untouched: it was already at 0.95 and it is what
+                // keeps the flame reading as combustion rather than as a glow.
                 background:
                   "radial-gradient(ellipse 50% 100% at 50% 0%," +
                   `rgb(255 255 255 / ${0.95 * col.heat}) 0%,` +
-                  `rgb(255 214 130 / ${0.72 * col.heat}) 14%,` +
-                  `rgb(255 120 25 / ${0.36 * col.heat}) 40%, transparent 82%)`,
+                  `rgb(255 222 150 / ${0.85 * col.heat}) 14%,` +
+                  `rgb(255 132 30 / ${0.58 * col.heat}) 40%, transparent 92%)`,
                 filter: `blur(${1 * u}px)`,
               }}
             />

@@ -150,8 +150,9 @@ const RIM_ORIGIN = "50% 51.8%";
  * had one light in it. The deck now has two, and they are on opposite sides of
  * this vehicle: the orbital plane's cyan source is ahead and above, and the
  * ship's own engines are directly below. A hull between them does not catch a
- * single colour — it catches cyan on its leading edges and engine red along its
- * trailing ones, and the crossover happens across the middle of the airframe.
+ * single colour — it catches the plane's cool light on its leading edges and
+ * engine red along its trailing ones, and the crossover happens across the middle
+ * of the airframe.
  *
  * That is why the stops turn over at 46%: above it the rim is the plane, below
  * it the rim is the exhaust. Getting this wrong in the other direction — red on
@@ -163,9 +164,9 @@ const RIM_ORIGIN = "50% 51.8%";
  */
 const RIM_GRADIENT =
   "linear-gradient(180deg," +
-  "rgb(150 215 255 / 0.9) 0%," +
-  "rgb(120 190 240 / 0.78) 24%," +
-  "rgb(140 152 212 / 0.55) 46%," +
+  "rgb(196 216 234 / 0.9) 0%," +
+  "rgb(168 192 214 / 0.78) 24%," +
+  "rgb(166 166 190 / 0.55) 46%," +
   "rgb(220 112 92 / 0.45) 68%," +
   "rgb(255 92 72 / 0.26) 86%," +
   "transparent 100%)";
@@ -222,7 +223,16 @@ export function ShipSprite({
     // silhouette. See RIM_SCALE.
     <div
       aria-hidden="true"
-      className="deck-md:scale-75 deck-sm:scale-50 relative"
+      // 0.75/0.50 -> 0.58/0.34, WHICH HOLDS THE NARROW TIERS WHERE THEY WERE.
+      // `SHIP_PIXELS` went 444 -> 577 to match the reference at `lg`, and these
+      // multipliers took the increase with it — the layout solver found the
+      // consequence immediately: a 433px hull at `md` ran through AURORA and
+      // FORGE at every checked viewport, and at `sm` it sank into the dock. The
+      // reference is a wide-deck composition and says nothing about a phone.
+      // 577*0.58 = 335 and 577*0.34 = 196, against the 333 and 222 these tiers
+      // drew before, so the narrow decks are unchanged by a measurement that was
+      // never about them.
+      className="deck-md:scale-[0.58] deck-sm:scale-[0.34] relative"
       style={{ width: SHIP_PIXELS, height: SHIP_PIXELS }}
     >
       <motion.div className="absolute inset-0" style={{ rotate: bank }}>
