@@ -15,15 +15,78 @@ import { CALLOUT_TIER, type Mission } from "./types";
 const ACTIVE_Z = 55;
 
 /**
- * How far the flanking cards rotate inward, in degrees.
+ * How far the flanking cards rotate inward, and how close the eye sits.
  *
- * 12 is the brief's figure and it survives contact with the text: at 261px wide
- * the far edge foreshortens to about 96% of the near edge, which reads clearly
- * as a turn without the type going soft. Past roughly 18deg the sub-pixel
- * sampling on the receding half starts to show on the 13px summary line, and the
- * card stops looking angled and starts looking blurry.
+ * THE ANGLE WAS NEVER THE PROBLEM — THE EYE DISTANCE WAS. The old pair was 12deg
+ * at `perspective(1200px)`, and the note here claimed the far edge foreshortened
+ * to about 96% of the near one, which "reads clearly as a turn". Probing the
+ * rendered corners says 162.5px against 169.2px — a 4% difference, which is not
+ * a turn anyone can see. The cards were correctly rotated and visually flat.
+ *
+ * The reason is the perspective divide. For a card of half-width `a` rotated by
+ * theta at eye distance `d`, the near and far edges scale by
+ * `1 / (1 -/+ a*sin(theta)/d)`, so the visible ratio is governed by
+ * `a*sin(theta)/d`. At a=118, 12deg and d=1200 that term is 0.020 — the card is
+ * so small against the eye distance that the projection is very nearly
+ * orthographic, and an orthographic rotation of a flat rectangle is almost
+ * invisible.
+ *
+ * SO THE FIX IS MOSTLY `d`, NOT `theta`. Bringing the eye in to 460px takes the
+ * term to 0.079 and the edge ratio to about 1.17 — a 17% difference, which reads
+ * unmistakably as a panel angled toward the middle of the deck.
+ *
+ * The angle still goes up, but only to 18, because the old note's OTHER claim is
+ * sound: past roughly 18deg the sub-pixel sampling on the receding half starts to
+ * show on the summary line and the card reads blurry rather than angled. Taking
+ * the visible turn out of the eye distance instead of the rotation is what keeps
+ * the type crisp while making the tilt obvious.
  */
-const TILT_DEG = 12;
+const TILT_DEG = 18;
+
+/**
+ * Eye distance for the card's own perspective divide, in CSS pixels.
+ *
+ * PER-ELEMENT, and that is load-bearing — see the note at the transform. A shared
+ * `perspective` on the plane would give every card a different vanishing point
+ * depending on where it sits, so the two flanks would tilt by visibly different
+ * amounts.
+ */
+const TILT_PERSPECTIVE = 460;
+
+/**
+ * How far the CENTRE-BAND cards pitch, in degrees.
+ *
+ * ORION and DATAFLOW sit on the deck's centre line with the spacecraft directly
+ * below them, so a yaw does nothing for them — turning a card left or right when
+ * the thing it should face is straight down is a rotation about the wrong axis.
+ * What points their faces at the nose is a PITCH: the top edge goes back, the
+ * bottom edge comes forward.
+ *
+ * NEGATIVE: top edge forward, bottom edge away. The card leans over the deck
+ * toward the viewer rather than lying back from it.
+ *
+ * THE SIGN WAS POSITIVE FOR ONE PASS AND IT LOOKED WRONG. The argument for it was
+ * that the ship sits below, so a card facing it should turn its face downward —
+ * top away, bottom forward, the laptop-lid direction. The edge probe confirmed
+ * the geometry did exactly that. What it produced on screen was a card lying back
+ * like a lectern, which reads as leaning AWAY from the deck rather than toward it,
+ * and that is the read that matters.
+ *
+ * The geometric argument had a gap: the spacecraft is not only below these cards,
+ * it is also nearer the camera, sitting at a standoff in front of the plane the
+ * cards float above. A panel angled to present itself over that vehicle tips its
+ * top toward the viewer, not away.
+ *
+ * MEASURED EITHER WAY. On a pitched card the nearer edge is the WIDER one; at
+ * -12deg the TOP edge measures wider than the bottom. Use `runprobe.mjs` in the
+ * scratchpad rather than reasoning about the sign — this axis and the yaw on the
+ * flanks have both now been got backwards by argument alone.
+ *
+ * 12 rather than the flanks' 18. A pitch reads more strongly than a yaw at equal
+ * angle, because the perspective term scales with whichever half-dimension is
+ * rotating away and a card is wider than it is tall.
+ */
+const PITCH_DEG = -12;
 
 /**
  * Positions a mission on the elliptical orbital plane using pure CSS — no
@@ -91,7 +154,30 @@ export function MissionNode({
   // Inward tilt, driven by which flank the card sits on. `side` already carries
   // that — it is derived from the sign of `x` against CENTRE_BAND — so the tilt
   // needs no new field on the roster and cannot disagree with the position.
+  //
+  // POSITIVE ON THE LEFT. The console is CONCAVE toward the viewer, so a flank
+  // card's OUTER edge is the nearer one.
+  //
+  // THIS WAS FLIPPED TO NEGATIVE FOR ONE PASS AND THAT WAS WRONG. The reasoning
+  // that flipped it was: "the inner edge should come forward, because the card
+  // faces the ship." Work it as a door instead. A door facing you head-on, and
+  // you want its face to point to your right: you pull the LEFT edge toward you
+  // and swing the right edge away. So a left-hand card whose face turns toward
+  // the centre of the deck has its left — outer — edge nearer. Inner-edge-forward
+  // is a CONVEX arc, a cylinder seen from outside, which points every card's face
+  // away from the middle.
+  //
+  // The corner probe that "confirmed" the flip measured correctly and was asked
+  // the wrong question: it reported which edge was nearer, and the flip assumed
+  // without checking that nearer-inner meant facing-centre. The symptom that
+  // prompted it — the tilt being invisible — was a magnitude problem in
+  // TILT_PERSPECTIVE, not a direction problem here.
   const tiltDeg = placement.side === "left" ? TILT_DEG : placement.side === "right" ? -TILT_DEG : 0;
+
+  // Centre-band cards pitch instead of yawing — see PITCH_DEG. The two are
+  // mutually exclusive by construction: `side` is "center" exactly when |x| is
+  // inside CENTRE_BAND, which is the case where a yaw has nothing to aim at.
+  const pitchDeg = placement.side === "center" ? PITCH_DEG : 0;
 
   return (
     <li
@@ -204,10 +290,16 @@ export function MissionNode({
             `perspective` on the plane would give every card a different vanishing
             point depending on where it sits, so the two flanks would tilt by
             visibly different amounts. `perspective()` inside each card's own
-            transform gives all of them the same 1200px eye distance.
+            transform gives all of them the same eye distance — see
+            TILT_PERSPECTIVE, which is what actually controls how much turn is
+            visible.
 
-            NO `transform: scale()` STILL — see CALLOUT_TIER. This is rotation and
-            elevation only; every card remains exactly 261x160 in its own plane.
+            NO `transform: scale()` and NO `translateY()` EITHER. This is
+            rotation only. A selection scale rode here briefly and is withdrawn —
+            see CALLOUT_TIER. The 20px elevation that used to live here moved
+            into `CARD_Y_LIFT`, because a translate applied at paint time is a
+            position `derivePlacement` cannot see — and it was mis-aiming the
+            bearing beam by exactly that 20px. See that constant's note.
 
             Sign convention: a card on the LEFT turns its right edge away from the
             viewer, which is a POSITIVE rotateY. The right flank mirrors it. */}
@@ -215,7 +307,7 @@ export function MissionNode({
           className="absolute top-0 left-0"
           style={{
             translate: "-50% -50%",
-            transform: `perspective(1200px) rotateY(${tiltDeg}deg) translateY(-20px)`,
+            transform: `perspective(${TILT_PERSPECTIVE}px) rotateY(${tiltDeg}deg) rotateX(${pitchDeg}deg)`,
           }}
         >
           {/* Arrival fade lives on its own element, animating ONLY opacity.

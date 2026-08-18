@@ -93,7 +93,7 @@ export function MissionPanel({ mission, lod, isActive }: MissionPanelProps) {
   // collapsed to a single level it became unreachable, and it is gone rather
   // than left standing: every module is the same housing now, which is the whole
   // point — see CALLOUT_SCALE.
-  return <PanelBody mission={mission} lod={lod} isActive={isActive} className="block deck-sm:hidden" />;
+  return <PanelBody mission={mission} lod={lod} isActive={isActive} className="block" />;
 }
 
 function PanelBody({
@@ -186,7 +186,7 @@ function PanelBody({
         className="absolute inset-0"
         style={{
           boxShadow:
-            "0 25px 50px -12px rgb(0 0 0 / 0.8), 0 0 15px rgb(190 205 220 / 0.05)",
+"0 25px 50px -12px rgb(0 0 0 / 0.8), 0 0 15px rgb(190 205 220 / 0.05)",
         }}
       />
 
@@ -442,8 +442,21 @@ function PanelBody({
             // module's text sits on a marginally steadier ground than its
             // neighbours' — which is what elevation should buy.
             isActive
-              ? "bg-[linear-gradient(180deg,#141c28,#0b111b)]"
-              : "bg-[linear-gradient(180deg,#0f1620,#080d15)]",
+              // MATCHED TO THE INSTRUMENT RAIL, AND FLATTER THAN IT WAS.
+              //
+              // The rail is `--panel-fill` = rgb(9 11 15 / 0.72) over a black
+              // ground, which composites to #06080b. These gradients ran
+              // #0f1620 -> #080d15 idle, so the top of every card was roughly
+              // twice the luminance of the sidebar next to it and carried a
+              // visible blue cast — two instrument surfaces in the same frame
+              // reading as two different materials.
+              //
+              // The ramp survives at a tenth of its old range: enough that the
+              // face is not a flat swatch, not enough to read as a separate
+              // colour from the rail. Active lifts by about the same amount the
+              // old pair differed by, so selection still brightens the surface.
+              ? "bg-[linear-gradient(180deg,#0c1017,#080b11)]"
+              : "bg-[linear-gradient(180deg,#07090d,#050709)]",
             // Top lip catches the light, bottom edge falls into shadow. This
             // directional pair is what sells "machined part" on a dark surface.
             //
@@ -492,8 +505,8 @@ function PanelBody({
                   // with the cool top lip kept underneath it so the module still
                   // reads as a physical part rather than as a red rectangle.
                   "linear-gradient(0deg, rgb(255 60 60 / 0.17), rgb(255 60 60 / 0.05) 42%, transparent 70%)," +
-                  "linear-gradient(180deg, rgb(214 230 255 / 0.05), transparent 58%)"
-                : "linear-gradient(180deg, rgb(214 230 255 / 0.055), transparent 58%)",
+                  "linear-gradient(180deg, rgb(214 230 255 / 0.03), transparent 58%)"
+                : "linear-gradient(180deg, rgb(214 230 255 / 0.028), transparent 58%)",
             }}
           />
 
@@ -565,7 +578,7 @@ function PanelBody({
               // Below `deck-md` the ramp collapses to one width. The narrow tiers
               // have no room for a hierarchy of boxes, and a 157px card at that
               // size is a card nobody can read.
-              "w-[var(--callout-w)] deck-md:w-[13rem] deck-sm:w-[13rem]",
+              "w-[var(--callout-w)]",
             )}
             style={{ "--callout-w": `${spec.w}px` } as CSSProperties}
           >
@@ -678,15 +691,6 @@ function PanelBody({
                     // card. Fixing the ground is what made this colour honest.
                     "text-t2 mt-2 line-clamp-2 leading-[1.5]",
                     spec.summary,
-                    // `deck-md:hidden` UNCONDITIONALLY. The `!isActive &&` guard
-                    // that used to be here let a targeted card keep its prose
-                    // below the breakpoint, which made it 113px tall where every
-                    // other module was 74 — the one exception to uniform sizing,
-                    // in the tier with the least room for it, and invisible to
-                    // the solver because the solver models the compact box.
-                    // Same rule as everywhere else on this deck now: the pointer
-                    // changes size and light, never how much is written.
-                    "deck-md:hidden",
                   )}
                 >
                   {summary}

@@ -136,11 +136,18 @@ export interface CalloutTierSpec {
    * has been truncated. The reference's own far cards carry short summaries, not
    * clamped long ones; we have long ones.
    *
-   * GEOMETRIC. The prose is 45px of card height, and the layout solver reports
-   * that carrying it on all six makes the `lg` tier INFEASIBLE below about
-   * R=420 — ORION through DATAFLOW, NEXUS through AURORA, at every 1440x900-class
-   * viewport. Dropping it on the two back tiers takes the feasible radius to 373
-   * and the whole class passes.
+   * GEOMETRIC, AND THIS IS THE HALF THAT EXPIRED. The prose is 45px of card
+   * height, and while --orbit-radius was a function of the viewport it could fall
+   * to 380 on a 1440x900 window — at which point carrying prose on all six drove
+   * ORION through DATAFLOW and NEXUS through AURORA. Dropping it on the back
+   * tiers was what made that class of viewport feasible.
+   *
+   * The radius is a constant 470 now (see <DeckViewport>): the deck is one fixed
+   * composition that scales rather than reflows, so the small-radius case cannot
+   * occur. At 470 the tightest pair clears by 22px with every summary drawn, so
+   * the flag is true everywhere and this is left as a `false`-capable switch
+   * rather than deleted — the typographic objection below still stands if the
+   * copy stays long.
    *
    * Nothing is lost. The full summary stays in the accessibility tree on every
    * card (see the `sr-only` block in <MissionNode>), and pointing at a far card
@@ -150,30 +157,48 @@ export interface CalloutTierSpec {
   readonly showSummary: boolean;
 }
 
+/**
+ * UNIFORM. Every tier draws the same box at the same type sizes, so the four
+ * entries differ only in `z`.
+ *
+ * Depth is carried by the things that cost no legibility: vertical position on
+ * the receding plane, the atmospheric opacity ramp in <MissionNode>, the inward
+ * tilt of the flanks, and this z-order.
+ *
+ * A NEAR-UNIFORM RAMP PLUS A SELECTION SCALE WAS TRIED AND WITHDRAWN. It ran
+ * 190-208 by tier with the selected card at 1.22, sized off the reference's own
+ * fractions, and it did not read as an improvement — the cards lost presence at
+ * that size without the arrangement gaining anything. Reverted rather than tuned:
+ * the objection was to the whole direction, not to the numbers.
+ */
+const UNIFORM = {
+  w: 230,
+  title: "text-[20px]",
+  summary: "text-[13px]",
+  padX: "px-4",
+  showSummary: true,
+} as const;
+
 export const CALLOUT_TIER: Record<CalloutTier, CalloutTierSpec> = {
   /** Centre. Sorts above everything else on the plane. */
-  hero: { z: 50, w: 250, title: "text-[24px]", summary: "text-[14.5px]", padX: "px-5", showSummary: true },
-  /** Front quadrants — eight and four o'clock. Nearest, so widest after the hero. */
-  mid: { z: 30, w: 215, title: "text-[19px]", summary: "text-[12.5px]", padX: "px-4", showSummary: true },
+  hero: { z: 50, ...UNIFORM },
+  /** Front quadrants — eight and four o'clock. */
+  mid: { z: 30, ...UNIFORM },
   /** Back quadrants — ten and two o'clock. */
-  back: { z: 10, w: 178, title: "text-[19px]", summary: "text-[12.5px]", padX: "px-3.5", showSummary: false },
-  /** Back centre, twelve o'clock. Furthest. Shares the back plane; nothing overlaps. */
-  deep: { z: 10, w: 157, title: "text-[19px]", summary: "text-[12.5px]", padX: "px-3.5", showSummary: false },
+  back: { z: 10, ...UNIFORM },
+  /** Back centre, twelve o'clock. Shares the back plane; nothing overlaps. */
+  deep: { z: 10, ...UNIFORM },
 };
 
 /**
- * NO ACTIVE SCALE. A targeted module used to grow by 12%, and every `scale()` on
- * a mission card is withdrawn — including this one, because a hover that resizes
- * is the same fake-depth device as a tier that resizes, applied to time instead
- * of space. It also reflowed a card's neighbours' clearances on hover, which is
- * why the layout solver needed a whole second pass to model pointer state.
+ * NO ACTIVE SCALE. A targeted module grew by 22% for one pass and it is gone
+ * again: a hover that resizes reflows its neighbours' clearances, and it cost the
+ * layout solver a whole second sweep to model pointer state.
  *
  * The lock is carried by the things that do not move the box: the red bezel, the
  * corner brackets, the bloom, the lit face, the z-lift to ACTIVE_Z, and the
- * bearing beam terminating on the card's edge. That is six cues without a single
- * pixel of geometry change.
+ * bearing beam terminating on the card's edge.
  */
-
 
 /** A slot with its projection precomputed. This is what components consume. */
 export interface Mission extends MissionSlot {

@@ -255,14 +255,22 @@ export const CARD_Y_GAIN = 0.82;
 /**
  * Signed vertical trim, in --orbit-radius units. POSITIVE IS UP the frame.
  *
- * It is negative, which looks wrong and is not. It started at +0.117 doing the
- * whole lift on its own; then `DECK_BIAS` came down 0.31 to raise the ship, which
- * raises everything in the rig including these cards, and it over-raised them by
- * about 65px — DATAFLOW's card went behind the top bar. So this is now a small
- * downward trim putting the callouts back where the measurement wants them while
- * the bias keeps the lift it was brought in for.
+ * It has been +0.117, then -0.026, and is now +0.01655, and the last move is the
+ * one that matters: IT ABSORBED A 20px TRANSLATE THAT USED TO LIVE IN CSS.
+ *
+ * <MissionNode> applied `translateY(-20px)` inside the card's tilt transform, so
+ * every callout was drawn 20px higher than the position stored for it — and
+ * `derivePlacement`, which hands the bearing beam its length, read the stored one.
+ * The beam therefore aimed 20px BELOW the card's bottom edge and stopped in empty
+ * space short of it, at every target, always. That is the third time a drawn
+ * position and a reasoned position have disagreed on this deck and the third time
+ * it has surfaced as a mis-aimed beam; the translate is gone and its 20px is
+ * folded in here, in --orbit-radius units, where every consumer sees it.
+ *
+ * -0.026 + 20/470 = 0.01655. If --orbit-radius ever stops being a constant, this
+ * conversion stops being exact and the lift has to move back into pixels.
  */
-export const CARD_Y_LIFT = -0.026;
+export const CARD_Y_LIFT = 0.01655;
 
 /**
  * Horizontal counterpart to CARD_Y_GAIN, and the reason it exists is a clearance
@@ -508,7 +516,7 @@ export const SHIP_Z_INDEX = 60;
  * beam stops a little short of the edge, at a smaller one a little inside it.
  * Never near the text either way, which is the property that matters.
  */
-export const BEAM_TARGET_DROP = 0.176;
+export const BEAM_TARGET_DROP = 0.195;
 
 /**
  * Projects a POLAR station on the orbital plane into the screen offsets the
