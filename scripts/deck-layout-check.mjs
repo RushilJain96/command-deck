@@ -65,7 +65,7 @@ const DECK_BIAS = 0.93;
  */
 const CARD_X_GAIN = 0.93;
 const CARD_Y_GAIN = 0.82;
-const CARD_Y_LIFT = -0.026;
+const CARD_Y_LIFT = 0.01655;
 const CENTRE_BAND = 0.12;
 // Collapsed to a single level: every module is drawn at `full`. The tier caps in
 // TIER below still clamp it (md shows no summary), but depth no longer does.
@@ -98,8 +98,12 @@ const MISSIONS = [
 ];
 
 // -------------------------------------------------------------------- types.ts
-/** Every card is lifted by the same `translateY(-20px)`. */
-const CARD_LIFT = 20;
+/**
+ * ZERO. The cards used to carry a `translateY(-20px)` in their tilt transform;
+ * it is folded into CARD_Y_LIFT now, so the stored position already includes it
+ * and adding it again here would model the deck 20px high.
+ */
+const CARD_LIFT = 0;
 
 // ------------------------------------------------------- measured panel boxes
 /**
@@ -134,13 +138,30 @@ const CARD_LIFT = 20;
  */
 const BOX = {
   lg: {
-    hero: { w: 265, h: 183 },
-    mid: { w: 224, h: 172 },
-    // `back` and `deep` carry no summary — see CALLOUT_TIER.showSummary. That is
-    // the whole 48px difference, and it is what makes the `lg` tier feasible at
-    // 1440x900-class viewports.
-    back: { w: 188, h: 125 },
-    deep: { w: 170, h: 123 },
+    // RESTING boxes. The solver multiplies whichever card is selected by
+    // CALLOUT_ACTIVE_SCALE itself, so these must be the UNSCALED footprints —
+    // `hero` is measured at 274x222 on screen because ORION is selected at rest,
+    // and divided by 1.28 to get back to the resting box it would occupy.
+    //
+    // They still differ by a few pixels between tiers because these are measured
+    // AABBs: the flanks carry the 12deg tilt (narrower across, taller down) and
+    // the hero's includes its target brackets and outer bloom.
+    // One box for every tier — CALLOUT_TIER is uniform. They still differ because
+    // these are MEASURED AABBs and the flanks carry the tilt: at 18deg through a
+    // 460px perspective a rotated card is 14px narrower across and 11px taller
+    // down than the flat one it is drawn from. The hero's box includes its target
+    // brackets and outer bloom.
+    //
+    // RE-MEASURE THESE IF TILT_DEG OR TILT_PERSPECTIVE MOVES. The old pair (12deg
+    // at 1200px) gave 239x176; the visible tilt changed the footprint, not just
+    // the look.
+    // The centre pair PITCH rather than yaw (rotateX 12deg, see PITCH_DEG), which
+    // widens their box and shortens it — the opposite of what the yaw does to the
+    // flanks. Both effects are already in these measured numbers.
+    hero: { w: 259, h: 172 },
+    mid: { w: 234, h: 187 },
+    back: { w: 234, h: 187 },
+    deep: { w: 254, h: 168 },
   },
   // Below `deck-md` the width ramp collapses to one 13rem column and the summary
   // is hidden, so all four tiers are the same box.
@@ -183,9 +204,7 @@ const BOX = {
  * width and cannot share a constant.
  */
 const TIER = {
-  lg: { name: "lg", rail: 226, railGap: 14, cluster: 124, clusterW: 320, clusterBottom: 96, bar: 106, dock: 66, shipFloor: 137, shipScale: 1, cap: "full" },
-  md: { name: "md", rail: 0, railGap: 0, cluster: 0, clusterW: 0, clusterBottom: 0, bar: 70, dock: 72, shipFloor: 72, shipScale: 0.58, cap: "compact" },
-  sm: { name: "sm", rail: 0, railGap: 0, cluster: 0, clusterW: 0, clusterBottom: 0, bar: 70, dock: 96, shipFloor: 96, shipScale: 0.34, cap: "marker" },
+  lg: { name: "lg", rail: 226, railGap: 14, cluster: 124, clusterW: 320, clusterBottom: 96, bar: 76, dock: 66, shipFloor: 137, shipScale: 1, cap: "full" },
 };
 
 // ------------------------------------------------------------- shipFrames.ts
@@ -244,18 +263,10 @@ const SHIP_ENV = { halfW: 0.34, up: 0.21, down: 0.25 };
 // `vh`/`vh2` are the two vertical bounds: the TOP BAR against the back rank's
 // card top, and the DOCK against the hull's lower edge. They have different
 // slopes, so neither can absorb the other.
-const FORM = {
-  // vh/vhOff is the TOP BAR against the highest card's top edge; vh2/vhOff2 is
-  // the BOTTOM CHROME against the hull's lower edge. Both were re-derived when
-  // the bar went 56 -> 106, the ship grew 30% and the footer and launch prompt
-  // arrived; every one of those changes moves one of these lines and none of them
-  // is visible in the old constants.
-  lg: { reserve: 367, vh: 0.9069, vhOff: 347, vh2: 1.1687, vhOff2: 672, min: 96, max: 470 },
-  // At `md` no summary is drawn, so the cards are shorter and the bottom bound
-  // stops binding; what governs is the taller top bar against DATAFLOW.
-  md: { reserve: 121, vh: 0.7296, vhOff: 219, vh2: 99, vhOff2: 0, min: 80, max: 305 },
-  sm: { reserve: 20, vh: 0.29, vhOff: 0, vh2: 99, vhOff2: 0, min: 60, max: 120 },
-};
+// --orbit-radius is a constant: the frame is fixed, so the three bounds that used
+// to solve it per viewport collapse to the single value they produced at
+// 1536x1024. Mirrors globals.css.
+const ORBIT_RADIUS = 470;
 
 // THE `md` HEIGHT THRESHOLD WENT 640 -> 830, and it is the one change here that
 // is a product decision rather than arithmetic.
@@ -271,8 +282,13 @@ const FORM = {
 // bounds separate again. A 1366x768 laptop now gets the compact deck, which is
 // the honest trade: it can show six readable modules or it can show six modules
 // with prose, and it cannot show both.
-const tierOf = (w, h) =>
-  w <= 620 || h <= 560 ? "sm" : w <= 1340 || h <= 895 ? "md" : "lg";
+// The design frame, and the only size anything is drawn at. Mirrors DECK_WIDTH /
+// DECK_HEIGHT in src/features/app/DeckViewport.tsx.
+const DECK_WIDTH = 1536;
+const DECK_HEIGHT = 1024;
+
+// One tier. The breakpoints are gone with the reflow — see VIEWPORTS.
+const tierOf = () => "lg";
 
 // ---------------------------------------------------------------------- model
 // `lodOf` survives for the roster printout only. `clampLod` and its RANK table
@@ -290,28 +306,7 @@ const placed = MISSIONS.map((m) => ({
 /** `max(|x|)`. The divisor in every radius formula. Mirrors --orbit-radius. */
 const REACH = Math.max(...placed.map((p) => Math.abs(p.x)));
 
-function radiusOf(w, h, name) {
-  const f = FORM[name];
-  return Math.max(
-    f.min,
-    Math.min(
-      (w / 2 - f.reserve) / REACH,
-      f.vh * h - f.vhOff,
-      f.vh2 * h - f.vhOff2,
-      // `name`, NOT `f.name`. FORM's entries carry no `name` key, so this read
-      // was always `undefined`, the comparison was always false, and the `38svh`
-      // term that globals.css applies at `md` was silently absent from the
-      // mirror. The script has been reporting `md` radii up to 13px larger than
-      // the deck actually draws for as long as the term has existed.
-      // 0.38 -> 0.40. This term caps the ring's share of a short viewport, and at
-      // 0.38 it became the binding constraint below h=763 — tighter than the two
-      // real collision bounds, so it was vetoing radii that nothing was actually
-      // colliding at. 1101x700 failed on it alone.
-      name === "md" ? 0.42 * h : Infinity,
-      f.max,
-    ),
-  );
-}
+const radiusOf = () => ORBIT_RADIUS;
 
 /**
  * HOVER IS NO LONGER A LAYOUT STATE, so there is no `heroId` and no second pass.
@@ -331,8 +326,8 @@ function boxes(w, h, R, t) {
   const shipY = h / 2 + R * TILT * DECK_BIAS;
   const planeY = shipY - R * TILT * SHIP_STANDOFF_SCREEN;
   return placed.map((p) => {
-    // Boxes are per-TIER and measured, rotation included — see BOX. Nothing here
-    // scales them: there is no LOD ramp left and no active multiplier, so a card's
+    // Boxes are per-TIER and measured, rotation included — see BOX. Nothing
+    // scales them: there is no LOD ramp and no active multiplier, so a card's
     // footprint is the same resting and hovered.
     const box = BOX[t.name][p.tier];
     const bw = box.w;
@@ -355,7 +350,7 @@ const hit = (a, b, pad = 8) =>
 function violations(w, h) {
   const name = tierOf(w, h);
   const t = TIER[name];
-  const R = radiusOf(w, h, name);
+  const R = radiusOf();
   const bs = boxes(w, h, R, t);
   const shipY = bs[0].shipY;
   const out = [];
@@ -416,23 +411,29 @@ function violations(w, h) {
 }
 
 // ----------------------------------------------------------------------- run
-// The lg tier's LOWER BOUNDARY is sampled densely on purpose. R falls off a
-// cliff there — it is `(w/2 - 475) / 0.786`, so every 10px of width costs ~6px
-// of orbit — and for a long time the list jumped straight from 1280 to 1180,
-// which straddles the boundary without ever landing near it. A tier whose worst
-// case is never tested is a tier that passes on the strength of its best case.
-const VIEWPORTS = [
-  [1920, 1080], [1728, 1117], [1600, 900], [1536, 1024], [1512, 982], [1440, 900],
-  [1460, 900], [1440, 880], [1420, 860], [1400, 840], [1380, 820],
-  [1366, 768], [1340, 800], [1300, 850], [1280, 800], [1280, 720],
-  [1260, 800], [1240, 800], [1200, 800], [1181, 820],
-  [1180, 820], [1101, 700],
-  [1100, 800], [1024, 768], [900, 1200], [820, 1180], [768, 1024], [744, 1133], [932, 430],
-  [620, 900], [430, 932], [402, 874], [390, 844], [360, 640], [320, 568], [844, 390],
-];
+/**
+ * ONE FRAME, NOT THIRTY-SIX, AND THAT IS NOT A REDUCTION IN COVERAGE.
+ *
+ * This list used to sample the whole viewport range densely, because the deck
+ * reflowed into whatever window it was given: each width produced a different
+ * orbit radius, each tier a different card size, and a collision could hide in
+ * the gaps between sampled sizes. The note that stood here warned that a tier
+ * whose worst case is never tested passes on the strength of its best case.
+ *
+ * <DeckViewport> removed the variable. The deck is authored once at 1536x1024 and
+ * scaled uniformly to fit, so every window renders the SAME geometry at a
+ * different magnification — and a uniform scale cannot introduce an overlap that
+ * is not already present at 1:1. Checking the design frame checks every window.
+ *
+ * The script keeps its value: the frame is still over-constrained, the callouts
+ * are still positioned by trigonometry rather than by layout, and moving a
+ * station or a card width can still put FORGE under the rail. It just has one
+ * case to prove instead of thirty-six.
+ */
+const VIEWPORTS = [[DECK_WIDTH, DECK_HEIGHT]];
 
 console.log("Command Deck layout check");
-console.log(`max reach = ${REACH.toFixed(3)}R  (the divisor in every --orbit-radius formula)\n`);
+console.log(`max reach = ${REACH.toFixed(3)}R  orbit radius = 470px, fixed frame\n`);
 
 for (const p of placed) {
   console.log(
@@ -444,12 +445,15 @@ for (const p of placed) {
 console.log();
 
 let failed = 0;
+/**
+ * ONE PASS. A hover sweep lived here twice — once when the cards carried a tier
+ * scale, once for a selection scale — and is gone with both. With no geometry
+ * that changes under the pointer, a hovered deck is identical to a resting one
+ * and the sweep reports the same answer six extra times.
+ */
 for (const [w, h] of VIEWPORTS) {
-  const { name, R, out } = violations(w, h);
-  if (out.length) failed++;
-
-
-  const lines = out;
+  const { name, R, out: lines } = violations(w, h);
+  if (lines.length) failed++;
   console.log(
     `${String(w).padStart(4)}x${String(h).padStart(4)}  ${name}  R=${String(Math.round(R)).padStart(3)}  ` +
       (lines.length ? `FAIL\n            ${lines.join("\n            ")}` : "ok"),

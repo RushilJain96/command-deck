@@ -39,22 +39,65 @@ import {
  * WHY EACH OBJECT IS HERE is recorded on the object itself in
  * `starfield.data.ts`. Nothing gets added to this scene without an answer.
  */
-export function Starfield() {
+/**
+ * THE SKY. Star layers and dust, and nothing that has a PLACE.
+ *
+ * Rendered full-window in `page.tsx`, OUTSIDE <DeckViewport>'s scaled frame, and
+ * that split is the whole reason this is a separate component from <Scenery>
+ * below.
+ *
+ * The deck is a fixed 1536x1024 composition scaled to fit, so on any window whose
+ * aspect is not 3:2 the frame letterboxes — and everything inside it stops at the
+ * frame's edge. Stars stopping at a straight edge with pure black beyond is the
+ * one thing a space scene cannot do: it announces the rectangle. Space has no
+ * frame, so the sky is hoisted out of the frame and fills the window.
+ *
+ * It also stops fading with scene transitions, which is correct rather than
+ * incidental — the boot scene and the deck are two views of the same place, and
+ * the stars should not blink out between them.
+ *
+ * Density is per-area rather than per-star, so a wider window spreads the same
+ * scatter thinner. That is what a sky does.
+ */
+export function Sky() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* STARS FIRST, BODIES OVER THEM.
-          This order was inverted and the comment here claimed the opposite of
-          what the code did: bodies were painted first, so the star field drew
-          straight over every rock in the scene. A planet that you can see stars
-          through is the most basic thing a space scene can get wrong. Paired
-          with the opaque backing in <BodySurface>, a body now occults the sky
-          behind it. */}
       {STAR_LAYERS.map((_, index) => (
         <StarLayerView key={index} layerIndex={index} />
       ))}
       {/* Dust sits between the star layers and the bodies: nearer than every
           star, further than the hardware. */}
       <DustField />
+    </div>
+  );
+}
+
+/**
+ * PLACED SCENERY: the celestial bodies and the orbital structures.
+ *
+ * Stays INSIDE the scaled frame, unlike <Sky>. These are positioned as
+ * percentages of their container and their arrangement is composed — the note in
+ * `celestial.data.ts` records that the placement deliberately avoids the callout
+ * band and that the lower half of the frame was emptied on purpose. Let the
+ * container become the window and that composition dissolves: a body authored at
+ * 34%/14% to sit clear of ECHO drifts somewhere else entirely on an ultrawide.
+ *
+ * So the rule is placement, not parallax: anything whose position was CHOSEN
+ * belongs to the frame, anything scattered belongs to the sky.
+ *
+ * WAS `Starfield`, WHICH RENDERED BOTH. Splitting them is what let the sky bleed
+ * past the letterbox while the scenery kept its composition.
+ */
+export function Scenery() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* BODIES OVER STARS. This order was inverted once and the comment claimed
+          the opposite of what the code did: bodies were painted first, so the
+          star field drew straight over every rock in the scene. A planet you can
+          see stars through is the most basic thing a space scene can get wrong.
+          The sky is now a layer behind this one, which enforces it structurally;
+          paired with the opaque backing in <BodySurface>, a body occults the sky
+          behind it. */}
       <Celestials />
       {STRUCTURES.map((structure) => (
         <StructureView key={structure.id} id={structure.id} />

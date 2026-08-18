@@ -4,19 +4,13 @@ import { useEffect, useRef } from "react";
 import { planeDivisor } from "@/features/missions/placement";
 
 /**
- * The focal tint for the innermost ring, as a bare rgb triple for the brush
- * factories.
+ * The rings' colour, as a bare rgb triple for the brush factories.
  *
- * THIS USED TO BE CYAN (`0,212,255`) and matched an equally cyan source at the
- * middle of the plane. Both are gone. The deck runs one accent — red — and a cyan
- * ring competed with it for the eye while reading as the neon-arcade register the
- * project explicitly rules out.
- *
- * Not in FIELD_PALETTE because it is not derived from `FIELD.hue`: it is a
- * near-white the ring is lifted TOWARD, so the innermost orbit stays the most lit
- * one without being a different colour from the field it belongs to.
+ * Not in FIELD_PALETTE because it is not derived from `FIELD.hue`: every ring is
+ * painted in this, so the field has one colour and the hue ramp only shapes the
+ * dim atmosphere behind it.
  */
-const ACCENT = "214,230,244";
+const ACCENT = "0,212,255";
 import {
   FIELD,
   FIELD_MARGIN,
@@ -97,12 +91,53 @@ export function OrbitGuides() {
       // element one standoff above the viewport's centre, so the canvas has to
       // reach back down past the spacecraft.
       style={{
-        width: `calc(100svw + ${FIELD_MARGIN * 2}px)`,
-        height: `calc(100svh + var(--orbit-radius) * 0.9 + ${FIELD_MARGIN}px)`,
+        // SIZED TO THE DESIGN FRAME, NOT THE VIEWPORT — `/ var(--deck-scale)`.
+        // <DeckViewport> draws the deck at a fixed size and scales it, so inside
+        // the frame `svh` still reports the WINDOW's height while the frame is
+        // `100vh / scale` design units tall. At any scale below 1 a canvas sized
+        // in raw `svh` came up short and the field stopped before the bottom of
+        // the frame.
+        width: `calc(100svw / var(--deck-scale) + ${FIELD_MARGIN * 2}px)`,
+        height: `calc(100svh / var(--deck-scale) + var(--orbit-radius) * 0.9 + ${FIELD_MARGIN}px)`,
+        /**
+         * THE HORIZON FADE. Rings dissolve toward the top of the field and are
+         * fully drawn toward the bottom.
+         *
+         * There is already a front-to-back attenuation in the DATA — `lightAt`
+         * runs a 7:1 near/far ratio, so the far arc of each ring is dimmer than
+         * its near arc. That is per-ring and it is not the same effect: it makes
+         * every ellipse brighter at the bottom of ITSELF, which the eye reads as
+         * lighting rather than as distance. What was missing is a fade across the
+         * WHOLE FIELD, so the outermost rings vanish where they would meet a
+         * horizon instead of running out of the top of the frame at full strength.
+         *
+         * Screen-space, on the canvas element, rather than baked into the paint —
+         * this way it is one composite instead of an extra term inside a loop that
+         * stamps tens of thousands of beads, and it can be retuned without a
+         * repaint.
+         *
+         * The stops are in CANVAS space, and the canvas is centred on the plane's
+         * origin rather than on the viewport: it reaches `--orbit-radius * 0.9`
+         * below the fold to clear the spacecraft. So 42% is roughly where the far
+         * arcs sit, not the middle of the screen.
+         */
+        maskImage: "linear-gradient(to bottom, transparent 4%, #000 42%)",
+        WebkitMaskImage: "linear-gradient(to bottom, transparent 4%, #000 42%)",
       }}
     />
   );
 }
+
+/**
+ * SOLID. The dash duty cycle that lived here — six beads drawn, four skipped —
+ * is withdrawn.
+ *
+ * It did what it was asked to and the result was not wanted: at a 1.15px bead a
+ * broken chain reads as a dotted guide on a diagram, and this layer is supposed
+ * to be a lit track a vehicle is flying over. A continuous thread of the same
+ * thickness reads as the second thing for free, because a gap is what turns
+ * light into notation.
+ */
 
 const TAU = Math.PI * 2;
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -344,8 +379,12 @@ function paint(canvas: HTMLCanvasElement) {
            else. Smaller and harder than it was (3.1 -> 2.5), because a bead has
            to be a bead — at the old radius, adjacent stamps overlapped enough
            to fuse back into the continuous stroke the halo used to soften. */
-  const corePx = 2.7 * k;
-  const core = makeCore(pal.core, corePx * 2);
+  // 2.7 -> 1.15 -> 1.9. A bead is drawn at `brush.width * (0.42 + 0.62*dens) *
+  // 0.5`, so the widest bead lands near 2px at this radius — the requested
+  // stroke weight. The 1.15 it came from was sized for a dashed line, where a
+  // thinner thread is what keeps the gaps legible; solid does not need that and
+  // reads as a scratch at 1.2px.
+  const corePx = 1.9 * k;
   const leakLen = FIELD.leak * 30 * k;
   const leakWide = Math.max(3, corePx * 2.1);
   const leak = leakLen > 2 ? makeLeak(pal.halo, leakWide, leakLen) : null;
@@ -385,21 +424,34 @@ function paint(canvas: HTMLCanvasElement) {
    * between them dark and reads as a chain of bright points — where a lower
    * threshold at a lower gain just produces a uniformly hazy line.
    */
-  const BLOOM_FROM = 0.72;
-  const BLOOM_GAIN = 0.3;
+  // THE GLOW. A `box-shadow` with an inner and outer spread is what a CSS ring
+  // would use; on a stamped canvas the equivalent is a wide soft brush laid under
+  // the thread, which is what `bloom` is.
+  //
+  // 0.72 -> 0.12 is the threshold change that matters. The bloom used to be
+  // reserved for the brightest few beads, so the rings had a lit crown on their
+  // near arc and nothing anywhere else. Dropping the bar to 0.12 puts a halo
+  // under almost the whole track, which is what "glowing" asks for; the gain
+  // comes down 0.3 -> 0.16 to pay for it, so the total light added is similar and
+  // it is spread along the ring instead of pooled at one end.
+  const BLOOM_FROM = 0.12;
+  const BLOOM_GAIN = 0.16;
 
   /**
-   * The innermost ring runs brighter than the rest — a near-white lift, not a
-   * different hue. It is the tightest orbit, closest to the middle of the plane,
-   * so it is the one that should look most lit, and it gives the field a focal
-   * ring instead of five equal ones.
+   * ONE BRUSH FOR EVERY RING, and it is the only core brush left — the
+   * palette-derived `core` it used to alternate with is gone with the second
+   * colour. The innermost used to get its own brighter tint so
+   * the field had a focal ring; with all seven now painted in the same faint
+   * cyan, a brighter inner ring would read as an inconsistency rather than as
+   * emphasis. Depth is carried by the near/far attenuation, which is 7:1 and
+   * does the job on its own.
    */
   const accentCore = makeCore(ACCENT, corePx * 2);
 
   ctx.globalCompositeOperation = "lighter";
 
-  for (const [index, ring] of FIELD_RINGS.entries()) {
-    const brush = index === 0 ? accentCore : core;
+  for (const ring of FIELD_RINGS) {
+    const brush = accentCore;
     // As in scatterPass: sample against the near arc's stretched length, or the
     // core thread breaks into dots exactly where the field is widest.
     const approx = (TAU * ring.base * R * 0.8) / planeDivisor(ring.base, -1);

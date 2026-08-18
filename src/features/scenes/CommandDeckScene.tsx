@@ -12,8 +12,7 @@ import { OrbitPlane, PlaneSurface } from "@/features/environment/OrbitPlane";
 import { OrbitTrace } from "@/features/environment/OrbitTrace";
 import { PlaneAurora } from "@/features/environment/PlaneAurora";
 import { PlaneBearings } from "@/features/environment/PlaneBearings";
-import { SpaceHaze } from "@/features/environment/SpaceHaze";
-import { Starfield } from "@/features/environment/Starfield";
+import { Scenery } from "@/features/environment/Starfield";
 import { CommandHud } from "@/features/hud/CommandHud";
 import { MissionOrbit } from "@/features/missions/MissionOrbit";
 import { DECK_BIAS, ORBIT_TILT, SHIP_Z_INDEX } from "@/features/missions/placement";
@@ -98,11 +97,12 @@ export function CommandDeckScene() {
           cone, so the two get tuned together rather than one pre-empting the
           other. */}
 
-      {/* Gas, first and furthest. Behind the stars because it is behind them:
-          a cloud you can see stars through is the correct way round, and the
-          inverse was already caught once in <Starfield>. */}
-      <SpaceHaze />
-      <Starfield />
+      {/* The sky and the gas are NOT here any more. Both are rendered
+          full-window in page.tsx, outside <DeckViewport>'s scaled frame, so they
+          reach the edges of the window rather than stopping at the letterbox —
+          see <Sky>. What stays is the placed scenery, whose arrangement is
+          composed against this frame and would dissolve if it were not. */}
+      <Scenery />
 
       <CameraRig bias={DECK_BIAS * ORBIT_TILT}>
         <OrbitPlane>

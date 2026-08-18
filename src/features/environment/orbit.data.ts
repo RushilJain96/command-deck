@@ -182,7 +182,18 @@ export const FIELD = {
    * need to be on. They need to be STRUCTURE the missions sit in front of, which
    * is the job they were competing with the callouts to avoid doing.
    */
-  core: 0.55,
+  // 0.55 -> 0.28. The brief asks for `rgba(0, 212, 255, 0.25)`, and this gain is
+  // what the per-bead alpha is multiplied by — so the brightest bead on the
+  // nearest arc lands just under 0.28 and everything behind it falls away from
+  // there. Thin, dashed and faint are one requirement, not three.
+  // 0.3 -> 0.36 -> 0.48, lifted twice on request. At 0.48 the brightest beads on
+  // the near arc are approaching saturation again, which is where the note above
+  // says a string of lights starts reading as lights that are simply ON rather
+  // than as a uniform grey — so this is the gain heading back toward where the
+  // rings read as lit rather than as structure. Push it much past here and the
+  // field starts competing with the callouts for the eye, which is the failure
+  // 2.6 produced originally.
+  core: 0.48,
   halo: 0,
   /**
    * 0.34 -> 0.16 -> 0.10. This is the wide, soft glow each arc throws sideways,
@@ -191,7 +202,10 @@ export const FIELD = {
    * value suggests. Came down again with the core, for the same reason: neutral
    * beads are brighter than blue ones at identical alpha.
    */
-  atmosphere: 0.1,
+  // 0.1 -> 0.15, so the sideways glow comes up with the threads it belongs to.
+  // Raising the core alone gives brighter lines with no halo, which reads as
+  // hard-edged wire rather than as light.
+  atmosphere: 0.15,
   /** Atmospheric radius. */
   reach: 0.6,
   /** Inward drift off each arc. */

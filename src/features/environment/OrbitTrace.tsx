@@ -82,11 +82,16 @@ export function OrbitTrace() {
        */}
       <path
         d={TRACE}
-        // Neutral, not accented. This segment says "this orbit is being tracked",
-        // which the flow animation already carries; painting it in the system red
-        // would make it a second target indicator competing with the bearing beam
-        // for the same job.
-        stroke="rgb(205 220 235 / 0.45)"
+        // MATCHES THE RINGS. This segment runs ON one of them, so it has to be
+        // the same colour as the track it is running on. It has followed them
+        // through two colour changes now; if the field's tint ever moves again,
+        // this moves with it.
+        //
+        // Still not `--signal`: the segment says "this orbit is being tracked",
+        // which the flow animation already carries, and painting it red would
+        // make it a second target indicator competing with the bearing beam for
+        // the same job. Brighter than the rings, same hue.
+        stroke="rgb(0 212 255 / 0.5)"
         strokeWidth={1.5}
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
