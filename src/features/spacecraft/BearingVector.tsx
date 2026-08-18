@@ -1,6 +1,17 @@
 "use client";
 
 import { motion, useTransform, type MotionValue } from "framer-motion";
+import { SHIP_PIXELS } from "./shipFrames";
+
+/**
+ * Distance from the sprite box's centre up to the painted nose, in CSS pixels.
+ *
+ * Measured off the alpha channel and recorded in `shipFrames.ts`: the silhouette
+ * spans 0.333-0.703 of the frame vertically, so the nose is 0.167 of the box
+ * above its middle. Derived from SHIP_PIXELS rather than written down, so it
+ * tracks the hull if the sprite is ever resized.
+ */
+const NOSE_OFFSET = Math.round(SHIP_PIXELS * (0.5 - 0.333));
 
 /**
  * A hairline running from the spacecraft out to whatever the operator is
@@ -56,7 +67,22 @@ export function BearingVector({
    * `max()` guards the degenerate case: a target closer than the gap collapses
    * the beam to zero rather than inverting it.
    */
-  const length = `max(0px, calc(var(--orbit-radius) * ${range} - var(--card-beam-standoff)))`;
+  /**
+   * THE BEAM STARTS AT THE NOSE, NOT AT THE SHIP'S ANCHOR.
+   *
+   * This element sits at the spacecraft's world origin, which is the CENTRE of
+   * the sprite box — and the sprite carries a lot of transparent margin, so the
+   * painted nose is `SHIP_PIXELS * (0.5 - 0.333)` above it. Drawing from the
+   * origin meant the lower 96px of every beam was inside the hull, hidden behind
+   * a ship that paints over it. On ORION, whose total run is only ~180px because
+   * it sits closest of the six, that hid more than half the line and left a stub
+   * floating under the card with nothing joining it to the vehicle.
+   *
+   * Lifting the origin AND shortening by the same amount keeps the tip exactly
+   * where it was — on the card's bottom edge — and makes the whole line visible.
+   */
+  const lift = `${NOSE_OFFSET}px`;
+  const length = `max(0px, calc(var(--orbit-radius) * ${range} - var(--card-beam-standoff) - ${lift}))`;
 
   return (
     <motion.div
@@ -110,8 +136,9 @@ export function BearingVector({
           a real emitter clips to white at its centre and falls to its hue at the
           edges, so the cross-gradient runs white through the middle 40%. */}
       <div
-        className="absolute bottom-0 left-0 w-[3px] -translate-x-[1px] transition-[opacity,height] duration-500 ease-out"
+        className="absolute left-0 w-[3px] -translate-x-[1px] transition-[opacity,height] duration-500 ease-out"
         style={{
+          bottom: lift,
           height: length,
           opacity: engaged ? 1 : 0,
           // THE FADE STARTS MUCH LOWER AND ENDS MUCH HIGHER. It used to run
@@ -158,7 +185,7 @@ export function BearingVector({
           key={at}
           className="absolute left-0 h-px w-[5px] transition-[opacity,bottom] duration-500"
           style={{
-            bottom: `calc(var(--orbit-radius) * ${range * at})`,
+            bottom: `calc(${lift} + (var(--orbit-radius) * ${range} - var(--card-beam-standoff) - ${lift}) * ${at})`,
             transform: "translateX(-2px)",
             opacity: engaged ? alpha : 0,
             background: "var(--signal)",
@@ -178,7 +205,7 @@ export function BearingVector({
           held", which is the difference between a marker and a lock. */}
       <div
         className="absolute left-0 transition-[opacity,bottom] duration-500 ease-out"
-        style={{ bottom: length, opacity: engaged ? 1 : 0 }}
+        style={{ bottom: `calc(${lift} + ${length})`, opacity: engaged ? 1 : 0 }}
       >
         <motion.div
           className="absolute top-0 left-0"

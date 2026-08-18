@@ -223,16 +223,12 @@ export function ShipSprite({
     // silhouette. See RIM_SCALE.
     <div
       aria-hidden="true"
-      // 0.75/0.50 -> 0.58/0.34, WHICH HOLDS THE NARROW TIERS WHERE THEY WERE.
-      // `SHIP_PIXELS` went 444 -> 577 to match the reference at `lg`, and these
-      // multipliers took the increase with it — the layout solver found the
-      // consequence immediately: a 433px hull at `md` ran through AURORA and
-      // FORGE at every checked viewport, and at `sm` it sank into the dock. The
-      // reference is a wide-deck composition and says nothing about a phone.
-      // 577*0.58 = 335 and 577*0.34 = 196, against the 333 and 222 these tiers
-      // drew before, so the narrow decks are unchanged by a measurement that was
-      // never about them.
-      className="deck-md:scale-[0.58] deck-sm:scale-[0.34] relative"
+      // NO TIER MULTIPLIERS. There used to be a `deck-md`/`deck-sm` pair here
+      // holding the hull down on smaller viewports; the frame is fixed at
+      // 1536x1024 now and <DeckViewport> scales the whole composition together,
+      // so a second scale on this one element would only make the ship the wrong
+      // size relative to everything around it.
+      className="relative"
       style={{ width: SHIP_PIXELS, height: SHIP_PIXELS }}
     >
       <motion.div className="absolute inset-0" style={{ rotate: bank }}>

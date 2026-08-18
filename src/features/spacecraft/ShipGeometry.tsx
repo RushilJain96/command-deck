@@ -44,7 +44,7 @@ export function ShipGeometry({ engaged }: { engaged: boolean }) {
       viewBox="-76 -76 152 152"
       aria-hidden="true"
       focusable="false"
-      className="deck-md:scale-75 deck-sm:scale-50 overflow-visible transition-transform duration-700"
+      className="overflow-visible transition-transform duration-700"
     >
       <defs>
         {/* Nose-to-tail falloff. The tail stop is deliberately dark: the key

@@ -184,7 +184,9 @@ export function ExhaustPlume({
       style={{ rotate: rotation }}
     >
       <div
-        className="deck-md:scale-75 deck-sm:scale-50 absolute top-0 left-0"
+        // No tier multiplier — see <ShipSprite>. The plume must scale with
+        // the hull, and the hull no longer scales on its own.
+        className="absolute top-0 left-0"
         style={{ width: 0, height: 0 }}
       >
         {/* LAYERS 1 & 2 — BLOOM AND FLAME, PER COLUMN.
