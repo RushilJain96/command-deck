@@ -11,7 +11,6 @@ import { CommandCenterPanel } from "./CommandCenterPanel";
 import { LatestCommitPanel } from "./LatestCommitPanel";
 import { LaunchPrompt } from "./LaunchPrompt";
 import { MissionControlCard } from "./MissionControlCard";
-import { TargetReadout } from "./TargetReadout";
 
 /**
  * Scene-scoped HUD.
@@ -58,9 +57,9 @@ import { TargetReadout } from "./TargetReadout";
  * meaningful once you are using the thing and noise before then. What belongs in
  * the resting frame is the instruction, so <MissionControlCard> takes the space.
  *
- * <TargetReadout> survives, but only below `deck-md` where the rails are gone and
- * nothing else reports hover or focus. On the wide deck the selected callout says
- * everything the readout did, in the place the operator is already looking.
+ * <TargetReadout> is stood down with them. It existed to report hover and focus
+ * where the rails were hidden, and nothing is hidden any more; the selected
+ * callout says everything it did, in the place the operator is already looking.
  *
  * Each side still has a subject: the left is the OPERATOR (who they are, what
  * they have built, what they last shipped), the right is the DECK ITSELF (what
@@ -93,7 +92,7 @@ const LEFT_RAIL_BOTTOM = [LatestCommitPanel];
  */
 const FRAME_INSET = 14;
 const RAIL_WIDTH = 226;
-const RAIL_TOP = 116; // 14 inset + 92 bar + 10 gap
+const RAIL_TOP = 86; // 14 inset + 62 bar + 10 gap
 const RAIL_BOTTOM = 96; // 66 footer + 30 clearance
 const LEGEND_WIDTH = 320;
 
@@ -109,8 +108,7 @@ export function CommandHud() {
           1500px, where most laptops never saw it. 226 is the reference's measured
           width and it is affordable because the frame inset came in by 6px on
           each side at the same time, so the net cost to the orbit is 6px rather
-          than 18. See the `deck-md` note in globals.css, and change the solver's
-          TIER.lg.rail with it.
+          than 18. Change the solver's TIER.rail with it.
 
           THE RAIL SLIDES, IT DOES NOT UNMOUNT. Unmounting would remount the
           <Reveal> wrappers below, which carry the arrival choreography — so
@@ -155,7 +153,7 @@ export function CommandHud() {
           width: RAIL_WIDTH,
         }}
         className={cn(
-          "deck-md:hidden pointer-events-auto absolute",
+          "pointer-events-auto absolute",
           // STACKED FROM THE TOP, NOT `justify-between`. Pinning the record to
           // the floor was meant to make it structural — stats hanging from the
           // top bar, the record sitting on the deck. What it produced was a 100px
@@ -195,19 +193,10 @@ export function CommandHud() {
           low masses sit on one line. */}
       <div
         style={{ right: FRAME_INSET, bottom: RAIL_BOTTOM, width: LEGEND_WIDTH }}
-        className="deck-md:hidden pointer-events-auto absolute"
+        className="pointer-events-auto absolute"
       >
         <Reveal from={14} index={0}>
           <MissionControlCard />
-        </Reveal>
-      </div>
-
-      {/* Below deck-md both rails are gone, so the target readout is promoted
-          to its own strip above the dock — dropping it entirely would leave
-          hover and focus with no feedback anywhere on screen. */}
-      <div className="deck-md:block pointer-events-auto absolute right-4 bottom-20 left-4 hidden">
-        <Reveal from={0} index={0}>
-          <TargetReadout />
         </Reveal>
       </div>
 
@@ -242,7 +231,7 @@ function RailToggle({ open, onToggle }: { open: boolean; onToggle: () => void })
       animate={{ x: open ? RAIL_WIDTH + 8 : 0 }}
       transition={SPRING.ui}
       style={{ top: RAIL_TOP, left: FRAME_INSET }}
-      className="deck-md:hidden pointer-events-auto absolute"
+      className="pointer-events-auto absolute"
     >
       <motion.button
         type="button"

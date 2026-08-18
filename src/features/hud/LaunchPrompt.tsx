@@ -12,8 +12,7 @@ import { cn } from "@/lib/cn";
  * hint for one.
  *
  * Centred at the bottom because that is where the ship is, and both keys act on
- * the ship's target. It sits in the strip <Dock> owns on narrow viewports, hence
- * `deck-md:hidden` — where the short-code dock is the only navigation, it wins.
+ * the ship's target.
  *
  * NOT ANIMATED. The eye is already carrying the plume, the blinking annunciators
  * and the arrival choreography; a pulsing "press enter" would be the one thing on
@@ -28,7 +27,7 @@ export function LaunchPrompt() {
         // budget in --orbit-radius (see the third clamp term), so every pixel
         // here is a pixel of orbit. Its height plus this offset is the
         // `shipFloor` the layout solver models — change one, change both.
-        "deck-md:hidden pointer-events-none absolute inset-x-0 bottom-[70px] z-30",
+        "pointer-events-none absolute inset-x-0 bottom-[70px] z-30",
         "flex flex-col items-center gap-2.5",
       )}
     >

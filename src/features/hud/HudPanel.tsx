@@ -2,29 +2,34 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * Shared housing for every HUD panel.
+ * Shared housing for every HUD panel: a bordered, filled box with a ruled header.
  *
- * THERE IS NO BOX. No background, no backdrop-filter, no border, no shadow — the
- * rails and the legend float directly over the void and only their content is
- * drawn.
+ * THE BOX HAS BEEN REMOVED AND RESTORED TWICE, so the reasoning on both sides is
+ * worth keeping rather than overwritten each time.
  *
- * This has now been argued both ways and the deciding evidence is the rendered
- * frame rather than the reasoning. The case FOR a box was that a panel is an
- * EDGE, and an edge is what tells the eye where one instrument stops and the next
- * begins; without it the left rail reads as a single column of loose readouts and
- * "Latest Commit" looks like a seventh statistic. That is a real problem and it
- * has a cheaper solution: the internal rules. A ruled header and hairlines
- * between rows group the content just as well, and they do it without putting a
- * lit rectangle between the deck and the space it is supposed to be sitting in.
+ * AGAINST: a near-black card on a true-black void is a rectangle you can only
+ * detect by its border, so the border is drawing a box around nothing; and six
+ * such fills over a starfield read as a web page's cards laid on top of a render
+ * rather than as instrumentation inside the scene.
  *
- * What the box cost is the thing this deck is actually for. Six panels of
- * `rgb(9 11 15 / 0.72)` over a true-black void are six grey slabs, and they read
- * as a web page's cards laid on top of a render rather than as instrumentation
- * inside the scene. The starfield stops passing behind the rail. The reference is
- * unambiguous about this and so is the result.
+ * FOR, and this is what settles it: a panel is an EDGE, and an edge is what tells
+ * the eye where one instrument stops and the next begins. Without it the left rail
+ * is a single column of loose readouts in which "Latest Commit" looks like a
+ * seventh statistic, and the bottom-right legend has nothing holding it together
+ * at all — it reads as three sentences that happen to be near a logo.
  *
- * SO: THE INTERNAL RULES STAY, THE CONTAINER GOES. If a future pass wants the
- * grouping back, add rules — not a fill.
+ * The "cards on a render" objection is answered by the VALUES, not by deleting
+ * the box. `--panel-fill` at 0.72 over black lands near #090b0f: dark enough that
+ * the starfield still reads through the panel's neighbourhood, distinct enough
+ * that the panel is an object. What made the earlier attempt look pasted-on was a
+ * heavier fill and a backdrop-blur, and the blur is gone for a second reason
+ * below.
+ *
+ * NO `backdrop-filter`, DELIBERATELY. <DeckViewport> now scales the entire deck,
+ * which makes it a transformed ancestor of everything — and a transformed
+ * ancestor scales backdrop blur radii, which is exactly the hazard the
+ * screen-space-sibling invariant was written about. A plain fill has no such
+ * coupling, so the housing is a fill and a border and nothing else.
  *
  * `side` stays gone. It picked which way a chamfer and a connector stub leaned,
  * and both of those are withdrawn too.
@@ -48,9 +53,15 @@ export function HudPanel({
   bodyClassName?: string;
 }) {
   return (
-    <section className={cn("relative", className)}>
+    <section
+      className={cn(
+        "border-panel-edge bg-panel relative rounded-[3px] border",
+        "shadow-[var(--panel-shadow)]",
+        className,
+      )}
+    >
       {label && (
-        <div className="border-panel-rule border-b px-4 pb-3">
+        <div className="border-panel-rule border-b px-4 py-3">
           <HudLabel>{label}</HudLabel>
         </div>
       )}
