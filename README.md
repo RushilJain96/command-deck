@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Command Deck
+
+Rushil's personal portfolio, built as an interactive Engineering Command Center rather than a
+page-based site. One fixed, non-scrolling viewport hosts a spatial scene: an orbital mission
+field, a spacecraft that aims at whatever is targeted, and a screen-space HUD.
+
+Built with Next.js (App Router), TypeScript, Tailwind CSS v4 and Framer Motion.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script | Description |
+| --- | --- |
+| `npm run dev` | Start the dev server |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | Run ESLint (flat config via `eslint.config.mjs`) |
+| `npm run check:layout` | Headless collision solver — proves the mission callouts, HUD rails, ship and frame coexist across 25 viewports |
 
-## Learn More
+There is no unit-test runner. `check:layout` is the closest thing to a test suite, and it is a
+hand-maintained mirror of constants in `globals.css`, `placement.ts` and `data.ts` — change any
+of those and it must change too, or it passes on stale numbers.
 
-To learn more about Next.js, take a look at the following resources:
+## Layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+  app/          root shell, home route, global styles
+  components/   shared one-offs
+  features/
+    app/          reducer, provider, hooks
+    camera/       MotionValue-driven pan/zoom
+    chrome/       persistent shell (top bar, footer)
+    environment/  starfield, celestial bodies, orbital field
+    hud/          scene-scoped readouts on the shared HudPanel housing
+    missions/     the roster, its polar to screen projection, callout cards
+    scenes/       SceneHost plus the scene registry
+    spacecraft/   yaw frames, attitude integrator, exhaust plume
+  lib/          cross-cutting primitives (angles, springs, class merging)
+scripts/        deck-layout-check.mjs
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+There is no WebGL and no three.js — the 2.5D projection is two constants in
+`features/missions/placement.ts`.
 
-## Deploy on Vercel
+## Notes for contributors
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`CLAUDE.md` and `AGENTS.md` carry the architectural invariants: the nested camera rig, the
+angle convention, the MotionValue rules and the reduced-motion handling. Read them before
+touching the interaction engine — breaking one of those produces bugs that stay invisible for
+a long time.
