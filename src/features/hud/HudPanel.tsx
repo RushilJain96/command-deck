@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
@@ -40,13 +41,55 @@ import { cn } from "@/lib/cn";
  * mechanical, so the vertical space is deliberately uneven: tight inside a group,
  * generous between groups.
  */
+/**
+ * `icon`, `action` and `corners` are ADDITIVE and all optional, so every existing
+ * rail panel renders byte-identically without them.
+ *
+ * They exist for the systems console, where a panel's header has two jobs the
+ * deck's rail never asked of it: to carry the section's glyph (the console has
+ * five panels in one frame and a bare eyebrow does not separate them fast
+ * enough), and to hold a control — the technology and tool libraries page their
+ * own contents, and the toggle belongs on the housing rather than floating in
+ * the body under the list it governs.
+ *
+ * The header is a flex row either way; with neither prop it collapses to exactly
+ * the eyebrow it always was.
+ *
+ * `corners` draws four bracket ticks just inside the panel's edge. It is the one
+ * piece of pure HUD vocabulary in the housing, and it earns its place on a screen
+ * that is four large rectangles stacked in a column: the brackets say "this is an
+ * instrument face" at a glance, where the 1px border alone says "this is a box".
+ * Off by default — the deck's rail panels are small and closely spaced, and eight
+ * ticks per panel there would be noise.
+ */
 export function HudPanel({
   label,
+  icon: Icon,
+  iconClassName,
+  iconSize = 12,
+  labelClassName,
+  action,
+  corners = false,
   children,
   className,
   bodyClassName,
 }: {
   label?: string;
+  icon?: LucideIcon;
+  /** Tints the header glyph. */
+  iconClassName?: string;
+  /** Header glyph size. 12 is the rail's; the systems console runs larger. */
+  iconSize?: number;
+  /**
+   * Overrides the eyebrow's size and tone. The default is the deck rail's 9px
+   * tertiary, which is right for a 176-unit instrument panel and much too quiet
+   * for a full-width console section — see `systems/panelStyle.ts`.
+   */
+  labelClassName?: string;
+  /** Right-aligned control in the header rule. */
+  action?: ReactNode;
+  /** Draw HUD bracket ticks at the four corners. */
+  corners?: boolean;
   children: ReactNode;
   className?: string;
   /** Escape hatch for panels that manage their own body padding (row lists). */
@@ -60,9 +103,20 @@ export function HudPanel({
         className,
       )}
     >
+      {corners && <PanelCorners />}
+
       {label && (
-        <div className="border-panel-rule border-b px-4 py-3">
-          <HudLabel>{label}</HudLabel>
+        <div className="border-panel-rule flex items-center gap-2 border-b px-4 py-3">
+          {Icon && (
+            <Icon
+              size={iconSize}
+              strokeWidth={1.75}
+              aria-hidden="true"
+              className={cn("shrink-0", iconClassName ?? "text-t3")}
+            />
+          )}
+          <HudLabel className={labelClassName}>{label}</HudLabel>
+          {action && <div className="ml-auto flex items-center">{action}</div>}
         </div>
       )}
       <div className={cn("relative", bodyClassName ?? "px-4 py-3")}>{children}</div>
@@ -70,10 +124,45 @@ export function HudPanel({
   );
 }
 
-/** Eyebrow. Small, wide-tracked and quiet — it names the panel, nothing more. */
-export function HudLabel({ children }: { children: ReactNode }) {
+/**
+ * Four L-shaped ticks, inset 5px so they read as machined marks ON the face
+ * rather than as a second border around it. `pointer-events-none` because they
+ * overlay the body and nothing in them is interactive.
+ */
+function PanelCorners() {
+  const arms = [
+    "top-[5px] left-[5px] border-t border-l",
+    "top-[5px] right-[5px] border-t border-r",
+    "bottom-[5px] left-[5px] border-b border-l",
+    "bottom-[5px] right-[5px] border-b border-r",
+  ];
   return (
-    <h2 className="text-t3 tracking-label font-mono text-[9px] leading-none uppercase">
+    <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-10">
+      {arms.map((arm) => (
+        <span
+          key={arm}
+          className={cn("border-panel-edge absolute h-[7px] w-[7px] opacity-80", arm)}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** Eyebrow. Small, wide-tracked and quiet — it names the panel, nothing more. */
+export function HudLabel({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <h2
+      className={cn(
+        "text-t3 tracking-label font-mono text-[9px] leading-none uppercase",
+        className,
+      )}
+    >
       {children}
     </h2>
   );

@@ -9,6 +9,10 @@ import type { MissionId } from "@/features/missions/types";
 export type Scene =
   | { id: "boot" }
   | { id: "command-deck" }
+  // No payload: the systems console shows the whole roster and has nothing to be
+  // parameterised BY. If it ever gains a deep link to one domain, that is a
+  // `domainId` here rather than a second scene.
+  | { id: "systems" }
   | { id: "project"; missionId: MissionId };
 
 export type SceneId = Scene["id"];

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useScene } from "@/features/app/hooks";
+import { useAppDispatch, useScene } from "@/features/app/hooks";
 import { MissionClock } from "@/features/hud/MissionClock";
 import { cn } from "@/lib/cn";
 import { DESTINATIONS, type Destination } from "./destinations";
@@ -45,17 +45,14 @@ export function TopBar() {
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      // 92px AT `lg`, 56 BELOW IT. The bar is 92 tall because it sets two lines
-      // of type in three places — name over subtitle, glyph over label, status
-      // over clock. Below `deck-md` the middle one is gone: <DestinationSelector>
-      // hides and the bar carries identity and the clock only.
-      //
-      // Holding 92 there was not free. The layout solver reports the taller bar
-      // as the binding constraint on `--orbit-radius` at every `md` viewport
-      // under about 740px, because the highest callout has to clear it — so 36px
-      // of chrome reserved for a control that is not drawn was costing roughly
-      // 50px of orbit and putting ORION through NEXUS at 1280x720.
-      className="deck-md:h-[56px] absolute top-[14px] right-[14px] left-[14px] z-40 flex h-[92px] items-stretch justify-between gap-4"
+      // 92 -> 72 -> 62px. The bar reads as three stacked pairs — name over
+      // subtitle, glyph over label, status over clock — and 92 was sized so all
+      // three could breathe. What it produced was a slab: the bar is the first
+      // thing in the frame and at 9% of its height it announced itself before the
+      // deck did. 62 still clears two lines of type in every cell with the type
+      // and the internal gaps tuned down to match, and it reads as a strip of
+      // instrumentation rather than as a header.
+      className="absolute top-[14px] right-[14px] left-[14px] z-40 flex h-[62px] items-stretch justify-between gap-5"
     >
       {/* Operator identity, in its own cell.
           NO EMBLEM. The mark was a miniature of the deck sitting next to a deck
@@ -63,15 +60,15 @@ export function TopBar() {
           the eye landed on — a logo introducing the thing directly behind it. The
           insignia vocabulary is not lost; it is on the legend card bottom-right,
           where it has a panel to be the signature OF. */}
-      <div className="border-panel-edge bg-panel flex w-[321px] shrink-0 flex-col justify-center rounded-[3px] border px-6">
-        <span className="text-t1 text-[19px] leading-none font-medium tracking-[0.01em] uppercase">
+      <div className="border-panel-edge bg-panel flex w-[268px] shrink-0 flex-col justify-center rounded-[3px] border px-4">
+        <span className="text-t1 text-[15.5px] leading-none font-medium tracking-[0.01em] uppercase">
           Rushil Jain
         </span>
         {/* Red, not tertiary grey. This line is the deck's own name, and the
             deck's accent is red — it is the one place identity and system
             colour are the same statement. Everything else in this register on
             the deck is a label for something; this is a title. */}
-        <span className="text-signal tracking-label mt-2 font-mono text-[9.5px] leading-none uppercase">
+        <span className="text-signal tracking-label mt-1 font-mono text-[8.5px] leading-none uppercase">
           Engineering Command Center
         </span>
       </div>
@@ -84,12 +81,12 @@ export function TopBar() {
           line with no register above it, so the right end of the bar had a
           different vertical structure from the left and the whole thing read
           slightly untuned. */}
-      <div className="deck-md:hidden flex shrink-0 flex-col items-end justify-center gap-2">
+      <div className="flex shrink-0 flex-col items-end justify-center gap-1">
         <span className="flex items-center gap-2">
-          <span className="text-t3 tracking-label font-mono text-[9.5px] leading-none uppercase">
+          <span className="text-t3 tracking-label font-mono text-[9px] leading-none uppercase">
             System Status
           </span>
-          <span className="text-nominal tracking-label font-mono text-[9.5px] leading-none uppercase">
+          <span className="text-nominal tracking-label font-mono text-[9px] leading-none uppercase">
             Online
           </span>
           <span className="signal-blink bg-nominal h-1.5 w-1.5 rounded-full" />
@@ -102,13 +99,17 @@ export function TopBar() {
 
 function DestinationSelector({ activeSceneId }: { activeSceneId: string }) {
   return (
-    // NOT `flex-1`. Stretching the selector across everything the identity cell
-    // and the status block leave over gave each segment ~250px on a 1536 frame,
-    // which spaces a six-position switch out until it reads as a menu bar again —
-    // the exact thing the housing exists to prevent. Sized to its content and
-    // centred by the header's `justify-between`, the segments land at the
-    // reference's ~138px and the switch reads as one instrument.
-    <nav aria-label="Primary" className="deck-md:hidden min-w-0 shrink">
+    // `flex-1` AGAIN, DELIBERATELY. This was content-sized for a while on the
+    // argument that a stretched six-position switch reads as a menu bar rather
+    // than as one instrument. That holds when the segments are stretched and
+    // EMPTY; it does not hold here, because the housing, the seams and the lit
+    // underline all still read, and the alternative left a third of the bar as
+    // dead space between three floating cells.
+    //
+    // Filling the bar is also what lets the switch breathe: each segment gets
+    // ~200px on a 1536 frame instead of ~138, so the glyph and label stop being
+    // crowded against each other.
+    <nav aria-label="Primary" className="min-w-0 flex-1">
       {/* One housing, matched to <HudPanel>'s values. The rails and this housing
           are one instrument; leaving the selector on its own fill while the side
           panels moved to the shared tokens would read as the top bar being lit by
@@ -149,25 +150,39 @@ function Segment({
   isActive: boolean;
   isFirst: boolean;
 }) {
+  const dispatch = useAppDispatch();
   // Locked until its sprint lands. aria-disabled rather than the `disabled`
   // attribute keeps it focusable, so a keyboard user can still discover the
   // structure.
   const isLocked = destination.sceneId === null;
   const Icon = destination.icon;
 
+  // THE SWITCH ACTUALLY THROWS NOW. The segments were inert while the Command
+  // Deck was the only wired scene — a mode selector with one position is a label.
+  // With the systems console live there are two, so a wired segment dispatches
+  // and a locked one still does nothing but say so.
+  //
+  // `aria-disabled` keeps a locked segment focusable, which means it also stays
+  // clickable: the guard has to be here, not in the styling.
+  const handleClick = () => {
+    if (destination.sceneId === null || isActive) return;
+    dispatch({ type: "scene/enter", scene: { id: destination.sceneId } });
+  };
+
   return (
-    <li className="relative">
+    <li className="relative flex-1">
       {/* Seam between positions. Inset vertically so it reads as a division in
           the faceplate rather than a full-height table rule. */}
-      {!isFirst && <span aria-hidden="true" className="bg-panel-edge absolute inset-y-4 left-0 w-px" />}
+      {!isFirst && <span aria-hidden="true" className="bg-panel-edge absolute inset-y-2.5 left-0 w-px" />}
 
       <button
         type="button"
+        onClick={handleClick}
         aria-current={isActive ? "page" : undefined}
         aria-disabled={isLocked || undefined}
         title={isLocked ? `${destination.label} — not yet available` : undefined}
         className={cn(
-          "group relative flex h-full w-full items-center justify-center gap-2.5 px-5 py-2",
+          "group relative flex h-full w-full items-center justify-center gap-2.5 px-3 py-1.5",
           "outline-none transition-colors duration-200",
           "focus-visible:ring-signal/70 -outline-offset-2 focus-visible:ring-2",
           // THE WHOLE SEGMENT GOES RED WHEN IT IS THE CURRENT ONE, label and
@@ -204,8 +219,8 @@ function Segment({
         )}
 
         <span className="relative flex items-center gap-2.5">
-          <Icon size={15} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
-          <span className="tracking-micro font-mono text-[11.5px] whitespace-nowrap uppercase">
+          <Icon size={13} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
+          <span className="tracking-micro font-mono text-[10px] whitespace-nowrap uppercase">
             {destination.label}
           </span>
         </span>
