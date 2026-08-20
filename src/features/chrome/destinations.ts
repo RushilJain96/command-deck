@@ -23,6 +23,17 @@ import type { SceneId } from "@/features/app/state";
  * what separate a console from a website menu: they say the destinations are
  * positions on a switch, not pages to browse.
  */
+/**
+ * A switch position can only be a scene the reducer can enter from a bare id.
+ *
+ * `boot` is excluded because it is an arrival sequence rather than a place, and
+ * `project` because it carries a `missionId` — a segment that dispatched
+ * `{ id: "project" }` with no mission would be a type error waiting to be a
+ * runtime one. Narrowing here rather than casting at the call site is what lets
+ * <TopBar> build the action straight from the datum.
+ */
+export type SwitchSceneId = Exclude<SceneId, "boot" | "project">;
+
 export interface Destination {
   id: string;
   label: string;
@@ -30,7 +41,7 @@ export interface Destination {
   /** Channel number, shown in the selector. Stable regardless of order. */
   index: string;
   icon: LucideIcon;
-  sceneId: SceneId | null;
+  sceneId: SwitchSceneId | null;
 }
 
 export const DESTINATIONS: readonly Destination[] = [
@@ -42,7 +53,7 @@ export const DESTINATIONS: readonly Destination[] = [
     icon: Radio,
     sceneId: "command-deck",
   },
-  { id: "systems", label: "Systems", short: "SYS", index: "02", icon: Waypoints, sceneId: null },
+  { id: "systems", label: "Systems", short: "SYS", index: "02", icon: Waypoints, sceneId: "systems" },
   { id: "projects", label: "Projects", short: "PROJ", index: "03", icon: FolderGit2, sceneId: null },
   { id: "timeline", label: "Timeline", short: "TIME", index: "04", icon: CircleDot, sceneId: null },
   { id: "lab", label: "Lab", short: "LAB", index: "05", icon: Beaker, sceneId: null },
