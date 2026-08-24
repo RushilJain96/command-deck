@@ -1,12 +1,12 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { ConsoleRail } from "@/features/chrome/ConsoleRail";
 import { ConsoleSky } from "./ConsoleSky";
 import { CurrentlyExploring } from "./CurrentlyExploring";
 import { EngineeringCapabilities } from "./EngineeringCapabilities";
 import { SystemDomainGrid } from "./SystemDomainGrid";
 import { SystemsHeader } from "./SystemsHeader";
-import { SystemsRail } from "./SystemsRail";
 import { TechnologyLibrary } from "./TechnologyLibrary";
 import { ToolLibrary } from "./ToolLibrary";
 
@@ -100,7 +100,7 @@ export function SystemsConsole() {
         className="sys-scrim pointer-events-none absolute inset-x-0 top-0 z-10 h-[92px] bg-[linear-gradient(to_bottom,#000_0%,#000_58%,transparent_100%)]"
       />
 
-      <SystemsRail />
+      <ConsoleRail activeId="systems" className="sys-rail" />
 
       {/* THE RAIL'S WIDTH IS NOT A MARGIN FOR THE WHOLE PAGE.
           It was: the scroll container carried `pl-[74px]`, which reserved a
