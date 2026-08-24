@@ -3,6 +3,7 @@ import type { SceneId } from "@/features/app/state";
 import { BootScene } from "./BootScene";
 import { CommandDeckScene } from "./CommandDeckScene";
 import { ProjectScene } from "./ProjectScene";
+import { ProjectsScene } from "./ProjectsScene";
 import { SystemsScene } from "./SystemsScene";
 
 /**
@@ -14,5 +15,6 @@ export const SCENE_REGISTRY: Record<SceneId, ComponentType> = {
   boot: BootScene,
   "command-deck": CommandDeckScene,
   systems: SystemsScene,
+  projects: ProjectsScene,
   project: ProjectScene,
 };

@@ -13,6 +13,12 @@ export type Scene =
   // parameterised BY. If it ever gains a deep link to one domain, that is a
   // `domainId` here rather than a second scene.
   | { id: "systems" }
+  // Also no payload, and NOT the same scene as `project` below. This one is the
+  // ROSTER — every project at once, with its own filter state — and `project` is
+  // one of them opened. Collapsing them into `{ id: "project"; missionId?: ... }`
+  // would make "which screen am I on" a null check, and every consumer would have
+  // to perform it.
+  | { id: "projects" }
   | { id: "project"; missionId: MissionId };
 
 export type SceneId = Scene["id"];

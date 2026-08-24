@@ -321,6 +321,72 @@ body {
   height: 697px;
 }
 
+/* ------------------------------------------------------------------ projects
+   THE PROJECTS CONSOLE'S FIXED BUDGET. Four heights and one gap, and they have
+   to add up to 1024 with the grid absorbing the remainder — see the table in
+   <ProjectsConsole>, which is the only other place these numbers appear.
+
+   They are here rather than as Tailwind arbitrary values on the elements for the
+   reason the systems tiers are: a budget whose terms are scattered across five
+   JSX className strings cannot be re-solved. Changing the bottom row's height
+   means changing the rail's, and the two should be adjacent.
+
+   `.proj-rail` = 1024 - 66 (footer) - 132 (bottom row) - 12 (gap) - 96 (pad)
+                = 718, which lands its foot exactly on the grid's. */
+.proj-stack {
+  gap: 12px;
+}
+.proj-header {
+  height: 76px;
+}
+.proj-filters {
+  height: 40px;
+}
+.proj-focus {
+  height: 132px;
+}
+.proj-rail {
+  height: 718px;
+}
+
+/* THE FIXED BUDGET ABOVE IS ONLY HONEST AT THE WIDE TIER.
+
+   The deck's design frame is `100vw / scale` where the scale is `innerHeight /
+   1024` — so its WIDTH in design units is the window's aspect ratio times 1024
+   and nothing else. A 16:9 window draws an 1820-unit frame, 4:3 draws 1365, and a
+   portrait window draws 600. The budget above solves for 1536; at 865 the grid
+   went to two columns, four rows had to share 578 units, and every card was
+   squashed to 131 with 92 units of its own content clipped inside it.
+
+   So below the wide tier this stops being a fixed screen and becomes a scrolling
+   one — which is what the systems console already is, for a related reason. Three
+   things switch together and all three are needed:
+
+     the grid stops absorbing the remainder  `flex: none`
+     its rows get a real floor              `minmax(280px, auto)`
+     the column scrolls                     `overflow-y: auto` on .proj-stack
+
+   Any two of the three still clip: rows with a floor inside a `flex-1` wrapper
+   overflow a box with no scroll and run under the bottom band instead.
+
+   The rail goes with them. It is 718 units tall because that is where the grid's
+   foot is at 1536, and once the grid can be any height that number is a guess —
+   a rail ending in the middle of the third row reads as broken. Its inset goes
+   too: the three sections that clear it use `@6xl:pl-[46px]`, so rail and inset
+   appear and disappear as one thing. */
+@container (max-width: 1151px) {
+  .proj-grid {
+    flex: none;
+  }
+  .proj-grid > section {
+    height: auto;
+    grid-auto-rows: minmax(280px, auto);
+  }
+  .proj-rail {
+    display: none;
+  }
+}
+
 /**
  * THE SYSTEMS CONSOLE'S WIDEST TIER, AND WHY IT IS AUTHORED CSS RATHER THAN
  * TAILWIND VARIANTS.
