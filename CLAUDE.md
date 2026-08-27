@@ -30,16 +30,18 @@ This project pins `next@16.2.12`, which is newer than most models' training data
 - Tailwind CSS v4 is configured via PostCSS (`@tailwindcss/postcss` in `postcss.config.mjs`) rather than a `tailwind.config.js` file; theme customization happens in `globals.css` using `@theme inline`.
 - `clsx` + `tailwind-merge` are available for conditional/merged class names; `framer-motion` is available for animation; `lucide-react` for icons.
 
-Feature code lives in flat folders under `src/features/{app,camera,chrome,environment,hud,missions,scenes,spacecraft}`, with cross-cutting primitives in `src/lib/{math,motion}`. Add subfolders to a feature only once it exceeds ~5 files.
+Feature code lives in flat folders under `src/features/{app,camera,chrome,environment,hud,missions,projects,scenes,spacecraft,systems}`, with cross-cutting primitives in `src/lib/{math,motion}`. Add subfolders to a feature only once it exceeds ~5 files — `projects/previews` is the first that has.
 
 - `app` — reducer, provider, hooks. Four separate primitive-valued contexts, not one object context.
 - `camera` — MotionValue-driven pan/zoom. No React state.
-- `chrome` — persistent shell (`TopBar`, `Dock`), siblings of `SceneHost` so they do not fade with scene transitions.
+- `chrome` — persistent shell (`TopBar`, `Footer`, `Emblem`), siblings of `SceneHost` so they do not fade with scene transitions. `ConsoleRail` also lives here: it is the same instrument on both consoles, varying only by which position is lit and where it stops.
 - `environment` — starfield, celestial bodies, and the orbital field. The field is a `<canvas>` because it needs additive compositing.
 - `hud` — scene-scoped readouts, all built on the shared `HudPanel` housing.
 - `missions` — the roster, its polar→screen projection (`placement.ts`), and the callout cards.
-- `scenes` — `SceneHost` plus the scene registry. `boot` and `command-deck` are real; `project` is still a stub.
+- `projects` — the Projects console: the roster, the card, the filter bar and `previews/`, which draws a schematic of each system rather than shipping screenshots.
+- `scenes` — `SceneHost` plus the scene registry. `boot`, `command-deck`, `systems` and `projects` are real; `project` — one project opened from its deck callout, and a different scene from the `projects` roster — is still a stub.
 - `spacecraft` — 16 pre-rendered WebP yaw frames, an attitude integrator, and an SVG exhaust plume.
+- `systems` — the Systems console: domain cards, the capability matrix, the technology and tool libraries. `Mark`/`markColor` and `panelStyle` are shared with `projects`.
 
 There is no WebGL and no three.js. The 2.5D projection is two constants in `placement.ts`:
 

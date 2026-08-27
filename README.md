@@ -9,17 +9,18 @@ mission field, a spacecraft that aims at whatever is targeted, and a screen-spac
 Leave this commented out rather than linking a URL that 404s. -->
 
 <!-- SCREENSHOTS
-Drop two captures in `docs/` and uncomment the block below. Capture at 1536x1024
+Drop the captures in `docs/` and uncomment the block below. Capture at 1536x1024
 (the design frame) or 3072x2048 for a 2x image — anything narrower and the deck
 scales down and the type gets soft.
 
 ![Command Deck](docs/command-deck.png)
 ![Engineering Systems console](docs/systems-console.png)
+![Engineering Projects console](docs/projects-console.png)
 -->
 
 ```
-Boot  ──▶  Mission Control  ──▶  Systems  ──▶  Projects · Timeline · Lab · Contact
-                                                       (not built yet)
+Boot  ──▶  Mission Control  ──▶  Systems  ──▶  Projects  ──▶  Timeline · Lab · Contact
+                                                                    (not built yet)
 ```
 
 ---
@@ -63,14 +64,18 @@ any of those and it must change too, or it passes on stale numbers.
 ## Scenes
 
 Navigation is state, not routing — `SceneHost` swaps scenes on one canvas with no page loads.
-The top bar is a six-position mode selector; two positions are live.
+The top bar is a six-position mode selector; three positions are live.
 
 | Scene | State | What it is |
 | --- | --- | --- |
 | **Boot** | live | Arrival sequence, hands off to the deck on a timer |
 | **Mission Control** | live | The orbital field: six mission callouts, the spacecraft, the instrument rails |
 | **Systems** | live | Engineering console — domain cards, capability matrix, technology and tool libraries, exploration panel |
-| **Projects · Timeline · Lab · Contact** | locked | Advertised in the selector so the shape of the system is visible; `ProjectScene` is a stub |
+| **Projects** | live | Roster console — eight cards over generated schematic previews, with working category, search, status and sort controls |
+| **Timeline · Lab · Contact** | locked | Advertised in the selector so the shape of the system is visible |
+
+`ProjectScene` — one project opened from its deck callout — is a separate scene from the
+**Projects** roster above, and is still a stub.
 
 ## Layout
 
@@ -81,10 +86,11 @@ src/
   features/
     app/                 reducer, provider, hooks, the scaled design frame
     camera/              MotionValue-driven pan/zoom
-    chrome/              persistent shell (top bar, footer)
+    chrome/              persistent shell (top bar, footer, the shared console rail)
     environment/         starfield, celestial bodies, orbital field
     hud/                 scene-scoped readouts on the shared HudPanel housing
     missions/            the roster, its polar→screen projection, callout cards
+    projects/            the Projects console; `previews/` holds the card schematics
     scenes/              SceneHost plus the scene registry
     spacecraft/          16 pre-rendered yaw frames, attitude integrator, exhaust plume
     systems/             the Systems console and its content
@@ -118,9 +124,19 @@ A few decisions that are load-bearing and not obvious from the file names:
   options via [`useMotionPreset`](src/lib/motion/useMotionPreset.ts). CSS keyframes are a third,
   switched off explicitly in `globals.css`.
 
-- **The Systems console reports; it does not advertise.** Every figure on it is a count of
-  [`systems/data.ts`](src/features/systems/data.ts) — no invented percentages, years or ratings —
-  and the exploration panel shows stage words over bars rather than printed scores.
+- **The Systems and Projects consoles report; they do not advertise.** Every figure on both is a
+  count of their own data — no invented percentages, years or ratings. The Systems exploration
+  panel shows stage words over bars rather than printed scores, and the Projects readout box
+  counts the roster rather than rounding it up.
+
+- **The project previews are drawn, not photographed.** Each card holds a schematic of the shape
+  of that system — a DAG, a request path, a conversation, a threat map — assembled from one shared
+  vocabulary in [`previews/primitives.tsx`](src/features/projects/previews/primitives.tsx) so the
+  eight read as one product rather than eight screenshots. No `<defs>` and no ids anywhere in
+  them: eight instances on one page share the document's id namespace. The dotted world is sampled
+  at module load from twenty-three named ellipses in
+  [`previews/world.ts`](src/features/projects/previews/world.ts) — a caricature of the Earth, not a
+  projection, and about 100KB smaller than coastline data.
 
 ## Contributing
 
