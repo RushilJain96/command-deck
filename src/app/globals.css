@@ -374,6 +374,42 @@ body {
    a rail ending in the middle of the third row reads as broken. Its inset goes
    too: the three sections that clear it use `@6xl:pl-[46px]`, so rail and inset
    appear and disappear as one thing. */
+/* ------------------------------------------------------------------ terminal
+   Only two authored heights, because this console solves itself: the terminal
+   window and the quick panel both take `flex-1`, so the screen you type into
+   grows with the frame instead of being pinned to a number measured once.
+
+   `.term-rail` = 1024 - 66 (footer) - 96 (pad) = 862. Unlike `.proj-rail` there
+   is no full-width band at the foot for it to stop above, so it runs the whole
+   content column. */
+.term-header {
+  height: 76px;
+}
+.term-shortcuts {
+  height: 56px;
+}
+.term-rail {
+  height: 862px;
+}
+
+
+/* THE BLOCK CURSOR. A square wave, not a fade — a caret that eases in and out
+   reads as a pulsing light, and the thing every terminal on earth does is snap.
+   `steps(1)` on a two-stop keyframe is the whole effect. */
+@keyframes term-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.term-caret {
+  animation: term-caret 1.06s steps(1, end) infinite;
+}
+
 @container (max-width: 1151px) {
   .proj-grid {
     flex: none;
@@ -649,6 +685,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .deck-respire,
   .signal-blink,
+  .term-caret,
   .star-drift,
   .dust-drift,
   .trace-flow,

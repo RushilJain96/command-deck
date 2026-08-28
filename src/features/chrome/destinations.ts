@@ -4,6 +4,7 @@ import {
   FolderGit2,
   Radio,
   Send,
+  SquareTerminal,
   Waypoints,
   type LucideIcon,
 } from "lucide-react";
@@ -64,5 +65,20 @@ export const DESTINATIONS: readonly Destination[] = [
   },
   { id: "timeline", label: "Timeline", short: "TIME", index: "04", icon: CircleDot, sceneId: null },
   { id: "lab", label: "Lab", short: "LAB", index: "05", icon: Beaker, sceneId: null },
-  { id: "contact", label: "Contact", short: "CONT", index: "06", icon: Send, sceneId: null },
+  // SEVEN POSITIONS, NOT SIX. The terminal sits between LAB and CONTACT because
+  // that is where the reference puts it, and the order matters more than it looks:
+  // the selector reads left to right as depth of access — what the system is, then
+  // what it has built, then the two ways in. Adding a position narrows every
+  // segment from ~200 units to ~172, which is visible on every scene, so this is
+  // the last one the bar can take before the labels have to start abbreviating to
+  // `short`.
+  {
+    id: "terminal",
+    label: "Terminal",
+    short: "TERM",
+    index: "06",
+    icon: SquareTerminal,
+    sceneId: "terminal",
+  },
+  { id: "contact", label: "Contact", short: "CONT", index: "07", icon: Send, sceneId: null },
 ];

@@ -5,6 +5,7 @@ import { CommandDeckScene } from "./CommandDeckScene";
 import { ProjectScene } from "./ProjectScene";
 import { ProjectsScene } from "./ProjectsScene";
 import { SystemsScene } from "./SystemsScene";
+import { TerminalScene } from "./TerminalScene";
 
 /**
  * A plain lookup, not a runtime `register()` call — scenes are known at build
@@ -16,5 +17,6 @@ export const SCENE_REGISTRY: Record<SceneId, ComponentType> = {
   "command-deck": CommandDeckScene,
   systems: SystemsScene,
   projects: ProjectsScene,
+  terminal: TerminalScene,
   project: ProjectScene,
 };

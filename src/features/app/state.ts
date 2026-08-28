@@ -19,6 +19,11 @@ export type Scene =
   // would make "which screen am I on" a null check, and every consumer would have
   // to perform it.
   | { id: "projects" }
+  // The terminal is a scene rather than an overlay, and that is the whole point of
+  // it: a modal shell floating over the deck would be a widget, whereas a position
+  // on the mode selector says the command line IS one of the ways this system is
+  // operated. It carries no payload — a session is not addressable.
+  | { id: "terminal" }
   | { id: "project"; missionId: MissionId };
 
 export type SceneId = Scene["id"];

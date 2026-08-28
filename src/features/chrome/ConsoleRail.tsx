@@ -5,6 +5,7 @@ import {
   Folder,
   House,
   Mail,
+  SquareTerminal,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -14,16 +15,19 @@ import { cn } from "@/lib/cn";
  * THE CONSOLE RAIL, SHARED BY EVERY CONSOLE SCENE.
  *
  * This was `SystemsScene`'s own component until a second console needed it. The
- * two differ in exactly two things — which position is lit, and where the rail
+ * consoles differ in exactly two things — which position is lit, and where the rail
  * stops — so copying it would have meant two files that must be edited together
  * forever and will not be. Everything else about it, the 44-unit width, the 14-unit
- * inset shared with the top bar, the seven marks, the lit position's outer bar, is
- * the same instrument on both screens and has to stay that way: a rail that is 44
- * wide on one console and 54 on the next is two rails.
+ * inset shared with the top bar, the eight marks, the lit position's outer bar, is
+ * the same instrument on every console and has to stay that way: a rail that is 44
+ * wide on one and 54 on the next is two rails.
+ *
+ * The marks are spread with `justify-between` inside a height the SCENE authors, so
+ * adding a ninth is a one-line edit here and costs no console a re-solve.
  *
  * IT IS DECORATIVE, AND `aria-hidden` SAYS SO. The marks do not navigate — the top
  * bar is the navigation, in the same colour, forty units above this. A second set
- * of unlabelled glyphs claiming to be links would give a screen reader user seven
+ * of unlabelled glyphs claiming to be links would give a screen reader user eight
  * destinations that do not exist. When these become live they get labels, roles and
  * a dispatch, and this comment comes out.
  */
@@ -38,6 +42,7 @@ const RAIL: readonly RailMark[] = [
   { id: "operator", icon: User },
   { id: "files", icon: Folder },
   { id: "transit", icon: ArrowRightFromLine },
+  { id: "terminal", icon: SquareTerminal },
   { id: "lab", icon: FlaskConical },
   { id: "systems", icon: ChartNoAxesColumn },
   { id: "contact", icon: Mail },
