@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { SceneId } from "@/features/app/state";
 import { BootScene } from "./BootScene";
 import { CommandDeckScene } from "./CommandDeckScene";
+import { ContactScene } from "./ContactScene";
 import { ProjectScene } from "./ProjectScene";
 import { ProjectsScene } from "./ProjectsScene";
 import { SystemsScene } from "./SystemsScene";
@@ -18,5 +19,6 @@ export const SCENE_REGISTRY: Record<SceneId, ComponentType> = {
   systems: SystemsScene,
   projects: ProjectsScene,
   terminal: TerminalScene,
+  contact: ContactScene,
   project: ProjectScene,
 };

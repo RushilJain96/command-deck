@@ -392,6 +392,26 @@ body {
   height: 862px;
 }
 
+/* ------------------------------------------------------------------- about
+   Two authored heights and the rail. The main row takes what is left, so the two
+   panels grow with the frame rather than being solved for one width.
+
+   `.about-rail` STOPS AT THE FOOT OF THE MAIN ROW: 96 + 76 + 16 + 580 = 768, so
+   its height is 672. It could run the full column — every section here is inset to
+   clear it — and at 862 it did, which put eight marks on a 123-unit pitch and left
+   the lit one stranded alone at the frame's floor. The band below is the page's
+   ASK rather than another instrument the rail borders, so stopping above it is
+   both the better line and the tighter 96-unit pitch. */
+.about-header {
+  height: 76px;
+}
+.about-band {
+  height: 174px;
+}
+.about-rail {
+  height: 672px;
+}
+
 
 /* THE BLOCK CURSOR. A square wave, not a fade — a caret that eases in and out
    reads as a pulsing light, and the thing every terminal on earth does is snap.

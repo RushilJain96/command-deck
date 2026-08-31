@@ -80,5 +80,5 @@ export const DESTINATIONS: readonly Destination[] = [
     icon: SquareTerminal,
     sceneId: "terminal",
   },
-  { id: "contact", label: "Contact", short: "CONT", index: "07", icon: Send, sceneId: null },
+  { id: "contact", label: "Contact", short: "CONT", index: "07", icon: Send, sceneId: "contact" },
 ];

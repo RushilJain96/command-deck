@@ -24,6 +24,11 @@ export type Scene =
   // on the mode selector says the command line IS one of the ways this system is
   // operated. It carries no payload — a session is not addressable.
   | { id: "terminal" }
+  // About and contact are one scene, not two. They are the same question asked
+  // twice — who is this, and how do I reach them — and splitting them would put a
+  // bio behind one nav position and an address list behind another, so a visitor
+  // who wanted the second would have to guess which one held it.
+  | { id: "contact" }
   | { id: "project"; missionId: MissionId };
 
 export type SceneId = Scene["id"];
