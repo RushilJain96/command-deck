@@ -1,5 +1,12 @@
+import { BIO, HEADLINE, OPERATOR } from "@/features/contact/data";
 import { PROJECTS } from "@/features/projects/data";
-import { CAPABILITIES, DAILY_TOOLS, SYSTEM_DOMAINS, TECHNOLOGIES } from "@/features/systems/data";
+import {
+  CAPABILITIES,
+  DAILY_TOOLS,
+  EXPLORATION_FOCUS,
+  SYSTEM_DOMAINS,
+  TECHNOLOGIES,
+} from "@/features/systems/data";
 
 /**
  * THE SESSION'S IDENTITY.
@@ -25,23 +32,23 @@ export const PROMPT = `${TERMINAL_USER}@${TERMINAL_HOST}:${TERMINAL_CWD}`;
 export const RESUME_PATH = "/resume.pdf";
 
 /**
- * WHAT `about` PRINTS — PROVISIONAL, AND MARKED AS SUCH.
+ * THE PROFILE NOW LIVES IN THE ABOUT SCENE, and this is a re-export of it.
  *
- * TODO(rushil): replace this with the real operator profile once the About scene
- * is built; that scene's copy is the source and this should quote it rather than
- * inventing a second version.
+ * It used to be a provisional block in this file with a TODO saying to replace it
+ * once the About console existed. That console exists, so the TODO is discharged
+ * rather than left to rot: `contact/data.tsx` owns the operator's own words, and
+ * `about` prints them. There is now one place where the bio is written and three
+ * surfaces that read it.
  *
- * Everything here is a fact already asserted somewhere else in the repo — the
- * footer's own strapline, the exploration focus on the systems console, the
- * domains and counts — so nothing in this block is biography that has not already
- * shipped. That is the constraint that keeps a placeholder from quietly becoming
- * a claim: a line goes in here only if it is already true on another screen.
+ * `focus` comes from the systems console's `EXPLORATION_FOCUS` for the same
+ * reason — it is already asserted on screen next to a panel of exploration tracks,
+ * and a second copy here would be a second answer to "what are you working on".
  */
 export const PROFILE = {
-  operator: "Rushil Jain",
-  role: "Engineer · Builder · Problem solver",
-  focus: "AI Engineering & System Design",
-  strapline: "Building systems that hold up under load, not demos that hold up on stage.",
+  operator: OPERATOR,
+  role: HEADLINE,
+  focus: EXPLORATION_FOCUS,
+  bio: BIO,
 } as const;
 
 /** Counted rather than typed, so `about` cannot overstate the roster. See `ConsoleStats`. */

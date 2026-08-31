@@ -1,4 +1,4 @@
-import { LINKS } from "@/features/chrome/links";
+import { CHANNELS } from "@/features/contact/data";
 import { PROJECTS, TAG_ALIAS } from "@/features/projects/data";
 import { STATUS_LABEL } from "@/features/projects/types";
 import { CAPABILITIES, DAILY_TOOLS, SYSTEM_DOMAINS, TECHNOLOGIES } from "@/features/systems/data";
@@ -85,7 +85,10 @@ const about: CommandSpec = {
     field("ROLE", PROFILE.role),
     field("FOCUS", PROFILE.focus, "green"),
     BLANK,
-    line(seg(PROFILE.strapline, "text")),
+    // The operator's own paragraphs, wrapped by the terminal rather than by the
+    // data — the bio is written as prose and this is the one surface that has to
+    // print it into a fixed-width column.
+    ...PROFILE.bio.map((paragraph) => line(seg(paragraph, "text"))),
     BLANK,
     field(
       "ROSTER",
@@ -235,29 +238,62 @@ const resume: CommandSpec = {
   },
 };
 
-/** `github` and `linkedin` are the same command twice, so they are built once. */
+/**
+ * `github` and `linkedin` are the same command twice, so they are built once — and
+ * both read the CHANNEL ROSTER rather than `links.ts`.
+ *
+ * `linkedin` is why. The roster deliberately has no address for it, while
+ * `links.ts` still carries a bare `linkedin.com` host under its own TODO. Reading
+ * the latter would mean `contact` printing "not published yet" and `linkedin`
+ * cheerfully opening a tab to LinkedIn's front page two lines later — the terminal
+ * disagreeing with itself inside one session. An unresolved channel says so and
+ * opens nothing.
+ */
 function outboundCommand(id: string, summary: string): CommandSpec {
   return {
     name: id,
     summary,
     run: (_args, io) => {
-      const link = LINKS.find((entry) => entry.id === id);
-      if (!link) return [line(seg(`${id}: no link configured`, "warn"))];
-      io.open(link.href);
-      return [line(seg("Opening ", "dim"), seg(link.href, "link"), seg(" ...", "dim"))];
+      const channel = CHANNELS.find((entry) => entry.id === id);
+      if (!channel) return [line(seg(`${id}: no channel configured`, "warn"))];
+      if (channel.href === null) {
+        return [
+          line(seg(`${channel.label} is not published yet.`, "warn")),
+          line(seg("Run ", "dim"), seg("contact", "green"), seg(" for what is.", "dim")),
+        ];
+      }
+      io.open(channel.href);
+      return [line(seg("Opening ", "dim"), seg(channel.href, "link"), seg(" ...", "dim"))];
     },
   };
 }
 
+/**
+ * `contact` READS THE ABOUT CONSOLE'S CHANNEL ROSTER, not `links.ts`.
+ *
+ * Two of those channels have no confirmed address yet and that console deliberately
+ * declines to guess one. If this command printed `links.ts` instead, the terminal
+ * would hand out an address the screen next to it is refusing to publish — which is
+ * the exact failure the roster's `href: null` exists to prevent, reintroduced by a
+ * different door.
+ */
 const contact: CommandSpec = {
   name: "contact",
   summary: "Get in touch",
   run: () => [
     heading("Contact:"),
     BLANK,
-    ...LINKS.map((link) => line(seg("  "), seg(pad(link.label, 12), "green"), seg(link.href, "link"))),
+    ...CHANNELS.map((channel) =>
+      line(
+        seg("  "),
+        seg(pad(channel.label, 12), "green"),
+        channel.handle === null
+          ? seg("not published yet", "dim")
+          : seg(channel.handle, "link"),
+      ),
+    ),
     BLANK,
-    line(seg("Or run ", "dim"), seg("github", "green"), seg(" / ", "dim"), seg("linkedin", "green"), seg(" to open one.", "dim")),
+    line(seg("Or run ", "dim"), seg("github", "green"), seg(" to open it.", "dim")),
   ],
 };
 
