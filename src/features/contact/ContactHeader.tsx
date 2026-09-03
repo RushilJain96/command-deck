@@ -37,20 +37,24 @@ export function ContactHeader() {
       </span>
 
       <div className="min-w-0">
-        <h1 className="text-t1 truncate font-mono text-[26px] leading-none font-medium tracking-[0.06em] uppercase @2xl:text-[30px]">
+        <h1 className="text-t1 truncate font-mono text-[24px] leading-none font-medium tracking-[0.06em] uppercase @2xl:text-[27px]">
           About Me
         </h1>
 
-        {/* Tick then strapline, on one line — the same device <SectionHeading> uses
-            inside the panels, so the page's four headings are one family. */}
-        <div className="mt-3 flex items-center gap-3.5">
-          <span
-            aria-hidden="true"
-            className="bg-signal block h-px w-[30px] shrink-0"
-            style={{ boxShadow: "0 0 8px rgb(255 42 42 / 0.7)" }}
-          />
-          <p className="text-t2 min-w-0 truncate font-mono text-[13px] leading-none">{HEADLINE}</p>
-        </div>
+        {/* THE SUBTITLE SITS UNDER THE TITLE, NOT BESIDE A RULE.
+            The tick used to lead this line, which pushed the strapline right and
+            left it hanging in space rather than reading as the title's own second
+            line. It is now a short lit underline BENEATH the title — the same device
+            <SectionHeading> uses inside the panels — with the strapline directly
+            below at the title's own left edge, where the eye is already looking. */}
+        <span
+          aria-hidden="true"
+          className="bg-signal mt-2.5 block h-px w-[26px]"
+          style={{ boxShadow: "0 0 8px rgb(255 42 42 / 0.7)" }}
+        />
+        <p className="text-t2 mt-2.5 min-w-0 truncate font-mono text-[12.5px] leading-none">
+          {HEADLINE}
+        </p>
       </div>
     </motion.header>
   );

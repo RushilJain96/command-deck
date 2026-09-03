@@ -19,7 +19,7 @@ import type { Opportunity } from "./types";
  */
 export function OpportunityBand() {
   return (
-    <HudPanel corners className="flex h-full min-h-0 flex-col" bodyClassName="min-h-0 flex-1 px-6 py-5">
+    <HudPanel corners className="flex h-full min-h-0 flex-col" bodyClassName="min-h-0 flex-1 px-6 py-4">
       <div className="flex h-full min-h-0 flex-col">
         <SectionHeading
           icon={Star}
@@ -32,7 +32,7 @@ export function OpportunityBand() {
             a hairline says they are three separate answers. `divide-x` puts the rule
             between cells rather than around them, so the row has no outer edges to
             collide with the panel's own border. */}
-        <div className="divide-panel-rule mt-5 grid min-h-0 flex-1 grid-cols-1 divide-y @3xl:grid-cols-3 @3xl:divide-x @3xl:divide-y-0">
+        <div className="divide-panel-rule mt-4 grid min-h-0 flex-1 grid-cols-1 divide-y @3xl:grid-cols-3 @3xl:divide-x @3xl:divide-y-0">
           {OPPORTUNITIES.map((entry, index) => (
             <OpportunityCell key={entry.id} entry={entry} index={index} />
           ))}
@@ -55,15 +55,15 @@ function OpportunityCell({ entry, index }: { entry: Opportunity; index: number }
     >
       <span
         aria-hidden="true"
-        className="mt-0.5 shrink-0"
+        className="shrink-0"
         style={{ color: entry.accent, filter: `drop-shadow(0 0 9px ${entry.accent}5c)` }}
       >
-        <Icon size={26} strokeWidth={1.6} />
+        <Icon size={22} strokeWidth={1.6} />
       </span>
 
       <div className="min-w-0">
-        <h3 className="text-t1 font-mono text-[13px] leading-none font-medium">{entry.label}</h3>
-        <p className="text-t2 mt-2.5 text-[12px] leading-[1.55]">{entry.blurb}</p>
+        <h3 className="text-t1 font-mono text-[12.5px] leading-none font-medium">{entry.label}</h3>
+        <p className="text-t2 mt-2 text-[11.5px] leading-[1.5]">{entry.blurb}</p>
       </div>
     </motion.div>
   );
@@ -75,8 +75,12 @@ function OpportunityCell({ entry, index }: { entry: Opportunity; index: number }
  * the outer two columns sit inset by an amount nothing else on the page shares.
  */
 function cellClass(index: number) {
-  const base = "flex items-start gap-3.5 py-4 @3xl:py-0";
-  if (index === 0) return `${base} @3xl:pr-8`;
-  if (index === 2) return `${base} @3xl:pl-8`;
-  return `${base} @3xl:px-8`;
+  // Tighter than it was: three short sentences across 1400 units left each cell
+  // half empty, which read as a row that had lost a column. `items-center` rather
+  // than `items-start` because the cells now sit in a band barely taller than one
+  // of them, where top-aligning leaves the glyph floating above its own text.
+  const base = "flex items-center gap-3.5 py-3 @3xl:py-0";
+  if (index === 0) return `${base} @3xl:pr-6`;
+  if (index === 2) return `${base} @3xl:pl-6`;
+  return `${base} @3xl:px-6`;
 }

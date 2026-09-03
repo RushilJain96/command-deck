@@ -1,4 +1,4 @@
-import { CHANNELS } from "@/features/contact/data";
+import { CHANNELS, PUBLISHED_CHANNELS } from "@/features/contact/data";
 import { PROJECTS, TAG_ALIAS } from "@/features/projects/data";
 import { STATUS_LABEL } from "@/features/projects/types";
 import { CAPABILITIES, DAILY_TOOLS, SYSTEM_DOMAINS, TECHNOLOGIES } from "@/features/systems/data";
@@ -283,14 +283,11 @@ const contact: CommandSpec = {
   run: () => [
     heading("Contact:"),
     BLANK,
-    ...CHANNELS.map((channel) =>
-      line(
-        seg("  "),
-        seg(pad(channel.label, 12), "green"),
-        channel.handle === null
-          ? seg("not published yet", "dim")
-          : seg(channel.handle, "link"),
-      ),
+    // Published only, matching the console. The terminal printing "not published
+    // yet" for a row the About page has stopped drawing would put the site's own
+    // unfinished business back on screen through a different door.
+    ...PUBLISHED_CHANNELS.map((channel) =>
+      line(seg("  "), seg(pad(channel.label, 12), "green"), seg(channel.handle ?? "", "link")),
     ),
     BLANK,
     line(seg("Or run ", "dim"), seg("github", "green"), seg(" to open it.", "dim")),

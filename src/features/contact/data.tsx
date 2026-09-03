@@ -1,4 +1,4 @@
-import { Brain, Briefcase, Code2, Mail, Puzzle, Star, Users } from "lucide-react";
+import { Brain, Briefcase, Code2, Hammer, Mail, Puzzle, Users } from "lucide-react";
 import { siLeetcode } from "simple-icons";
 import type { SimpleIcon } from "simple-icons";
 import { LINKS } from "@/features/chrome/links";
@@ -103,11 +103,16 @@ export const TRAITS: readonly Trait[] = [
 const linkHref = (id: string) => LINKS.find((link) => link.id === id)?.href ?? null;
 
 /**
- * FOUR CHANNELS, TWO OF THEM UNRESOLVED — see the note on `Channel.href`.
+ * THE FULL ROSTER, IN THE ORDER A READER SHOULD TRY THEM.
  *
- * TODO(rushil): fill in the LinkedIn and LeetCode addresses. They are the only two
- * strings this page is waiting on, and each is a one-line edit below; the rows
- * light up on their own once `href` and `handle` are set.
+ * `PUBLISHED_CHANNELS` below is what actually renders. An entry with no address is
+ * kept here — so the intent, the blurb and the mark survive until the URL arrives —
+ * and filtered out of every surface, because a visitor should never be shown a row
+ * that says a link is coming.
+ *
+ * TODO(rushil): fill in the LinkedIn and LeetCode addresses. Each is a one-line
+ * edit below and the row APPEARS on its own once `href` and `handle` are set — on
+ * this page and in the terminal's `contact` command together.
  *
  * The reference also drew a fifth row for a deployed portfolio at `rushil.dev`.
  * It is deliberately absent: the site is not deployed, the README keeps its own
@@ -157,6 +162,11 @@ export const CHANNELS: readonly Channel[] = [
   },
 ];
 
+/**
+ * WHAT THE OPERATOR IS ACTUALLY OPEN TO. Three, and all three are true of a
+ * student — no full-time roles, no founder language, nothing that would have a
+ * reader arriving with the wrong idea of what is on offer.
+ */
 export const OPPORTUNITIES: readonly Opportunity[] = [
   {
     id: "internships",
@@ -173,10 +183,36 @@ export const OPPORTUNITIES: readonly Opportunity[] = [
     accent: "#a78bff",
   },
   {
-    id: "opportunities",
-    label: "Opportunities",
-    blurb: "Exploring full-time roles and projects that create real-world impact.",
-    icon: Star,
+    // "Full-time roles" was wrong about the operator: he is a student, and a band
+    // that advertises availability he does not have is the one kind of inaccuracy
+    // a visitor can act on and be misled by. Learning and building is the true
+    // third answer, and it is also the one that follows from the other two.
+    id: "learning",
+    label: "Learning / Building",
+    blurb:
+      "Interested in opportunities that help me learn, build and contribute to meaningful engineering work.",
+    icon: Hammer,
     accent: "#46d5e0",
   },
 ];
+
+/**
+ * WHAT RENDERS — and the reason unresolved channels vanish rather than announce
+ * themselves.
+ *
+ * The first version of this page drew every channel and labelled the two without
+ * addresses "NOT PUBLISHED YET" beside a dashed PENDING chip. That is honest, and
+ * it is still wrong: it is a note from the person building the site to themselves,
+ * shown to a stranger who came to find an email address. A visitor cannot act on
+ * "pending" — it tells them only that the page is unfinished, which is the one
+ * impression a portfolio cannot afford.
+ *
+ * So an unresolved channel is simply absent. The panel shows what works; nothing
+ * on screen refers to something that does not exist. This is filtered once, here,
+ * rather than in each consumer — the console and the terminal's `contact` command
+ * both read it, and a second copy of the predicate is a second chance to disagree
+ * about which channels are live.
+ */
+export const PUBLISHED_CHANNELS: readonly Channel[] = CHANNELS.filter(
+  (channel) => channel.href !== null && channel.handle !== null,
+);

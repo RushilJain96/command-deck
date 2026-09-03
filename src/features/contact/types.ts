@@ -23,9 +23,12 @@ export type ChannelMark = ComponentType<{ size?: number; className?: string }>;
  * either reaches nobody or reaches a stranger, and the reader has no way to tell
  * which. `links.ts` already carries that argument as a TODO for the same URL.
  *
- * So an unresolved channel renders as an unresolved channel. It keeps its mark, its
- * name and its blurb, and says plainly that the address is not published rather
- * than offering a link that goes somewhere wrong.
+ * So an unresolved channel is HIDDEN rather than guessed at — see
+ * `PUBLISHED_CHANNELS`. It keeps its entry in the roster so the blurb and the mark
+ * survive until the address arrives, and it renders nowhere until it does. The
+ * earlier version drew it with a "pending" label, which solved the honesty problem
+ * and created a worse one: a visitor being shown the site's own unfinished
+ * business.
  */
 export interface Channel {
   readonly id: string;

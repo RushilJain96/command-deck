@@ -403,13 +403,43 @@ body {
    ASK rather than another instrument the rail borders, so stopping above it is
    both the better line and the tighter 96-unit pitch. */
 .about-header {
-  height: 76px;
+  height: 72px;
 }
 .about-band {
-  height: 174px;
+  height: 148px;
 }
+/* 96 -> 836, the foot of the opportunity band: 72 header + 16 + 488 main + 16 +
+   148 band. It ends there because every section on this console is inset to clear
+   it, so the band is the last thing it borders — at 698 it stopped halfway down
+   the band, which reads as a rail that was cut off.
+
+   THE 488 IS THE ABOUT PANEL'S CONTENT HEIGHT, measured off the rendered frame,
+   which makes this a hand-maintained mirror in the same way `.sys-rail` and
+   `deck-layout-check.mjs` are: change the length of `BIO` or the trait blurbs and
+   this has to be re-solved with them. The alternative — anchoring the rail to the
+   column's floor — put it 120 units past the last panel, into empty space. */
 .about-rail {
-  height: 672px;
+  height: 740px;
+}
+
+/* NARROW FRAMES SCROLL, the same switch the projects console makes and for the
+   same reason: the design frame's WIDTH is the window's aspect ratio times 1024,
+   so a portrait window draws a frame around 470 units across. There the two panels
+   stack, the band's three columns stack under them, and the column is far taller
+   than 1024 — a fixed-height row would squeeze all of it into 610 and clip.
+
+   Three things switch together: the main row stops absorbing the remainder, every
+   section takes its content height, and the column scrolls. `overflow-y: auto` is
+   on the stack at every tier and costs nothing at 1536, where these numbers sum to
+   exactly the frame and no scrollbar can appear. */
+@container (max-width: 1151px) {
+  .about-header,
+  .about-band {
+    height: auto;
+  }
+  .about-rail {
+    display: none;
+  }
 }
 
 
