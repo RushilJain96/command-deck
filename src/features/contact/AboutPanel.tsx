@@ -37,14 +37,14 @@ export function AboutPanel() {
       bodyClassName="px-6 py-6"
     >
       <div className="flex flex-col">
-        <div className="space-y-[18px]">
+        <div className="max-w-[72ch] space-y-4">
           {BIO.map((paragraph, index) => (
             <motion.p
               key={index}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.34, ease: "easeOut", delay: 0.1 + index * 0.07 }}
-              className="font-mono text-[15px] leading-[1.9] text-[#ccd5df]"
+              className="font-mono text-[15px] leading-[1.8] text-[#ccd5df]"
             >
               {paragraph}
             </motion.p>
@@ -55,9 +55,9 @@ export function AboutPanel() {
             reads as the division between two halves of one instrument rather than
             as an underline beneath the paragraph above it. Its margins are close and
             equal — the two blocks belong together, and an even seam is what says so. */}
-        <div className="bg-panel-rule mt-8 mb-7 h-px shrink-0" />
+        <div className="bg-panel-rule mt-6 mb-5 h-px shrink-0" />
 
-        <h3 className="text-t3 tracking-label mb-6 shrink-0 font-mono text-[10.5px] leading-none uppercase">
+        <h3 className="text-t3 tracking-label mb-5 shrink-0 font-mono text-[10.5px] leading-none uppercase">
           What Drives Me
         </h3>
 
@@ -70,7 +70,7 @@ export function AboutPanel() {
             two 195-unit ones: this container query measures the CONSOLE, not the
             panel, so 512 is the frame width at which the panel itself is wide
             enough to divide. */}
-        <div className="grid shrink-0 grid-cols-1 gap-x-6 gap-y-6 @lg:grid-cols-2">
+        <div className="grid shrink-0 grid-cols-1 gap-x-8 gap-y-5 @lg:grid-cols-2">
           {TRAITS.map((trait, index) => (
             <TraitCell key={trait.id} trait={trait} index={index} />
           ))}
