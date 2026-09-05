@@ -19,12 +19,12 @@ import type { Opportunity } from "./types";
  */
 export function OpportunityBand() {
   return (
-    <HudPanel corners className="flex h-full min-h-0 flex-col" bodyClassName="min-h-0 flex-1 px-6 py-4">
+    <HudPanel corners className="flex h-full min-h-0 flex-col" bodyClassName="min-h-0 flex-1 px-6 py-3.5">
       <div className="flex h-full min-h-0 flex-col">
         <SectionHeading
           icon={Star}
           title="Let's Build Something Great"
-          blurb="I'm always open to exciting opportunities and collaborations."
+          blurb="Always open to opportunities to learn, build and collaborate."
         />
 
         {/* SEAMS BETWEEN THE COLUMNS, not gaps. Three equal blocks of text with only
@@ -32,7 +32,7 @@ export function OpportunityBand() {
             a hairline says they are three separate answers. `divide-x` puts the rule
             between cells rather than around them, so the row has no outer edges to
             collide with the panel's own border. */}
-        <div className="divide-panel-rule mt-4 grid min-h-0 flex-1 grid-cols-1 divide-y @3xl:grid-cols-3 @3xl:divide-x @3xl:divide-y-0">
+        <div className="divide-panel-rule mt-3.5 grid min-h-0 flex-1 grid-cols-1 divide-y @3xl:grid-cols-3 @3xl:divide-x @3xl:divide-y-0">
           {OPPORTUNITIES.map((entry, index) => (
             <OpportunityCell key={entry.id} entry={entry} index={index} />
           ))}
@@ -63,7 +63,7 @@ function OpportunityCell({ entry, index }: { entry: Opportunity; index: number }
 
       <div className="min-w-0">
         <h3 className="text-t1 font-mono text-[12.5px] leading-none font-medium">{entry.label}</h3>
-        <p className="text-t2 mt-2 text-[11.5px] leading-[1.5]">{entry.blurb}</p>
+        <p className="text-t2 mt-2 text-[11.5px] leading-[1.45]">{entry.blurb}</p>
       </div>
     </motion.div>
   );
