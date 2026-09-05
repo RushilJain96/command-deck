@@ -52,13 +52,14 @@ export function ContactConsole() {
         THE VERTICAL BUDGET. 1024 units, top to bottom:
 
           top bar          14 .. 76     sibling of this scene, not in this column
-          pad                     96    every console starts its header here
+          pad                     96
+          slack                  auto   half of it here
           header                  72
           gap                     16
           main                   auto   about | connect, each its own height
           gap                     16
-          band                   148
-          slack                  auto   falls here, above the footer
+          band                   124
+          slack                  auto   and half here
           footer                  66    also a sibling; this column stops above it
 
         NEITHER PANEL IS STRETCHED, AND THAT IS THE WHOLE FIX.
@@ -83,11 +84,26 @@ export function ContactConsole() {
         continuous block and moves the remaining slack to the very bottom of the
         frame, where the footer is already waiting to close it.
 
-        COLUMNS ARE 0.72fr / 1fr. The reference measured 534:776; this is a touch
-        wider on the left, because the bio is now the page's primary content and
-        gets the room. Authored as a ratio rather than a fixed width so the split
-        survives a frame that is not 1536 wide — the design frame's width tracks the
-        window's aspect ratio, so it very often is not.
+        THE RATIO IS FLIPPED: 1fr / 0.78fr, ABOUT ON THE WIDE SIDE.
+
+        It used to be the other way round, which was the single biggest cause of the
+        empty right-hand side. The SHORT panel was also the WIDE one — two contact
+        rows spread across 824 units — so the void beside it was as wide as the page
+        allowed. Giving the bio the wider column shrinks that void by about 40% of its
+        area without removing anything, makes the taller column the wider one, and
+        settles the hierarchy: About is visibly dominant and Connect visibly second.
+
+        THE STACK IS VERTICALLY CENTRED, which is the other half of it. Shortening the
+        content in a fixed 1024-unit frame cannot remove empty space, only move it —
+        and 190 units of it collected under the band, so the page read as having
+        stopped early. Centring splits that in two and the composition sits in the
+        middle of the frame instead of hanging from the top. It is the one place this
+        console breaks the deck's convention of starting every header at y=96; scenes
+        cross-fade rather than slide, so the header does not appear to jump.
+
+        Ratios rather than fixed widths so the split survives a frame that is not
+        1536 wide — the design frame's width tracks the window's aspect ratio, so it
+        very often is not.
       */}
       <div className="deck-scroll about-stack relative flex h-full flex-col gap-4 overflow-x-hidden overflow-y-auto px-7 pt-[96px] pb-[66px]">
         <div className="about-header shrink-0 @6xl:pl-[46px]">
@@ -98,7 +114,7 @@ export function ContactConsole() {
             source order decides what a reader meets first — which is why the bio is
             written first in the markup rather than being placed left by a rule that
             disappears on a narrow frame. */}
-        <div className="about-main grid grid-cols-1 items-start gap-4 @4xl:grid-cols-[0.72fr_1fr] @6xl:pl-[46px]">
+        <div className="about-main grid grid-cols-1 items-start gap-4 @4xl:grid-cols-[1fr_0.78fr] @6xl:pl-[46px]">
           <AboutPanel />
           <ConnectPanel />
         </div>

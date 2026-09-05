@@ -406,20 +406,36 @@ body {
   height: 72px;
 }
 .about-band {
-  height: 148px;
+  height: 124px;
 }
-/* 96 -> 836, the foot of the opportunity band: 72 header + 16 + 488 main + 16 +
-   148 band. It ends there because every section on this console is inset to clear
-   it, so the band is the last thing it borders — at 698 it stopped halfway down
-   the band, which reads as a rail that was cut off.
 
-   THE 488 IS THE ABOUT PANEL'S CONTENT HEIGHT, measured off the rendered frame,
-   which makes this a hand-maintained mirror in the same way `.sys-rail` and
-   `deck-layout-check.mjs` are: change the length of `BIO` or the trait blurbs and
-   this has to be re-solved with them. The alternative — anchoring the rail to the
-   column's floor — put it 120 units past the last panel, into empty space. */
+/* THE STACK IS CENTRED IN THE FRAME. See the note in <ContactConsole>: this page
+   carries less content than the other consoles, and in a fixed 1024-unit frame that
+   surplus has to go somewhere. Split above and below, it reads as composition;
+   collected under the last panel it read as a page that had stopped early.
+
+   Switched off in the narrow tier below, where the column scrolls — a centred flex
+   column that overflows clips its own first child, which no scrollbar can reach. */
+.about-stack {
+  justify-content: center;
+}
+/* THE RAIL SPANS THE CENTRED CONTENT BLOCK, so it needs a top as well as a height:
+
+     block = 72 header + 16 + 434 main + 16 + 124 band   = 662
+     top   = 96 + (862 - 662) / 2                        = 196
+
+   where 862 is the padded column (1024 - 96 - 66) and 434 is the About panel's
+   content height, measured off the rendered frame. That last figure is the only
+   one that is not arithmetic, which makes this a hand-maintained mirror in the
+   same way `.sys-rail` and `deck-layout-check.mjs` are: change the length of `BIO`
+   or the trait blurbs and both numbers here have to be re-solved.
+
+   The alternative — anchoring the rail to the column's floor with `top/bottom` —
+   was tried and overshoots the content by 100 units at each end now that the stack
+   is centred, which reads as a rail attached to nothing. */
 .about-rail {
-  height: 740px;
+  top: 196px;
+  height: 662px;
 }
 
 /* NARROW FRAMES SCROLL, the same switch the projects console makes and for the
@@ -433,6 +449,9 @@ body {
    on the stack at every tier and costs nothing at 1536, where these numbers sum to
    exactly the frame and no scrollbar can appear. */
 @container (max-width: 1151px) {
+  .about-stack {
+    justify-content: flex-start;
+  }
   .about-header,
   .about-band {
     height: auto;
