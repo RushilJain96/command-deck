@@ -1,4 +1,4 @@
-import { Brain, Briefcase, Code2, Hammer, Mail, Puzzle, Users } from "lucide-react";
+import { Brain, Briefcase, Code2, Hammer, Mail, Puzzle, Sprout, Users } from "lucide-react";
 import { siLeetcode } from "simple-icons";
 import type { SimpleIcon } from "simple-icons";
 import { LINKS } from "@/features/chrome/links";
@@ -53,9 +53,9 @@ export const OPERATOR = "Rushil Jain";
  * out of a format you chose. It also means a fourth paragraph is one array entry.
  */
 export const BIO: readonly string[] = [
-  "I'm a computer science student who enjoys building scalable systems and solving real-world problems through code.",
-  "My interests lie in system design, AI, and backend development.",
-  "I believe in clean code, continuous learning, and building things that create real impact.",
+  "I'm a Computer Science student who enjoys understanding how things work, breaking down difficult problems, and turning ideas into working software.",
+  "I'm especially interested in backend engineering, system design, and AI — and I enjoy learning by building.",
+  "I care about writing clean code, learning continuously, and building things that are genuinely useful.",
 ];
 
 export const TRAITS: readonly Trait[] = [
@@ -81,10 +81,14 @@ export const TRAITS: readonly Trait[] = [
     accent: "#ffab3d",
   },
   {
-    id: "team-player",
-    label: "Team Player",
-    blurb: "Collaborate, communicate and build great things together.",
-    icon: Users,
+    // CONTINUOUS LEARNER replaced TEAM PLAYER. The other three are things the
+    // operator DOES with a problem; "team player" was a thing he is like to work
+    // with, which is a claim a portfolio cannot support and a reader cannot check.
+    // Learning is the one that follows from the bio above it.
+    id: "continuous-learner",
+    label: "Continuous Learner",
+    blurb: "Always learning, experimenting and improving.",
+    icon: Sprout,
     accent: "#46d5e0",
   },
 ];
@@ -187,10 +191,10 @@ export const OPPORTUNITIES: readonly Opportunity[] = [
     // that advertises availability he does not have is the one kind of inaccuracy
     // a visitor can act on and be misled by. Learning and building is the true
     // third answer, and it is also the one that follows from the other two.
-    id: "learning",
-    label: "Learning / Building",
+    id: "learn-build",
+    label: "Learn & Build",
     blurb:
-      "Interested in opportunities that help me learn, build and contribute to meaningful engineering work.",
+      "Interested in opportunities to learn, build and contribute to meaningful engineering work.",
     icon: Hammer,
     accent: "#46d5e0",
   },
