@@ -63,7 +63,14 @@ export const DESTINATIONS: readonly Destination[] = [
     icon: FolderGit2,
     sceneId: "projects",
   },
-  { id: "timeline", label: "Timeline", short: "TIME", index: "04", icon: CircleDot, sceneId: null },
+  {
+    id: "timeline",
+    label: "Timeline",
+    short: "TIME",
+    index: "04",
+    icon: CircleDot,
+    sceneId: "timeline",
+  },
   { id: "lab", label: "Lab", short: "LAB", index: "05", icon: Beaker, sceneId: null },
   // SEVEN POSITIONS, NOT SIX. The terminal sits between LAB and CONTACT because
   // that is where the reference puts it, and the order matters more than it looks:

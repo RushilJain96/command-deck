@@ -6,6 +6,7 @@ import { ContactScene } from "./ContactScene";
 import { ProjectScene } from "./ProjectScene";
 import { ProjectsScene } from "./ProjectsScene";
 import { SystemsScene } from "./SystemsScene";
+import { TimelineScene } from "./TimelineScene";
 import { TerminalScene } from "./TerminalScene";
 
 /**
@@ -20,5 +21,6 @@ export const SCENE_REGISTRY: Record<SceneId, ComponentType> = {
   projects: ProjectsScene,
   terminal: TerminalScene,
   contact: ContactScene,
+  timeline: TimelineScene,
   project: ProjectScene,
 };

@@ -29,6 +29,9 @@ export type Scene =
   // bio behind one nav position and an address list behind another, so a visitor
   // who wanted the second would have to guess which one held it.
   | { id: "contact" }
+  // The one console whose subject is time. Everything with a date on it lives
+  // here; everything without one lives on the console that owns its subject.
+  | { id: "timeline" }
   | { id: "project"; missionId: MissionId };
 
 export type SceneId = Scene["id"];
