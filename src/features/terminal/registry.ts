@@ -208,21 +208,21 @@ const timeline: CommandSpec = {
   name: "timeline",
   summary: "Engineering timeline",
   run: () => [
-    heading("Engineering timeline:"),
+    heading("Engineering journey:"),
     BLANK,
-    ...TIMELINE.map((entry) =>
+    ...TIMELINE.flatMap((entry) => [
       line(
         seg("  "),
-        seg(pad(String(entry.year), 8), "green"),
-        seg(pad(entry.label, 12), "dim"),
-        seg(entry.detail, "text"),
+        seg(pad(entry.year, 8), "green"),
+        seg(pad(entry.title, 30), "text"),
+        seg(entry.period, "dim"),
       ),
-    ),
-    BLANK,
-    // Said out loud rather than hidden, because a reader who knows the TIMELINE
-    // position in the top bar is dark deserves to know this is a summary of the
-    // roster rather than the thing that position will eventually show.
-    line(seg("Derived from the project roster. The TIMELINE channel is not built yet.", "dim")),
+      ...(entry.org === null
+        ? []
+        : [line(seg("  "), seg(pad("", 8)), seg(entry.org, "dim"))]),
+      BLANK,
+    ]),
+    line(seg("The TIMELINE console shows the same journey with its rail.", "dim")),
   ],
 };
 

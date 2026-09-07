@@ -1,4 +1,5 @@
 import { BIO, HEADLINE, OPERATOR } from "@/features/contact/data";
+import { ENTRIES } from "@/features/timeline/data";
 import { PROJECTS } from "@/features/projects/data";
 import {
   CAPABILITIES,
@@ -61,37 +62,18 @@ export const PROFILE_COUNTS = {
   capabilities: CAPABILITIES.length,
 } as const;
 
-export interface TimelineEntry {
-  readonly year: number;
-  readonly label: string;
-  readonly detail: string;
-}
-
 /**
- * THE TIMELINE, SEEDED FROM THE PROJECT ROSTER RATHER THAN AUTHORED.
+ * THE TIMELINE NOW COMES FROM THE TIMELINE CONSOLE, and the TODO that stood here
+ * is discharged.
  *
- * TODO(rushil): replace with a hand-written list when the Timeline scene is built.
- * `TimelineEntry` is the shape that scene will want, so the authored version drops
- * in here and both consumers pick it up.
- *
- * Until then the entries are DERIVED: one per year present in `projects/data.ts`,
- * naming the systems that shipped in it. That is a deliberate choice over typing
- * placeholder milestones — a seeded list can only ever repeat facts the roster
- * already asserts, whereas invented dates read as real the moment they render and
- * nobody remembers which lines were filler. The command is honest today and gets
- * better the day the real list lands.
+ * It used to be DERIVED from the project roster — one entry per year a project
+ * shipped — with a note saying to replace it when the Timeline scene was built.
+ * That scene exists, so `timeline/data.ts` owns the operator's dated history and
+ * this command prints it. The derived version was honest but it was a list of
+ * projects wearing a timeline's clothes; the real one carries education and
+ * research, which is what a reader typing `timeline` is asking for.
  */
-export const TIMELINE: readonly TimelineEntry[] = (() => {
-  const years = [...new Set(PROJECTS.map((project) => project.year))].sort((a, b) => b - a);
-  return years.map((year) => {
-    const shipped = PROJECTS.filter((project) => project.year === year);
-    return {
-      year,
-      label: `${shipped.length} ${shipped.length === 1 ? "system" : "systems"}`,
-      detail: shipped.map((project) => project.name).join(", "),
-    };
-  });
-})();
+export const TIMELINE = ENTRIES;
 
 export interface Shortcut {
   readonly keys: string;
