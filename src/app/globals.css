@@ -438,6 +438,61 @@ body {
   height: 662px;
 }
 
+/* ---------------------------------------------------------------- timeline
+   Two authored heights; the rail below them takes the remainder, so the journey
+   grows with the frame rather than being solved for one width.
+
+   `.time-rail` = 1024 - 66 (footer) - 96 (pad) = 862, the full content column.
+   Every section here is inset to clear it and there is no full-width band at the
+   foot for it to stop above, so it runs the whole way — the same call the terminal
+   console makes. */
+.time-header {
+  height: 76px;
+}
+.time-filters {
+  height: 40px;
+}
+/* THE STACK IS CENTRED, the same call the contact console makes and for the same
+   reason: this page carries four dated entries, and in a fixed 1024-unit frame that
+   surplus has to go somewhere. Collected under the last card it read as a page that
+   had stopped early; split above and below it reads as composition.
+
+   The rail follows it:
+
+     block = 76 header + 16 + 40 filters + 16 + 616 main = 764
+     top   = 96 + (862 - 764) / 2                        = 145
+
+   where 862 is the padded column (1024 - 96 - 66) and 616 is the journey rail's
+   content height, measured off the rendered frame. That last figure is the only one
+   that is not arithmetic, which makes both a hand-maintained mirror in the same way
+   `.sys-rail` and `.about-rail` are: add or remove an entry and re-solve them. */
+.time-stack {
+  justify-content: center;
+}
+.time-rail {
+  top: 145px;
+  height: 764px;
+}
+
+/* Narrow frames scroll, the same switch the projects and contact consoles make:
+   the design frame's width is the window's aspect ratio times 1024, so a portrait
+   window draws a frame around 470 units across, where the rail and the two side
+   panels stack far past the frame's height. */
+@container (max-width: 1151px) {
+  /* A centred flex column that overflows clips its own first child, where no
+     scrollbar can reach it. Narrow frames scroll, so they anchor to the top. */
+  .time-stack {
+    justify-content: flex-start;
+  }
+  .time-header,
+  .time-filters {
+    height: auto;
+  }
+  .time-rail {
+    display: none;
+  }
+}
+
 /* NARROW FRAMES SCROLL, the same switch the projects console makes and for the
    same reason: the design frame's WIDTH is the window's aspect ratio times 1024,
    so a portrait window draws a frame around 470 units across. There the two panels
