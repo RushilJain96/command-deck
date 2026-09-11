@@ -213,13 +213,13 @@ const timeline: CommandSpec = {
     ...TIMELINE.flatMap((entry) => [
       line(
         seg("  "),
-        seg(pad(entry.year, 8), "green"),
+        seg(pad(entry.range, 22), "green"),
         seg(pad(entry.title, 30), "text"),
-        seg(entry.period, "dim"),
+        seg(entry.phase, "dim"),
       ),
       ...(entry.org === null
         ? []
-        : [line(seg("  "), seg(pad("", 8)), seg(entry.org, "dim"))]),
+        : [line(seg("  "), seg(pad("", 22)), seg(entry.org, "dim"))]),
       BLANK,
     ]),
     line(seg("The TIMELINE console shows the same journey with its rail.", "dim")),
