@@ -25,6 +25,12 @@ import type { LucideIcon } from "lucide-react";
  * frame. The optimizer builds a srcset against viewport widths this app does not
  * use — every scene is one 1536x1024 composition scaled by a transform — so it
  * would spend build time producing variants nothing can ever request.
+ *
+ * THE PLATE IS ALWAYS THERE NOW, logo or glyph. It used to appear only with a real
+ * image, on the reasoning that this deck's own line art never sits in a box — true
+ * everywhere else, and wrong here, because it meant five cards carried marks at two
+ * different sizes with two different footprints depending on which files happened
+ * to exist. The plate is the card's anchor; what sits inside it can vary.
  */
 export function InstitutionMark({
   src,
@@ -41,38 +47,43 @@ export function InstitutionMark({
 }) {
   const [failed, setFailed] = useState(false);
 
-  if (src === null || failed) {
-    return (
-      <span
-        aria-hidden="true"
-        className="flex shrink-0 items-center justify-center transition-[filter] duration-200 group-hover:brightness-110"
-        style={{ width: size, height: size, color: accent, filter: `drop-shadow(0 0 8px ${accent}59)` }}
-      >
-        <Icon size={size} strokeWidth={1.6} />
-      </span>
-    );
-  }
+  const useGlyph = src === null || failed;
+  const inner = Math.round(size * 0.52);
 
   return (
     <span
-      // THE PLATE ONLY APPEARS WITH A REAL LOGO. Institutional marks are other
-      // people's artwork in whatever colours they own — a crest on a near-black
-      // panel needs a surface to sit on, the way the contact console's brand rows
-      // do. The line-art fallback above gets no plate, because this deck's own
-      // glyphs never have one.
-      className="border-panel-rule flex shrink-0 items-center justify-center overflow-hidden rounded-[4px] border bg-[rgb(255_255_255/0.055)]"
-      style={{ width: size + 10, height: size + 10 }}
+      aria-hidden={useGlyph ? true : undefined}
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-[8px] border transition-[filter] duration-200 group-hover:brightness-110"
+      style={{
+        width: size,
+        height: size,
+        color: accent,
+        borderColor: `${accent}4d`,
+        // A real logo gets a light surface, because institutional marks are other
+        // people's artwork in their own colours and disappear on near-black. The
+        // glyph gets the accent's own wash instead, since it IS the accent.
+        background: useGlyph
+          ? `linear-gradient(180deg, ${accent}1f, ${accent}08)`
+          : "rgb(255 255 255 / 0.055)",
+        boxShadow: useGlyph ? `inset 0 0 18px -10px ${accent}` : undefined,
+      }}
     >
-      <Image
-        src={src}
-        alt={alt}
-        width={size}
-        height={size}
-        unoptimized
-        onError={() => setFailed(true)}
-        className="object-contain"
-        style={{ width: size, height: "auto", maxHeight: size }}
-      />
+      {useGlyph ? (
+        <span style={{ filter: `drop-shadow(0 0 8px ${accent}59)` }}>
+          <Icon size={inner} strokeWidth={1.6} />
+        </span>
+      ) : (
+        <Image
+          src={src}
+          alt={alt}
+          width={inner}
+          height={inner}
+          unoptimized
+          onError={() => setFailed(true)}
+          className="object-contain"
+          style={{ width: inner, height: "auto", maxHeight: inner }}
+        />
+      )}
     </span>
   );
 }
