@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import { ConsoleRail } from "@/features/chrome/ConsoleRail";
 import { ConsoleSky } from "@/features/systems/ConsoleSky";
+import { ClosingLine } from "./ClosingLine";
 import { CurrentlyPanel, UpNextPanel } from "./CurrentlyPanel";
 import { ENTRIES } from "./data";
 import { FilterRow } from "./FilterRow";
@@ -54,6 +55,8 @@ export function TimelineConsole() {
           filters                 40
           gap                     16
           main                   auto   rail | currently + up next
+          gap                     16
+          close                   72    the sign-off, no housing
           footer                  66    also a sibling; this column stops above it
 
         THERE IS NO BOTTOM ROW, AND TWO ATTEMPTS AT ONE ARE WHY.
@@ -72,6 +75,8 @@ export function TimelineConsole() {
 
         What actually filled this console was a fifth entry with real content in it.
         The rail is the page; the two side panels say where that leaves him today.
+        <ClosingLine> closes it with a sentence rather than a readout — see the note
+        there for why the third attempt at this strip is the one that survives.
 
         `items-start` on the row, for the reason the contact console learned the hard
         way: the right column is two short panels and the rail is tall, so stretching
@@ -104,6 +109,9 @@ export function TimelineConsole() {
           </div>
         </div>
 
+        <div className="time-close shrink-0 @6xl:pl-[46px]">
+          <ClosingLine />
+        </div>
       </div>
     </div>
   );

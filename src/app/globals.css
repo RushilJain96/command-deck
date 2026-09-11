@@ -452,6 +452,9 @@ body {
 .time-filters {
   height: 40px;
 }
+.time-close {
+  height: 72px;
+}
 /* THE STACK IS CENTRED, the same call the contact console makes and for the same
    reason: this page carries four dated entries, and in a fixed 1024-unit frame that
    surplus has to go somewhere. Collected under the last card it read as a page that
@@ -459,10 +462,10 @@ body {
 
    The rail follows it:
 
-     block = 76 header + 16 + 40 filters + 16 + 616 main = 764
-     top   = 96 + (862 - 764) / 2                        = 145
+     block = 76 header + 16 + 40 filters + 16 + 536 main + 16 + 72 close = 772
+     top   = 96 + (862 - 772) / 2                                        = 141
 
-   where 862 is the padded column (1024 - 96 - 66) and 616 is the journey rail's
+   where 862 is the padded column (1024 - 96 - 66) and 536 is the journey rail's
    content height, measured off the rendered frame. That last figure is the only one
    that is not arithmetic, which makes both a hand-maintained mirror in the same way
    `.sys-rail` and `.about-rail` are: add or remove an entry and re-solve them. */
@@ -470,8 +473,8 @@ body {
   justify-content: center;
 }
 .time-rail {
-  top: 145px;
-  height: 764px;
+  top: 141px;
+  height: 772px;
 }
 
 /* Narrow frames scroll, the same switch the projects and contact consoles make:
@@ -485,7 +488,8 @@ body {
     justify-content: flex-start;
   }
   .time-header,
-  .time-filters {
+  .time-filters,
+  .time-close {
     height: auto;
   }
   .time-rail {
