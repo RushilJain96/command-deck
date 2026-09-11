@@ -131,17 +131,37 @@ export function UpNextPanel() {
       className="flex flex-col"
       bodyClassName="px-4 py-3.5"
     >
-      <ol className="flex flex-col gap-2.5">
+      {/* A RAIL, LIKE THE ONE ON THE LEFT OF THE PAGE — because this list is the
+          same kind of thing. Boxed rows made it read as a menu of options; dots on
+          a line say these are points in sequence, which is what they are. The page
+          then has one visual language for "things in order", used twice. */}
+      <ol className="flex flex-col">
         {UP_NEXT.map((milestone, index) => (
-          <MilestoneRow key={milestone.id} milestone={milestone} index={index} />
+          <MilestoneRow
+            key={milestone.id}
+            milestone={milestone}
+            index={index}
+            isLast={index === UP_NEXT.length - 1}
+          />
         ))}
       </ol>
     </HudPanel>
   );
 }
 
-function MilestoneRow({ milestone, index }: { milestone: Milestone; index: number }) {
-  const Icon = milestone.icon;
+function MilestoneRow({
+  milestone,
+  index,
+  isLast,
+}: {
+  milestone: Milestone;
+  index: number;
+  isLast: boolean;
+}) {
+  // ONLY THE FIRST ONE IS LIT. These are ordered and none of them has happened, so
+  // colouring all three the same makes them read as a set of equal options rather
+  // than a queue. The next one up carries its accent; the rest are waiting.
+  const isNext = index === 0;
 
   return (
     <motion.li
@@ -149,24 +169,34 @@ function MilestoneRow({ milestone, index }: { milestone: Milestone; index: numbe
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.28, ease: "easeOut", delay: 0.32 + index * 0.06 }}
       style={{ "--milestone-accent": milestone.accent } as CSSProperties}
-      className="group border-panel-rule flex items-center gap-3 rounded-[3px] border bg-[linear-gradient(180deg,#0a0e14,#06080d)] px-3 py-2.5 transition-colors duration-200 hover:border-[var(--milestone-accent)]"
+      className="group grid grid-cols-[12px_1fr] gap-x-3"
     >
-      <span
-        aria-hidden="true"
-        className="shrink-0 transition-[filter] duration-200 group-hover:brightness-110"
-        style={{ color: milestone.accent, filter: `drop-shadow(0 0 7px ${milestone.accent}59)` }}
-      >
-        <Icon size={17} strokeWidth={1.7} />
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <p className="text-t1 font-mono text-[12px] leading-none font-medium">{milestone.label}</p>
-        <p className="text-t2 mt-1.5 truncate text-[11px] leading-none">{milestone.detail}</p>
+      <div aria-hidden="true" className="flex flex-col items-center pt-[5px]">
+        <span
+          className={cn("block h-[7px] w-[7px] shrink-0 rounded-full", isNext && "signal-blink")}
+          style={
+            isNext
+              ? {
+                  backgroundColor: milestone.accent,
+                  boxShadow: `0 0 8px ${milestone.accent}b3`,
+                }
+              : { backgroundColor: "rgb(190 205 220 / 0.28)" }
+          }
+        />
+        {!isLast && <span className="bg-panel-rule mt-1 w-px flex-1" />}
       </div>
 
-      <span className="text-t3 shrink-0 font-mono text-[10.5px] leading-none tabular-nums">
-        {milestone.when}
-      </span>
+      <div className={cn("min-w-0", isLast ? "pb-0" : "pb-3.5")}>
+        <div className="flex items-baseline gap-3">
+          <p className="text-t1 min-w-0 truncate font-mono text-[12px] leading-none font-medium">
+            {milestone.label}
+          </p>
+          <span className="text-t3 ml-auto shrink-0 font-mono text-[10.5px] leading-none tabular-nums">
+            {milestone.when}
+          </span>
+        </div>
+        <p className="text-t2 mt-2 text-[11px] leading-[1.45]">{milestone.detail}</p>
+      </div>
     </motion.li>
   );
 }

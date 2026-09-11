@@ -2,17 +2,27 @@
 
 import { motion } from "framer-motion";
 import { ChartNoAxesColumn, Quote } from "lucide-react";
-import { JOURNEY_QUOTE, JOURNEY_STAMP } from "./data";
+import { JOURNEY_BLURB, JOURNEY_STAMP } from "./data";
 
 /**
- * The nameplate, on the geometry every console shares: a 42-unit plate carrying the
- * only hue in the band, the title, and the line that says what the screen is for.
+ * The nameplate, on the geometry every console shares.
  *
- * THE QUOTE HOLDS THE RIGHT END rather than a readout box. Systems, Projects and
- * the Terminal all put a figure or a status there, and this console has no figure
- * worth putting — every count it could show is counted better on another screen,
- * which is the whole reason its stats panel was cut. A line of the operator's own
- * is the honest thing to give that space to.
+ * MONO, like the About console and unlike Systems and Projects. Those two name
+ * subsystems and are set in the sans face; these two are the operator speaking,
+ * and the machine's own typeface is what marks the difference across a scene
+ * transition.
+ *
+ * "MY JOURNEY", NOT "ENGINEERING JOURNEY". Every other console on this deck is
+ * named for a system — Mission Control, Systems, Projects, Terminal. This one is
+ * named for a person, and the possessive is the whole difference: the page is not
+ * a readout of an engineering career, it is where the operator says what happened
+ * to him. The first-person title is the cheapest possible way to signal that, and
+ * it is the one console where that signal is worth sending.
+ *
+ * THE RIGHT END HOLDS A LINE, not a readout box. Systems, Projects and the Terminal
+ * all put a figure or a status there; this console has no figure worth putting,
+ * since every count it could show is counted better on another screen. That is the
+ * same reasoning that cut its stats panel.
  */
 export function TimelineHeader() {
   return (
@@ -34,11 +44,11 @@ export function TimelineHeader() {
         </span>
 
         <div className="min-w-0">
-          <h1 className="text-t1 truncate text-[25px] leading-none font-medium tracking-[-0.015em] uppercase @2xl:text-[29px]">
-            Engineering Journey
+          <h1 className="text-t1 truncate font-mono text-[23px] leading-none font-medium tracking-[0.05em] uppercase @2xl:text-[26px]">
+            My Journey
           </h1>
           <p className="mt-2 truncate text-[12.5px] leading-none text-[#a9b4c0]">
-            Key milestones, experiences, and what comes next.
+            Key moments, experiences, and what&apos;s next.
           </p>
         </div>
       </div>
@@ -52,7 +62,7 @@ export function TimelineHeader() {
           style={{ filter: "drop-shadow(0 0 8px rgb(255 42 42 / 0.45))" }}
         />
         <div className="text-right">
-          <p className="text-t1 text-[13px] leading-[1.5]">{JOURNEY_QUOTE}</p>
+          <p className="text-t1 text-[13px] leading-[1.5]">{JOURNEY_BLURB}</p>
           <p className="text-t3 tracking-micro mt-2 font-mono text-[10px] leading-none">
             {JOURNEY_STAMP}
           </p>
