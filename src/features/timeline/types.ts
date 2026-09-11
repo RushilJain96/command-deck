@@ -19,7 +19,7 @@ import type { LucideIcon } from "lucide-react";
  * Systems lists six. Two screens contradicting each other about the same fact is
  * the failure this boundary exists to prevent.
  */
-export type EntryKind = "academics" | "research" | "experience" | "milestone";
+export type EntryKind = "academics" | "research" | "internship" | "milestone";
 
 /**
  * ONGOING or COMPLETE, and there is no third value.
@@ -40,17 +40,23 @@ export interface JourneyEntry {
   /** Printed under the title: "May 2025 — Aug 2025". */
   readonly period: string;
   /**
-   * The two lines on the year rail to the left of the card.
+   * THE FULL RANGE, ON THE RAIL RATHER THAN IN THE CARD.
    *
-   * `year` IS ALWAYS THE START, never the end. The reference labelled its earliest
-   * entry "2022" for a span running 2018–2022, which is the only entry it labelled
-   * by its finish — so the rail read downward as 2026, 2025, 2025, 2024, 2022 and
-   * looked ordered while actually mixing two different meanings of the number. A
-   * rail whose numbers do not all mean the same thing is worse than no rail.
+   * This used to be a bare start year with a qualifier under it — "2025" over
+   * "MAY — AUG" — while the card printed "May 2025 — Aug 2025" a few units to the
+   * right. The same fact, twice, eight units apart. The rail is where a reader
+   * looks for WHEN, so the range lives there and the card no longer repeats it.
    */
-  readonly year: string;
-  /** The qualifier under the year: "PRESENT", "MAY — AUG", "SEP". */
-  readonly span: string;
+  readonly range: string;
+  /**
+   * What that stretch of time WAS — "Early Exploration", "Building Forward".
+   *
+   * The one piece of interpretation on the page, and the reason it earns its place
+   * is that dates alone do not say what a period meant. "2018 — 2022" is a fact;
+   * "Early Exploration" is what makes four years of unfinished side projects
+   * legible as a phase rather than a gap.
+   */
+  readonly phase: string;
   readonly status: EntryStatus;
   /**
    * Path to the institution's own logo under `public/logos/`, or `null` where

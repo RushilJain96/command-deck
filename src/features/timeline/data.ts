@@ -56,7 +56,7 @@ export function currentAcademicYear(now: Date = new Date()): string {
 export const ENTRY_KIND_LABEL: Record<EntryKind, string> = {
   academics: "Academics",
   research: "Research",
-  experience: "Experience",
+  internship: "Internship",
   milestone: "Milestone",
 };
 
@@ -77,12 +77,12 @@ export const ENTRY_KIND_LABEL: Record<EntryKind, string> = {
 export const ENTRIES: readonly JourneyEntry[] = [
   {
     id: "internship",
-    kind: "experience",
+    kind: "internship",
     title: "Cybersecurity Intern",
     org: "TMEN Systems Pvt. Ltd.",
     period: "May 2026 — Jul 2026",
-    year: "2026",
-    span: "May — Jul",
+    range: "May 2026 — Jul 2026",
+    phase: "First Industry Role",
     status: "complete",
     /**
      * TODO(rushil): one or two lines on what the work actually involved. The line
@@ -101,8 +101,8 @@ export const ENTRIES: readonly JourneyEntry[] = [
     title: "Research Assistant",
     org: DEGREE.org,
     period: "May 2025 — Aug 2025",
-    year: "2025",
-    span: "May — Aug",
+    range: "May 2025 — Aug 2025",
+    phase: "Research",
     status: "complete",
     /**
      * TODO(rushil): the topic and scope lines are still missing. The reference
@@ -130,13 +130,8 @@ export const ENTRIES: readonly JourneyEntry[] = [
     title: DEGREE.title,
     org: DEGREE.org,
     period: `${DEGREE.from} — ${DEGREE.to}`,
-    year: String(DEGREE.from),
-    // "Ongoing", NOT "Present". The rail is now strictly reverse-chronological by
-    // START year — 2026, 2025, 2024, 2022, 2018 — so every number down the left
-    // means the same thing. Labelling the degree "Present" while it sits third
-    // would have two entries above it that are also, in a different sense, present.
-    // The ONGOING badge and the lit left edge are what mark it as still running.
-    span: "Ongoing",
+    range: `${DEGREE.from} — Present`,
+    phase: "Building Forward",
     status: "ongoing",
     points: [
       "Undergraduate programme in computer science",
@@ -152,8 +147,8 @@ export const ENTRIES: readonly JourneyEntry[] = [
     title: "Senior School",
     org: "Prudence School",
     period: "2022 — 2024",
-    year: "2022",
-    span: "Sep",
+    range: "Sep 2022 — 2024",
+    phase: "High School",
     status: "complete",
     points: [
       "Senior secondary with a science and mathematics focus",
@@ -169,9 +164,8 @@ export const ENTRIES: readonly JourneyEntry[] = [
     title: "Started Building",
     org: null,
     period: "2018 — 2022",
-    // Labelled by its START, unlike the reference — see the note on `JourneyEntry.year`.
-    year: "2018",
-    span: "Early",
+    range: "2018 — 2022",
+    phase: "Early Exploration",
     status: "complete",
     points: [
       "First programs, small tools and things that mostly did not work",
@@ -222,13 +216,16 @@ export const UP_NEXT: readonly Milestone[] = [
   },
 ];
 
+
 /**
- * The closing line, promoted out of the panel the reference put it in.
+ * TWO LINES, AT OPPOSITE ENDS OF THE PAGE — and they are different registers.
  *
- * It was the one thing in that bottom row worth keeping — the other two panels
- * restated counts from Projects and Systems — so rather than lose it with them it
- * moves to the header, where the reference had a longer and blander line about
- * continuous learning and pushing boundaries.
+ * The header's is descriptive: it tells a reader what they are looking at before
+ * they read a single date. The closing line is the operator's own, and it is the
+ * page's sign-off, so it sits under everything rather than over it. An earlier
+ * pass had both at the top, where the second one just read as a subtitle competing
+ * with the first.
  */
-export const JOURNEY_QUOTE = "Same curiosity. Bigger problems. Further ahead.";
-export const JOURNEY_STAMP = "// still in progress";
+export const JOURNEY_BLURB = "A timeline of learning, building, and everything in between.";
+export const JOURNEY_STAMP = "// progressing";
+export const JOURNEY_CLOSE = ["Same curiosity.", "Bigger problems.", "Further ahead."] as const;
