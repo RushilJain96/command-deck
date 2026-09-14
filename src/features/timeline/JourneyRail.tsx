@@ -8,6 +8,13 @@ import { InstitutionMark } from "./InstitutionMark";
 import type { JourneyEntry } from "./types";
 
 /**
+ * The rail's three columns — when, axis, card. Exported because <ClosingLine> lays
+ * its baseline on the same template, so its node lands exactly under the dots.
+ */
+export const RAIL_COLUMNS =
+  "grid-cols-[92px_18px_1fr] gap-x-3 @3xl:grid-cols-[152px_18px_1fr] @3xl:gap-x-4";
+
+/**
  * THE RAIL IS ONE CONTINUOUS LINE, DRAWN BY THE ROWS RATHER THAN BEHIND THEM.
  *
  * The obvious construction is an absolutely-positioned line down the column with
@@ -19,14 +26,27 @@ import type { JourneyEntry } from "./types";
 export function JourneyRail({ entries }: { entries: readonly JourneyEntry[] }) {
   if (entries.length === 0) return <EmptyRail />;
 
+  // THE DEGREE'S THREAD. Every segment from the first staged entry to the last is
+  // drawn in the degree's accent, so the two campus cards read as one programme —
+  // and the research and internship cards the thread passes behind read as having
+  // happened inside it. Under a filter that leaves one or no staged entry, first
+  // and last coincide and nothing is lit.
+  const staged = entries.flatMap((entry, index) => (entry.stage === null ? [] : [index]));
+  const threadFrom = staged[0] ?? -1;
+  const threadTo = staged.at(-1) ?? -1;
+  const threadAccent = entries[threadFrom]?.accent ?? null;
+
   return (
-    <ol aria-label="Engineering journey" className="flex flex-col">
+    // `h-full` so the rows can share whatever height the frame has left over — see
+    // the note on <EntryRow>'s `grow`.
+    <ol aria-label="Engineering journey" className="flex h-full flex-col">
       {entries.map((entry, index) => (
         <EntryRow
           key={entry.id}
           entry={entry}
           index={index}
           isLast={index === entries.length - 1}
+          thread={index >= threadFrom && index < threadTo ? threadAccent : null}
         />
       ))}
     </ol>
@@ -37,10 +57,13 @@ function EntryRow({
   entry,
   index,
   isLast,
+  thread,
 }: {
   entry: JourneyEntry;
   index: number;
   isLast: boolean;
+  /** The accent to draw this row's segment in, or `null` for the plain rule. */
+  thread: string | null;
 }) {
   const Icon = entry.icon;
   const ongoing = entry.status === "ongoing";
@@ -56,7 +79,14 @@ function EntryRow({
       // the content spilled and the stack's `overflow-x-hidden` quietly clipped it.
       // The dates wrap to two lines in 92 units, which costs nothing; the card
       // cannot give up width it does not have.
-      className="group grid grid-cols-[92px_18px_1fr] gap-x-3 @3xl:grid-cols-[152px_18px_1fr] @3xl:gap-x-4"
+      //
+      // EVERY ROW BUT THE LAST GROWS. On a wide window the frame is shorter in
+      // design units than the rail's natural height needs, and the surplus used to
+      // collect under the last card as an empty band above the footer. Shared out
+      // between the rows instead, it lengthens the line between dots — which is
+      // what extra time between entries should look like anyway. The last row does
+      // not grow, so the rail still ends at its last card.
+      className={cn("group grid", RAIL_COLUMNS, !isLast && "grow")}
     >
       {/* THE WHEN COLUMN, right-aligned against the rail so five ranges of
           different widths still form a straight edge beside the dots. The range
@@ -89,10 +119,15 @@ function EntryRow({
             boxShadow: `0 0 10px ${entry.accent}b3`,
           }}
         />
-        {!isLast && <span className="bg-panel-rule mt-1.5 w-px flex-1" />}
+        {!isLast && (
+          <span
+            className={cn("mt-1.5 w-px flex-1", thread === null && "bg-panel-rule")}
+            style={thread === null ? undefined : { backgroundColor: `${thread}b3`, boxShadow: `0 0 6px ${thread}59` }}
+          />
+        )}
       </div>
 
-      <div className={cn("min-w-0", isLast ? "pb-0" : "pb-3.5")}>
+      <div className={cn("min-w-0", isLast ? "pb-0" : "pb-2.5")}>
         <article
           className={cn(
             "border-panel-rule relative flex flex-col items-start gap-3 rounded-[4px] border px-4 py-3.5",
@@ -136,6 +171,14 @@ function EntryRow({
                 the row simply closes up rather than printing an empty line. */}
             {entry.org !== null && (
               <p className="text-t2 mt-2.5 text-[11.5px] leading-none">{entry.org}</p>
+            )}
+            {entry.stage !== null && (
+              <p
+                className="tracking-micro mt-2.5 font-mono text-[9.5px] leading-none uppercase tabular-nums"
+                style={{ color: `${entry.accent}cc` }}
+              >
+                {entry.stage}
+              </p>
             )}
           </div>
 
