@@ -57,6 +57,16 @@ export interface JourneyEntry {
    * legible as a phase rather than a gap.
    */
   readonly phase: string;
+  /**
+   * Which part of a longer programme this entry is — "Years 1 — 2" — or `null` for
+   * an entry that stands alone.
+   *
+   * The degree is one programme across two campuses, so it is two entries, and a
+   * reader needs to see both that they are different places AND that they are the
+   * same degree. Separate cards say the first; this label, and the rail segment
+   * lit between consecutive staged entries, say the second.
+   */
+  readonly stage: string | null;
   readonly status: EntryStatus;
   /**
    * Path to the institution's own logo under `public/logos/`, or `null` where
