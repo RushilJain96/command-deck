@@ -21,18 +21,18 @@ import type { EntryKind } from "./types";
 const KIND_ICON: Record<EntryKind, ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
   academics: GraduationCap,
   research: FlaskConical,
-  experience: ShieldCheck,
+  internship: ShieldCheck,
   milestone: Lightbulb,
 };
 
 const KIND_LABEL: Record<EntryKind, string> = {
   academics: "Academics",
   research: "Research",
-  experience: "Experience",
+  internship: "Internships",
   milestone: "Milestones",
 };
 
-const PRESENT_KINDS = (["academics", "research", "experience", "milestone"] as const).filter((kind) =>
+const PRESENT_KINDS = (["academics", "research", "internship", "milestone"] as const).filter((kind) =>
   ENTRIES.some((entry) => entry.kind === kind),
 );
 
