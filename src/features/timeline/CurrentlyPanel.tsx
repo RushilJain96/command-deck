@@ -46,7 +46,7 @@ export function CurrentlyPanel() {
             one file is one too many. */}
         <span className="mt-0.5">
           <InstitutionMark
-            src={ENTRIES.find((entry) => entry.id === "btech")?.logo ?? null}
+            src={ENTRIES.find((entry) => entry.id === "btech-dubai")?.logo ?? null}
             alt={DEGREE.org}
             icon={GraduationCap}
             size={24}
