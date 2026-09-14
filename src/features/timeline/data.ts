@@ -31,6 +31,9 @@ export const DEGREE = {
   totalYears: 4,
 } as const;
 
+/** Pilani for years one and two, Dubai from year three. */
+const CAMPUS_HANDOVER = 2026;
+
 /**
  * WHICH YEAR OF THE DEGREE IT IS, DERIVED FROM THE CLOCK.
  *
@@ -63,7 +66,7 @@ export const ENTRY_KIND_LABEL: Record<EntryKind, string> = {
 /**
  * THE RAIL, IN STRICT REVERSE-CHRONOLOGICAL ORDER BY START YEAR.
  *
- * Reading down the left the years are 2026, 2025, 2024, 2022, 2018 — monotonic,
+ * Reading down the left the years are 2026, 2026, 2025, 2024, 2022, 2018 — monotonic,
  * with every number meaning the same thing. The reference led with the ongoing
  * degree instead, which put a "2026 PRESENT" label above entries that had actually
  * happened later; ordering by one rule and labelling by another is what made its
@@ -75,6 +78,41 @@ export const ENTRY_KIND_LABEL: Record<EntryKind, string> = {
  * what there is.
  */
 export const ENTRIES: readonly JourneyEntry[] = [
+  /**
+   * ONE DEGREE, TWO CAMPUSES, SO TWO ENTRIES.
+   *
+   * Years one and two were at the Pilani campus and years three and four are at
+   * Dubai. A single "2024 — Present, Dubai Campus" card put two years somewhere
+   * they did not happen. The pair shares a title, an accent and a `stage` label,
+   * and the rail runs the degree's colour from one to the other — see <JourneyRail>
+   * — so the split reads as one programme moving campus rather than two degrees.
+   *
+   * They are NOT adjacent, and that is the ordering rule doing its job: Dubai
+   * starts after the internship, and the research and internship both happened
+   * during the Pilani years. The lit thread passing behind those two cards says so
+   * without a word of copy.
+   *
+   * `DEGREE.from` and `DEGREE.to` bracket the pair; the handover year is the only
+   * new figure, and it is the one you gave.
+   */
+  {
+    id: "btech-dubai",
+    kind: "academics",
+    title: DEGREE.title,
+    org: DEGREE.org,
+    period: `${CAMPUS_HANDOVER} — ${DEGREE.to}`,
+    range: `${CAMPUS_HANDOVER} — Present`,
+    phase: "Building Forward",
+    stage: "Years 3 — 4",
+    status: "ongoing",
+    points: [
+      "Final two years of the undergraduate programme",
+      "Coursework across systems, algorithms and machine learning",
+    ],
+    icon: GraduationCap,
+    accent: "#ff3d3d",
+    logo: "/logos/bits-pilani-dubai.png",
+  },
   {
     id: "internship",
     kind: "internship",
@@ -83,6 +121,7 @@ export const ENTRIES: readonly JourneyEntry[] = [
     period: "May 2026 — Jul 2026",
     range: "May 2026 — Jul 2026",
     phase: "First Industry Role",
+    stage: null,
     status: "complete",
     /**
      * TODO(rushil): one or two lines on what the work actually involved. The line
@@ -103,6 +142,7 @@ export const ENTRIES: readonly JourneyEntry[] = [
     period: "May 2025 — Aug 2025",
     range: "May 2025 — Aug 2025",
     phase: "Research",
+    stage: null,
     status: "complete",
     /**
      * TODO(rushil): the topic and scope lines are still missing. The reference
@@ -125,20 +165,23 @@ export const ENTRIES: readonly JourneyEntry[] = [
     logo: "/logos/bits-pilani-dubai.png",
   },
   {
-    id: "btech",
+    id: "btech-pilani",
     kind: "academics",
     title: DEGREE.title,
-    org: DEGREE.org,
-    period: `${DEGREE.from} — ${DEGREE.to}`,
-    range: `${DEGREE.from} — Present`,
-    phase: "Building Forward",
-    status: "ongoing",
+    org: "BITS Pilani, Pilani Campus",
+    period: `${DEGREE.from} — ${CAMPUS_HANDOVER}`,
+    range: `${DEGREE.from} — ${CAMPUS_HANDOVER}`,
+    phase: "Foundation Years",
+    stage: "Years 1 — 2",
+    status: "complete",
     points: [
       "Undergraduate programme in computer science",
-      "Coursework across systems, algorithms and machine learning",
+      "First two years, completed at the Pilani campus",
     ],
     icon: GraduationCap,
     accent: "#ff3d3d",
+    // The same institution's mark. One file serves both campuses until there is a
+    // reason for them to differ.
     logo: "/logos/bits-pilani-dubai.png",
   },
   {
@@ -149,6 +192,7 @@ export const ENTRIES: readonly JourneyEntry[] = [
     period: "2022 — 2024",
     range: "Sep 2022 — 2024",
     phase: "High School",
+    stage: null,
     status: "complete",
     points: [
       "Senior secondary with a science and mathematics focus",
@@ -166,6 +210,7 @@ export const ENTRIES: readonly JourneyEntry[] = [
     period: "2018 — 2022",
     range: "2018 — 2022",
     phase: "Early Exploration",
+    stage: null,
     status: "complete",
     points: [
       "First programs, small tools and things that mostly did not work",
