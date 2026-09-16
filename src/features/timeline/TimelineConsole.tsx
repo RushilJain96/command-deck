@@ -54,9 +54,8 @@ export function TimelineConsole() {
           gap                     16
           filters                 40
           gap                     16
-          main                   auto   rail | currently + up next
-          gap                     16
-          close                   72    the sign-off, no housing
+          main                   grow   rail | currently + up next
+          close                   80    the sign-off baseline, 24 of it under the line
           footer                  66    also a sibling; this column stops above it
 
         THERE IS NO BOTTOM ROW, AND TWO ATTEMPTS AT ONE ARE WHY.
@@ -83,7 +82,7 @@ export function TimelineConsole() {
         them to match would manufacture a void inside each rather than leaving the
         background where the content is not.
       */}
-      <div className="deck-scroll time-stack relative flex h-full flex-col gap-4 overflow-x-hidden overflow-y-auto px-7 pt-[96px] pb-[66px]">
+      <div className="deck-scroll relative flex h-full flex-col gap-4 overflow-x-hidden overflow-y-auto px-7 pt-[96px] pb-[66px]">
         <div className="time-header shrink-0 @6xl:pl-[46px]">
           <TimelineHeader />
         </div>
@@ -100,17 +99,25 @@ export function TimelineConsole() {
         {/* THE RAIL COMES FIRST IN THE MARKUP. Below @4xl the grid is one column and
             source order is what a reader meets first — the journey is the page, and
             the two side panels are commentary on it. */}
-        <div className="grid grid-cols-1 items-start gap-4 @4xl:grid-cols-[1fr_0.46fr] @6xl:pl-[46px]">
-          <JourneyRail entries={visible} />
+        {/* THE BODY TAKES WHATEVER THE FRAME HAS LEFT, and the rail shares it out
+            between its rows — see <EntryRow>. The closing band is pinned to the
+            foot of the body, so on any window the journey runs down to it rather
+            than stopping short and leaving the gap above the footer. */}
+        <div className="flex grow flex-col @6xl:pl-[46px]">
+          <div className="grid grow grid-cols-1 items-start gap-4 @4xl:grid-cols-[1fr_0.46fr]">
+            <div className="self-stretch">
+              <JourneyRail entries={visible} />
+            </div>
 
-          <div className="flex flex-col gap-4">
-            <CurrentlyPanel />
-            <UpNextPanel />
+            <div className="flex flex-col gap-4">
+              <CurrentlyPanel />
+              <UpNextPanel />
+            </div>
           </div>
-        </div>
 
-        <div className="time-close shrink-0 @6xl:pl-[46px]">
-          <ClosingLine />
+          <div className="time-close shrink-0">
+            <ClosingLine />
+          </div>
         </div>
       </div>
     </div>

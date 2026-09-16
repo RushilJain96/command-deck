@@ -452,29 +452,24 @@ body {
 .time-filters {
   height: 40px;
 }
+/* The closing band. Its baseline sits 24 units above the column's foot so it reads
+   as the last line of the page, not as a second footer rule. */
 .time-close {
-  height: 72px;
+  height: 80px;
+  padding-bottom: 24px;
 }
-/* THE STACK IS CENTRED, the same call the contact console makes and for the same
-   reason: this page carries four dated entries, and in a fixed 1024-unit frame that
-   surplus has to go somewhere. Collected under the last card it read as a page that
-   had stopped early; split above and below it reads as composition.
+/* THE STACK IS NO LONGER CENTRED, and the surplus no longer has to be hidden.
 
-   The rail follows it:
-
-     block = 76 header + 16 + 40 filters + 16 + 536 main + 16 + 72 close = 772
-     top   = 96 + (862 - 772) / 2                                        = 141
-
-   where 862 is the padded column (1024 - 96 - 66) and 536 is the journey rail's
-   content height, measured off the rendered frame. That last figure is the only one
-   that is not arithmetic, which makes both a hand-maintained mirror in the same way
-   `.sys-rail` and `.about-rail` are: add or remove an entry and re-solve them. */
-.time-stack {
-  justify-content: center;
-}
+   Centring split the leftover height above and below the content, which worked at
+   one aspect ratio and left a band of nothing over the footer at every wider one —
+   a wide window is a SHORTER frame in design units, so the rail's cards got shorter
+   and the gap grew. Now the stack is top-anchored, the body takes the remainder,
+   the rail's rows share it out and the closing band is pinned to the foot. The
+   content fills the column at every aspect, so the rail runs the full column too,
+   the same as `.term-rail`, and there is no measured figure left to re-solve. */
 .time-rail {
-  top: 141px;
-  height: 772px;
+  top: 96px;
+  height: 862px;
 }
 
 /* Narrow frames scroll, the same switch the projects and contact consoles make:
@@ -482,15 +477,13 @@ body {
    window draws a frame around 470 units across, where the rail and the two side
    panels stack far past the frame's height. */
 @container (max-width: 1151px) {
-  /* A centred flex column that overflows clips its own first child, where no
-     scrollbar can reach it. Narrow frames scroll, so they anchor to the top. */
-  .time-stack {
-    justify-content: flex-start;
-  }
   .time-header,
   .time-filters,
   .time-close {
     height: auto;
+  }
+  .time-close {
+    padding-top: 28px;
   }
   .time-rail {
     display: none;
