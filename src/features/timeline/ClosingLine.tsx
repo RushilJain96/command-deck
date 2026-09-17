@@ -1,27 +1,36 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { cn } from "@/lib/cn";
 import { JOURNEY_CLOSE } from "./data";
+import { RAIL_COLUMNS } from "./JourneyRail";
 
 /**
- * THE PAGE'S SIGN-OFF, AND THE THIRD ATTEMPT AT THIS STRIP IS THE ONE THAT STAYS.
+ * THE PAGE'S SIGN-OFF, SET ON A BASELINE THE JOURNEY STANDS ON.
  *
- * The first was a stats band whose figures contradicted the Projects and Systems
- * consoles. The second was a "journey spine" — the same five entries replotted on
- * a decade axis, which restated the rail sideways and was cut for it. Both failed
- * the same test: they tried to put more DATA at the foot of a page that had
- * already said everything it knows.
+ * The first two attempts at this strip put more DATA at the foot of the page — a
+ * stats band that contradicted other consoles, then a spine that restated the rail
+ * sideways. Both were cut, and the sentence that replaced them is still the right
+ * content: a timeline ends, and what belongs at the end of one is a sentence.
  *
- * This one carries no data at all, which is precisely why it works. A timeline
- * ends, and what belongs at the end of one is not another readout but a sentence.
- * Three beats, centred, between two rules — the shape of a closing statement
- * rather than a panel, and the only element on the console with nothing to
- * interrogate.
+ * What the sentence lacked was a place to stand. Bare centred type between two
+ * fading rules, sitting wherever the rail happened to stop, read as a caption left
+ * floating in the space above the footer rather than as the end of anything.
  *
- * IT IS NOT A HUD PANEL. Giving it a bordered housing with a corner treatment
- * would file it alongside CURRENTLY and UP NEXT as a fourth instrument, and a
- * reader would go looking for the reading inside it. Bare type on the console's
- * own ground is what makes it read as the page exhaling.
+ * So it is now a BASELINE, anchored to the bottom of the content column:
+ *
+ *   - one hairline across the whole width, closed with a short bracket tick at each
+ *     end — the same corner language the HUD panels use, pared down to a line;
+ *   - a node on it laid out on the rail's own column template, so it lands exactly
+ *     under the dots above. The rail and its conclusion share an axis, which is
+ *     what connects them without drawing the timeline any further;
+ *   - the three beats sitting on the line, a size up from before, with the last one
+ *     lit and given the faintest glow — and a low wash of the same red under the
+ *     band, falling toward the footer, so the page's last colour meets the chrome
+ *     instead of stopping a panel's height above it.
+ *
+ * IT IS STILL NOT A HUD PANEL. A bordered housing would file it beside CURRENTLY
+ * and UP NEXT as a fourth instrument, and a reader would look for a reading in it.
  */
 export function ClosingLine() {
   return (
@@ -29,47 +38,71 @@ export function ClosingLine() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, ease: "easeOut", delay: 0.5 }}
-      className="flex h-full items-center justify-center gap-6"
+      className="relative flex h-full flex-col justify-end"
     >
-      <Rule side="left" />
+      {/* The wash. Wide and very low, so it tints the foot of the page rather than
+          reading as a spotlight on the words. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-[8%] -bottom-6 h-[120px]"
+        style={{
+          background:
+            "radial-gradient(50% 60% at 50% 100%, rgb(255 61 61 / 0.075), transparent 100%)",
+        }}
+      />
 
-      <p className="tracking-micro flex shrink-0 items-baseline gap-3 font-mono text-[12.5px] whitespace-nowrap uppercase">
-        {JOURNEY_CLOSE.map((beat, index) => (
+      <div className={cn("relative grid items-center", RAIL_COLUMNS)}>
+        {/* WHEN column: the rule leads in from the frame edge. */}
+        <div aria-hidden="true" className="flex items-center">
+          <Tick />
+          <span className="bg-panel-rule h-px flex-1" />
+        </div>
+
+        {/* AXIS column: the node under the rail's dots. */}
+        <div aria-hidden="true" className="relative flex items-center justify-center">
+          <span className="bg-panel-rule absolute -inset-x-3 top-1/2 h-px @3xl:-inset-x-4" />
           <span
-            key={beat}
-            // The last beat is the one the sentence is FOR — the two before it are
-            // the setup. Lighting all three would flatten the cadence the line is
-            // written in; lighting none would make it furniture.
-            className={index === JOURNEY_CLOSE.length - 1 ? "text-signal" : "text-t2"}
-          >
-            {beat}
-          </span>
-        ))}
-      </p>
+            className="relative block h-[9px] w-[9px] rotate-45 border"
+            style={{
+              borderColor: "rgb(255 61 61 / 0.8)",
+              backgroundColor: "rgb(255 61 61 / 0.16)",
+              boxShadow: "0 0 10px rgb(255 61 61 / 0.35)",
+            }}
+          />
+        </div>
 
-      <Rule side="right" />
+        {/* CARD column, which spans the side panels too: the line with the sentence
+            set into it. Below @2xl the beats stack, left-aligned, since the full
+            sentence is wider than a phone-width column. */}
+        <div className="flex min-w-0 items-center gap-5">
+          <span aria-hidden="true" className="bg-panel-rule hidden h-px flex-1 @2xl:block" />
+
+          <p className="tracking-micro flex shrink-0 flex-col gap-2 font-mono text-[13px] leading-none uppercase @2xl:flex-row @2xl:items-baseline @2xl:gap-4 @2xl:text-[14px]">
+            {JOURNEY_CLOSE.map((beat, index) => {
+              // The last beat is the one the sentence is FOR — the two before it
+              // are the setup. Lighting all three would flatten the cadence.
+              const last = index === JOURNEY_CLOSE.length - 1;
+              return (
+                <span
+                  key={beat}
+                  className={last ? "text-signal" : "text-t2"}
+                  style={last ? { textShadow: "0 0 14px rgb(255 61 61 / 0.35)" } : undefined}
+                >
+                  {beat}
+                </span>
+              );
+            })}
+          </p>
+
+          <span aria-hidden="true" className="bg-panel-rule h-px min-w-6 flex-1" />
+          <Tick />
+        </div>
+      </div>
     </motion.aside>
   );
 }
 
-/**
- * A rule that fades out toward the frame rather than stopping dead.
- *
- * A hard-ended hairline either side of centred type reads as a table border with a
- * caption in it. Fading to nothing at the outer end makes the pair read as a
- * flourish around the sentence, which is what they are.
- */
-function Rule({ side }: { side: "left" | "right" }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="h-px min-w-0 flex-1"
-      style={{
-        background:
-          side === "left"
-            ? "linear-gradient(to right, transparent, rgb(190 205 220 / 0.22))"
-            : "linear-gradient(to left, transparent, rgb(190 205 220 / 0.22))",
-      }}
-    />
-  );
+/** The bracket end of the baseline — a short upright, like a HUD panel's corner. */
+function Tick() {
+  return <span className="bg-panel-edge block h-[9px] w-px shrink-0" />;
 }
