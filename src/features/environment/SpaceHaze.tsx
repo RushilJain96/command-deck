@@ -51,7 +51,7 @@ import { useCamera } from "@/features/camera/CameraProvider";
  * relative motion across the whole pan range and cannot be seen. Stacked
  * backgrounds on a single element cost one layer and look identical.
  */
-const CLOUDS = [
+export const CLOUDS = [
   // Upper left, behind the instrument rail and the one visible planet.
   "radial-gradient(40% 32% at 20% 16%, rgb(44 122 116 / 0.099), transparent 68%)",
   // Runs diagonally down past the field's left flank, so the two greens read as
@@ -95,7 +95,7 @@ const HAZE_PARALLAX = 0.018;
  * same darkness applied above the field would erase the outer rings, which is
  * exactly why the vignette in <DeepSpace> stayed stood down.
  */
-const AMBIENT = [
+export const AMBIENT = [
   /**
    * SHIP BLOOM. A small, weak pool directly behind the hull.
    *
@@ -158,7 +158,7 @@ const AMBIENT = [
  * for 300 bytes is worse than the bytes. `baseFrequency` is high so the grain is
  * fine — a low frequency here looks like clouds, not film.
  */
-const GRAIN =
+export const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
 export function SpaceHaze() {
