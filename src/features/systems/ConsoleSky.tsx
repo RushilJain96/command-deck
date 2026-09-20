@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { AMBIENT, CLOUDS, GRAIN } from "@/features/environment/SpaceHaze";
 
 /**
  * The console's own sky.
@@ -76,31 +77,24 @@ const STARS: readonly Star[] = (() => {
 export function ConsoleSky() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* THE GROUND. Opaque, because it is what covers the deck's own sky — see the
-          note above. Deep navy rather than the deck's `--void` #000: the console is
-          an instrument face rather than open space, and a hair of blue is what lets
-          the panels above it read as sitting ON something. */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(96% 62% at 50% -6%, #0b111c 0%, #070b13 44%, #04060b 100%)",
-        }}
-      />
+      {/* THE GROUND IS THE COMMAND DECK'S OWN, layer for layer.
 
-      {/* ATMOSPHERE. Two very soft washes, cool and off-axis, at an alpha where
-          neither is nameable as a shape — they exist to keep the ground from being
-          one flat value, which is what makes a dark screen look like a switched-off
-          one. Deliberately NOT centred on anything: a symmetrical glow behind an
-          asymmetric layout reads as a vignette. */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(46% 38% at 18% 8%, rgb(90 130 200 / 0.10), transparent 70%)," +
-            "radial-gradient(42% 44% at 88% 78%, rgb(140 110 210 / 0.08), transparent 72%)",
-        }}
-      />
+          This used to be a separate recipe: a navy gradient from the top, plus a
+          cool blue wash and a violet one. On its own it looked fine, but next to
+          the deck it was clearly a different place. The deck is black at the edges
+          with a teal atmosphere and a deep blue core, and moving from Mission
+          Control into any console changed the colour of space itself.
+
+          So the consoles now paint <SpaceHaze>'s exact layers, imported rather than
+          copied so the two cannot drift apart again: ambient core, teal clouds and
+          grain. The one difference is that nothing here moves: a console has no
+          camera, so the clouds sit where the deck's do at rest. They are drawn on
+          the same oversized box (-10% each side) so their shapes and positions
+          match the deck's rather than being squeezed into the frame. */}
+      <div className="absolute inset-0" style={{ background: AMBIENT }} />
+      <div className="absolute -inset-[10%]" style={{ background: CLOUDS }} />
+      {/* Grain over the gradients so it dithers them, as on the deck. */}
+      <div className="absolute inset-0" style={{ backgroundImage: GRAIN, opacity: 0.04 }} />
 
       {STARS.map((star, index) => (
         <span
